@@ -68,6 +68,7 @@ def controlled_run(args) -> list[dict]:
                     region=args.region,
                     temperature=args.temperature,
                     max_tokens=args.max_tokens,
+                    timeout_s=args.timeout_s,
                     history=history if args.session else None,
                 )
                 text = meta["text"]
@@ -273,6 +274,8 @@ def main() -> int:
     parser.add_argument("--region", default=None)
     parser.add_argument("--temperature", type=float, default=0.3)
     parser.add_argument("--max-tokens", type=int, default=256)
+    parser.add_argument("--timeout-s", type=float, default=45,
+                        help="Bedrock Converse read timeout (raise for GPT-5.6 Sol)")
     parser.add_argument("--ollama-host", default="http://localhost:11434")
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--session", action="store_true",
