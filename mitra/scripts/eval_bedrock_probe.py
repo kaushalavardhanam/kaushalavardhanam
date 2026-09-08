@@ -18,6 +18,7 @@ sys.path.insert(0, str(_ROOT))
 SHORTLIST = [
     "us.amazon.nova-pro-v1:0",
     "us.amazon.nova-lite-v1:0",
+    "us.anthropic.claude-sonnet-4-6",
     "us.anthropic.claude-sonnet-4-20250514-v1:0",
     "us.anthropic.claude-haiku-4-5-20251001-v1:0",
 ]
@@ -75,7 +76,10 @@ def main() -> int:
         "rows": rows,
         "any_ok": any(r["status"] == "ok" for r in rows),
         "note": "AccessDenied means Mode B cannot score this identity. "
-                "Mitra does not silently switch models.",
+                "Mitra does not silently switch models. "
+                "Use inference-profile IDs (us.* / global.*); bare foundation-model "
+                "IDs often return ValidationException. Claude Sonnet 4 (20250514) is "
+                "legacy; prefer us.anthropic.claude-sonnet-4-6.",
     }
     path = _ROOT / "evals" / "results" / "bedrock_probe.json"
     path.parent.mkdir(parents=True, exist_ok=True)

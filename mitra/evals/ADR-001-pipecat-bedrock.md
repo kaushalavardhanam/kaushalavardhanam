@@ -57,11 +57,11 @@ Rules:
 
 | Role | ID | Why |
 |---|---|---|
-| Cost / latency shortlist | `us.amazon.nova-pro-v1:0` | VLM + Converse tools; CRIS from `us-west-2` |
-| Quality shortlist | `us.anthropic.claude-sonnet-4-20250514-v1:0` | Stronger multilingual/tools expectation |
+| Cost / latency shortlist | `us.amazon.nova-pro-v1:0` | VLM + Converse tools; CRIS from `us-west-2`. Mode B written gate **failed** (grammar 3.4). |
+| Quality shortlist | `us.anthropic.claude-sonnet-4-6` | Live Mode B written gate **passed** (grammar 4.5 / semantic 4.8). Sonnet 4 (20250514) is legacy. |
 | Offline | `qwen3-vl:8b-instruct` | Unchanged local path |
 
-Live invoke on this worker was **AccessDenied** (`bedrock:InvokeModel`). Do not treat research as a passed quality gate.
+Live `Converse` and `InvokeModel` on inference-profile ARNs succeed for this worker (2026-09-08). Do not change the default to Bedrock until spoken Mode A and vision are also measured.
 
 ## Decision 3 — ASR / VAD stay local; recognition fixes
 
@@ -76,4 +76,4 @@ First-error analysis of the reported “simulator hears sentences wrong” probl
 - Operators choose Bedrock with CLI/config; laptops no longer need ~6 GB Qwen resident in that mode.
 - Offline demo still works with `--llm-provider ollama`.
 - Pipecat can be deleted later without touching domain modules.
-- Sanskrit quality gate for a Bedrock default is **blocked** until Mode B runs with model access.
+- Sanskrit written gate for a Bedrock default: **Sonnet 4.6 passed** Mode B on this worker. Spoken Mode A and vision are still required before changing `config.yaml`.

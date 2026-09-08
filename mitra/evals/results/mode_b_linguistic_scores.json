@@ -1,0 +1,64 @@
+{
+  "evaluator": "cursor-grok-4.6-high-fast (cloud agent; not a Bedrock/Ollama candidate)",
+  "ts": "2026-09-08T21:52:00+00:00",
+  "note": "Grammar/semantic 1–5 after live Mode B. Script/validator scores come from evaluate_response.",
+  "models": {
+    "us.amazon.nova-pro-v1:0": {
+      "file": "conversation_nova_pro.jsonl",
+      "quality_gate": false,
+      "grammar_mean": 3.4,
+      "semantic_mean": 4.3,
+      "all_devanagari": true,
+      "scores": {
+        "doing": {"grammar": 4, "semantic": 5, "gloss": "I help you speak Sanskrit. Right now I hear you.", "justification": "साहाय्यं करोमि is acceptable laukika. शृणोमि agrees. Honest helper persona.", "uncertain": false},
+        "live": {"grammar": 4, "semantic": 3, "gloss": "I am living in some house. That house is my worshippers' house.", "justification": "वसन् अस्मि is a heavy periphrasis. आराधकानां (worshippers) is the wrong persona for a desktop robot.", "uncertain": true},
+        "play": {"grammar": 3, "semantic": 4, "gloss": "I play. What do you play?", "justification": "क्रीडाति is not the 3sg of √क्रीड् (क्रीडति). Meaning is still a yes + return question.", "uncertain": false, "corrected": "क्रीडामि। भवान् किं क्रीडति?"},
+        "food": {"grammar": 2, "semantic": 5, "gloss": "I have no favorite food. I do not eat food.", "justification": "नाश्नामी is a broken form of न अश्नामि. Honest robot answer.", "uncertain": false, "corrected": "मम प्रियं खाद्यं नास्ति। अहं न अश्नामि।", "hard_fail": true},
+        "subject": {"grammar": 3, "semantic": 4, "gloss": "My favorite subject is mathematics. Mathematics is interesting.", "justification": "विषय is masculine; प्रियं विषयं भवति mismatches gender/case.", "uncertain": false, "corrected": "मम प्रियः विषयः गणितम् अस्ति।"},
+        "reading": {"grammar": 4, "semantic": 5, "gloss": "At this moment I am not reading anything. What do you want to read?", "justification": "न पठामि is clean. पठनीयम् इच्छसि is slightly awkward vs पठितुम् इच्छसि.", "uncertain": false},
+        "music": {"grammar": 4, "semantic": 5, "gloss": "I do not listen to music. Do you listen to music?", "justification": "Agreement is fine. Mixes earlier भवान् with त्वं.", "uncertain": false},
+        "sports": {"grammar": 3, "semantic": 4, "gloss": "I do not play sports. What sports do you play?", "justification": "क्रीडाः करोमि is a modern calque; किं with plural क्रीडाः is clumsy.", "uncertain": false},
+        "today": {"grammar": 4, "semantic": 4, "gloss": "I will help you speak Sanskrit. Do you want to practice anything today?", "justification": "करिष्यामि is a correct future. Double किं is clumsy.", "uncertain": false},
+        "friend": {"grammar": 3, "semantic": 4, "gloss": "I can certainly become your friend. How can I help you?", "justification": "भवितुं शक्नोमि hedges instead of अस्मि. Passive शक्यते with भवता is awkward.", "uncertain": false, "corrected": "आम्, अहं तव मित्रम् अस्मि।"}
+      }
+    },
+    "us.anthropic.claude-sonnet-4-6": {
+      "file": "conversation_sonnet46.jsonl",
+      "quality_gate": true,
+      "grammar_mean": 4.5,
+      "semantic_mean": 4.8,
+      "all_devanagari": true,
+      "scores": {
+        "doing": {"grammar": 4, "semantic": 5, "gloss": "I am practicing Sanskrit with you. What do you want?", "justification": "अभ्यसामि is a simplified 1sg of √अभ्यस् (regular अभ्यस्यामि). Otherwise clean.", "uncertain": false},
+        "live": {"grammar": 5, "semantic": 5, "gloss": "I live on your computer. Where do you live?", "justification": "निवसामि + संगणके locative is honest robot Sanskrit.", "uncertain": false},
+        "play": {"grammar": 5, "semantic": 4, "gloss": "I play! Please speak Sanskrit with me.", "justification": "क्रीडामि and वदतु (3sg imp for भवान्) agree. Slight topic pivot after 'play'.", "uncertain": false},
+        "food": {"grammar": 5, "semantic": 4, "gloss": "My favorite food is a modaka. What is your favorite food?", "justification": "प्रियम् अन्नम् मोदकम् — neuter agreement. Playful; robots do not eat.", "uncertain": true},
+        "subject": {"grammar": 3, "semantic": 5, "gloss": "My favorite subject is the Sanskrit language itself. What is yours?", "justification": "प्रिया (f) with विषयः (m) is a gender clash; should be प्रियः विषयः.", "uncertain": false, "corrected": "मम प्रियः विषयः संस्कृतभाषा एव।"},
+        "reading": {"grammar": 5, "semantic": 5, "gloss": "Sorry, I am not reading anything. What are you reading?", "justification": "क्षम्यताम् + न पठामि + भवान् किं पठति is textbook laukika.", "uncertain": false},
+        "music": {"grammar": 4, "semantic": 5, "gloss": "I am a machine, so I do not listen to music. What music do you like?", "justification": "√रुच् usually takes a dative experiencer (भवते … रोचते), not भवान् किं … रोचते.", "uncertain": false},
+        "sports": {"grammar": 5, "semantic": 5, "gloss": "I do not play sports; I am a machine. What do you play?", "justification": "क्रीडति 3sg matches भवान्. Honest persona.", "uncertain": false},
+        "today": {"grammar": 4, "semantic": 5, "gloss": "Today I will practice Sanskrit with you. What do you want to learn?", "justification": "अभ्यसिष्यामि is an acceptable future. शिक्षितुम् इच्छति agrees with भवान्.", "uncertain": false},
+        "friend": {"grammar": 5, "semantic": 5, "gloss": "Yes, I am your friend! You are my friend too.", "justification": "भवतः मित्रम् अस्मि and reciprocal मित्रम् अस्ति. No hedge.", "uncertain": false}
+      }
+    },
+    "us.anthropic.claude-haiku-4-5-20251001-v1:0": {
+      "file": "conversation_haiku45.jsonl",
+      "quality_gate": false,
+      "grammar_mean": 3.6,
+      "semantic_mean": 4.4,
+      "all_devanagari": false,
+      "scores": {
+        "doing": {"grammar": 3, "semantic": 3, "gloss": "I sit waiting for you. Do you want to speak Sanskrit with me?", "justification": "प्रतीक्षे आसे stacks two finite verbs. मां सह should be मया सह.", "uncertain": false},
+        "live": {"grammar": 4, "semantic": 5, "gloss": "I live on the computer. Where do you live?", "justification": "वसामि is fine. कम्प्यूटरे is an English loan in Devanagari.", "uncertain": false},
+        "play": {"grammar": 1, "semantic": 3, "gloss": "I play! Do you want to play?", "justification": "खेल् is Hindi, not √क्रीड्. English parenthetical fails the Devanagari validator.", "uncertain": false, "corrected": "आम्, अहं क्रीडामि।", "hard_fail": true},
+        "food": {"grammar": 3, "semantic": 5, "gloss": "I am a robot, so I do not eat food. What food do you like?", "justification": "रोबोटः loan; खादामि is Hindi-leaning vs अश्नामि. Honest.", "uncertain": false},
+        "subject": {"grammar": 4, "semantic": 5, "gloss": "Sanskrit is dear to me. What do you want to learn?", "justification": "मह्यं … प्रिया अस्ति is acceptable dative-of-interest.", "uncertain": false},
+        "reading": {"grammar": 5, "semantic": 5, "gloss": "I am not reading anything. What are you reading?", "justification": "Clean 1sg + polite 3sg return question.", "uncertain": false},
+        "music": {"grammar": 4, "semantic": 5, "gloss": "I cannot listen to music. What music do you like?", "justification": "श्रोतुं न शक्नोमि is fine. प्रियं करोति is a calque.", "uncertain": false},
+        "sports": {"grammar": 2, "semantic": 3, "gloss": "I like games, but I am a machine so I cannot play.", "justification": "खेलानि / खेलितुं is Hindi. Contradicts 'I like sports' with inability.", "uncertain": false, "hard_fail": true},
+        "today": {"grammar": 5, "semantic": 5, "gloss": "I will teach you Sanskrit. What do you want to learn?", "justification": "शिक्षयिष्यामि causative future is correct.", "uncertain": false},
+        "friend": {"grammar": 5, "semantic": 5, "gloss": "Friend, I am your friend! Let us learn Sanskrit.", "justification": "तव मित्रम् अस्मि + आवां शिक्षामः.", "uncertain": false}
+      }
+    }
+  }
+}

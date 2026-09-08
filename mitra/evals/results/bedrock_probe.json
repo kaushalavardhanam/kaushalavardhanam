@@ -1,57 +1,67 @@
 {
-  "ts": "2026-09-08T20:57:09.475581+00:00",
+  "ts": "2026-09-08T21:54:04.265926+00:00",
   "credentials_present": true,
   "credential_method": "iam-role",
   "rows": [
     {
       "region": "us-west-2",
       "model_id": "us.amazon.nova-pro-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814:inference-profile/us.amazon.nova-"
+      "status": "ok"
     },
     {
       "region": "us-west-2",
       "model_id": "us.amazon.nova-lite-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814:inference-profile/us.amazon.nova-"
+      "status": "ok"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.anthropic.claude-sonnet-4-6",
+      "status": "ok"
     },
     {
       "region": "us-west-2",
       "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814:inference-profile/us.anthropic.cl"
+      "status": "ResourceNotFoundException",
+      "message": "Access denied. This Model is marked by provider as Legacy and you have not been actively using the model in the last 30 days. Please upgrade to an active model on Amazon Bedrock"
     },
     {
       "region": "us-west-2",
       "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814:inference-profile/us.anthropic.cl"
+      "status": "ok"
     },
     {
       "region": "us-east-1",
       "model_id": "us.amazon.nova-pro-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814:inference-profile/us.amazon.nova-"
+      "status": "ok"
     },
     {
       "region": "us-east-1",
       "model_id": "us.amazon.nova-lite-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814:inference-profile/us.amazon.nova-"
+      "status": "ok"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.anthropic.claude-sonnet-4-6",
+      "status": "ok"
     },
     {
       "region": "us-east-1",
       "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814:inference-profile/us.anthropic.cl"
+      "status": "ResourceNotFoundException",
+      "message": "Access denied. This Model is marked by provider as Legacy and you have not been actively using the model in the last 30 days. Please upgrade to an active model on Amazon Bedrock"
     },
     {
       "region": "us-east-1",
       "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-      "status": "AccessDeniedException",
-      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/i-09a235780db23f9af-ZYq1vQSRWV is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814:inference-profile/us.anthropic.cl"
+      "status": "ok"
     }
   ],
-  "any_ok": false,
-  "note": "AccessDenied means Mode B cannot score this identity. Mitra does not silently switch models."
+  "any_ok": true,
+  "note": "AccessDenied means Mode B cannot score this identity. Mitra does not silently switch models. Use inference-profile IDs (us.* / global.*); bare foundation-model IDs often return ValidationException. Claude Sonnet 4 (20250514) is legacy; prefer us.anthropic.claude-sonnet-4-6.",
+  "invoke_model": {
+    "region": "us-west-2",
+    "model_id": "us.amazon.nova-pro-v1:0",
+    "status": "ok",
+    "note": "Explicit bedrock-runtime InvokeModel on the inference profile (not only Converse)."
+  }
 }

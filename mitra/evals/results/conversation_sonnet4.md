@@ -1,3 +1,5 @@
+Historical 2026-09-08 run against legacy `us.anthropic.claude-sonnet-4-20250514-v1:0` (IAM deny, then provider-legacy). Live quality pick is `us.anthropic.claude-sonnet-4-6` — see `conversation_sonnet46.md`.
+
 | Prompt | Run | Test mode | ASR transcript | Model | Sanskrit | Grammar | Semantic | Gloss matches | Latency | Result |
 |---|---:|---|---|---|---|---:|---:|---|---:|---|
 | What are you doing? | 1 | controlled | What are you doing? | us.anthropic.claude-sonnet-4-20250514-v1:0 |  | None | None | None |  | access_denied: This identity cannot invoke us.anthropic.claude-sonnet-4-20250514-v1:0 in us-west-2. Enable model access in the Bedrock console and grant bedrock:InvokeModel (and Converse) on that model/inference profile. |
