@@ -1,0 +1,61 @@
+{
+  "ts": "2026-09-08T20:57:34.161124+00:00",
+  "git_commit": "c6afe165738b4d9afeefe234a3f81243d676dc54",
+  "git_describe": "v1.0.0-7-gc6afe16-dirty",
+  "branch": "cursor/agent-mitra-pipecat-cloudllm-eecf",
+  "platform": {
+    "system": "Linux",
+    "release": "6.18.44-99.149.amzn2023.aarch64",
+    "machine": "aarch64",
+    "python": "3.12.3"
+  },
+  "rss_mb": 13.1,
+  "robot": {
+    "backend": "reachy",
+    "mic_source": "built_in",
+    "built_in_mic_device": "MacBook Pro Microphone",
+    "mic_chunk_s": 0.08
+  },
+  "audio": {
+    "target_samplerate": 16000,
+    "asr": {
+      "default": "mlx-community/whisper-large-v3-turbo",
+      "sanskrit": null,
+      "backend": "mlx",
+      "cpu_model": null,
+      "device": "mps",
+      "initial_prompt": "Mitra. Short conversational questions in English, Kannada, or Sanskrit.",
+      "condition_on_previous_text": false,
+      "no_speech_threshold": 0.6,
+      "compression_ratio_threshold": 2.4,
+      "min_peak": 0.008,
+      "filter_hallucinations": true,
+      "english_retry": true
+    },
+    "vad": {
+      "engine": "silero",
+      "min_speech_s": 0.25,
+      "min_silence_s": 0.7,
+      "max_utterance_s": 15.0,
+      "preroll_s": 0.25
+    },
+    "wake": {
+      "engine": "asr",
+      "phrase": "mitra",
+      "asr_model": "mlx-community/whisper-small-mlx",
+      "model": "models/mitra.onnx",
+      "threshold": 0.6
+    }
+  },
+  "llm": {
+    "provider": "ollama",
+    "id": "qwen3-vl:8b-instruct",
+    "region": null,
+    "fallback_enabled": false
+  },
+  "orchestration": {
+    "engine": "custom"
+  },
+  "env_region": "us-west-2",
+  "note": "Raw microphone audio is not recorded. Live latency/memory of a spoken turn requires the Mac + daemon path."
+}

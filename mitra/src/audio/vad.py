@@ -85,13 +85,17 @@ class EnergySegmenter:
 
 
 class SileroSegmenter:
-    """Streaming Silero VAD via VADIterator (512-sample windows at 16 kHz)."""
+    """Streaming Silero VAD via VADIterator (512-sample windows at 16 kHz).
+
+    ``min_speech_s`` is honoured (issue #7): the previous factory discarded it,
+    so brief noise bursts and clipped words could become "utterances".
+    """
 
     _WINDOW = 512
 
     def __init__(self, samplerate: int = TARGET_SAMPLERATE,
                  min_silence_s: float = 0.8, max_utterance_s: float = 15.0,
-                 preroll_s: float = 0.2):
+                 preroll_s: float = 0.25, min_speech_s: float = 0.25):
         try:
             import torch  # noqa: F401
             from silero_vad import VADIterator, load_silero_vad
@@ -108,6 +112,7 @@ class SileroSegmenter:
         )
         self._max_utterance = int(max_utterance_s * samplerate)
         self._preroll = int(preroll_s * samplerate)
+        self._min_speech = int(min_speech_s * samplerate)
         self.reset()
 
     def reset(self) -> None:
@@ -142,6 +147,10 @@ class SileroSegmenter:
             if (event and "end" in event) or too_long:
                 utterance = self._history[self._start:]
                 self.reset()
+                if len(utterance) < self._min_speech:
+                    logger.debug("silero: dropped %.2fs burst (< min_speech)",
+                                 len(utterance) / self._sr)
+                    return None
                 return utterance
         elif len(self._history) > self._max_utterance:
             self._history = self._history[-self._preroll:]  # cap idle memory
@@ -153,11 +162,12 @@ def make_segmenter(engine: str = "silero", **kwargs):
     if engine == "silero":
         try:
             kwargs.pop("threshold", None)
-            kwargs.pop("min_speech_s", None)
             return SileroSegmenter(**kwargs)
         except ImportError:
             logger.warning("silero-vad not installed; falling back to energy VAD")
-            return EnergySegmenter()
+            kwargs.pop("preroll_s", None)
+            return EnergySegmenter(**kwargs)
     if engine == "energy":
+        kwargs.pop("preroll_s", None)
         return EnergySegmenter(**kwargs)
     raise ValueError(f"unknown VAD engine: {engine!r}")

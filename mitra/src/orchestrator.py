@@ -58,7 +58,8 @@ class Orchestrator:
                  turn_logger=None, logger: logging.Logger | None = None,
                  silence_timeout_s: float = 30.0,
                  max_reply_chars: int = validator.MAX_REPLY_CHARS,
-                 fallback_agent_factory=None, gestures: bool = True):
+                 fallback_agent_factory=None, gestures: bool = True,
+                 llm_meta: dict | None = None):
         self.robot = robot
         self.agent = agent
         self.tts = tts
@@ -73,6 +74,13 @@ class Orchestrator:
         self.max_reply_chars = max_reply_chars
         self._fallback_agent_factory = fallback_agent_factory
         self._fallback_agent = None
+        self.llm_meta = dict(llm_meta or {})
+        if not self.llm_meta:
+            self.llm_meta = {
+                "provider": getattr(agent, "provider", None),
+                "model_id": getattr(agent, "model_id", None),
+                "region": getattr(agent, "region", None),
+            }
 
         self.state = State.ASLEEP
         self.events: queue.Queue[Event] = queue.Queue()
@@ -176,13 +184,20 @@ class Orchestrator:
         self.state = State.THINKING
         self._pose("thinking")                # head tilt: "processing..."
         self._last_activity = time.monotonic()
+        turn_t0 = time.monotonic()
         tl = self.turn_logger
         if tl:
             tl.start_turn()
+            self._bind_turn_identity(tl, payload)
 
         transcript, hint = self._transcribe(payload)
+        if tl:
+            self._bind_asr_diag(tl)
         if not transcript.strip():
-            self._finish_turn(prompts.APOLOGY_RETRY)
+            if tl:
+                tl.set("llm_empty", False)
+                tl.set("asr_empty", True)
+            self._finish_turn(prompts.APOLOGY_RETRY, turn_t0=turn_t0)
             return
 
         lang = language_detector.detect(transcript, hint)
@@ -192,28 +207,60 @@ class Orchestrator:
         if tl:
             tl.set("lang", lang)
             tl.set("transcript", transcript)
+            tl.set("asr_hint", hint)
             tl.set("explain_in_english", explain_en)
 
         try:
             reply, session_end = self._generate_reply(message, explain_en)
         except Exception:
             self.logger.exception("agent failure (FR-6.4)")
+            if tl:
+                tl.set("llm_error", True)
             self._emotion("confused1")
             reply, session_end = prompts.APOLOGY_RETRY, False
 
         if session_end:
             self._sleep_after_speaking = True
             reply = prompts.FAREWELL
-        self._finish_turn(reply)
+        self._finish_turn(reply, turn_t0=turn_t0)
 
-    def _finish_turn(self, reply: str) -> None:
+    def _bind_turn_identity(self, tl, payload) -> None:
+        tl.set("provider", self.llm_meta.get("provider"))
+        tl.set("model_id", self.llm_meta.get("model_id"))
+        tl.set("region", self.llm_meta.get("region"))
+        if isinstance(payload, str):
+            tl.set("payload_kind", "text")
+            return
+        tl.set("payload_kind", "audio")
+        from mitra.pipeline_trace import audio_stats
+
+        tl.set("audio_stats", audio_stats(payload, TARGET_SAMPLERATE))
+
+    def _bind_asr_diag(self, tl) -> None:
+        asr = self.asr
+        if asr is None or not getattr(asr, "last_diag", None):
+            return
+        diag = asr.last_diag
+        tl.set("asr_hallucination", bool(diag.get("hallucination")))
+        if diag.get("transcript") is not None:
+            tl.set("asr_raw", diag.get("transcript"))
+        if diag.get("audio_stats"):
+            tl.set("audio_stats", diag["audio_stats"])
+        tl.set("asr_english_retry", bool(diag.get("english_retry")))
+        tl.set("asr_low_energy", bool(diag.get("low_energy")))
+
+    def _finish_turn(self, reply: str, turn_t0: float | None = None) -> None:
         tl = self.turn_logger
         if tl:
             tl.set("reply", reply)
         self._pose("neutral")                 # face forward while speaking
+        tts_t0 = time.monotonic()
         if tl:
             with tl.stage("tts"):
                 self._speak(reply)
+            tl.set("ttfa_s", round(time.monotonic() - tts_t0, 3))
+            if turn_t0 is not None:
+                tl.set("e2e_s", round(time.monotonic() - turn_t0, 3))
             tl.emit()
         else:
             self._speak(reply)
@@ -248,24 +295,42 @@ class Orchestrator:
 
         raw = generate(message)
         if END_SESSION_SENTINEL in raw:
+            if tl:
+                tl.set("tool_end_session", True)
             return raw, True
 
         if explain_en:
             reply = raw.strip()
             if reply and len(reply) <= 3 * self.max_reply_chars:
+                if tl:
+                    tl.set("validation_ok", True)
+                    tl.set("validation_reason", "explain_in_english")
                 return reply, False
+            if tl:
+                tl.set("validation_ok", False)
+                tl.set("validation_reason", "english_explanation_unusable")
             return prompts.SAFE_FALLBACK, False
 
         reply = self._apply_lexicon(raw)
         ok, reason = validator.validate(reply, self.max_reply_chars)
+        if tl:
+            tl.set("raw_reply", raw)
+            tl.set("validation_ok", ok)
+            tl.set("validation_reason", reason)
+            tl.set("lexicon_applied", reply != raw)
         if ok:
             return reply, False
 
         self.logger.warning("reply failed validation (%s); retrying", reason)
+        if tl:
+            tl.set("validation_retry", True)
         reply = self._apply_lexicon(
             generate(message + "\n" + prompts.CORRECTIVE_SUFFIX)
         )
         ok, reason = validator.validate(reply, self.max_reply_chars)
+        if tl:
+            tl.set("validation_ok", ok)
+            tl.set("validation_reason", reason)
         if ok:
             return reply, False
 

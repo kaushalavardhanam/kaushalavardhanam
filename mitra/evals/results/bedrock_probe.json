@@ -1,0 +1,71 @@
+{
+  "ts": "2026-09-08T22:09:03.405236+00:00",
+  "credentials_present": true,
+  "credential_method": "iam-role",
+  "rows": [
+    {
+      "region": "us-west-2",
+      "model_id": "us.amazon.nova-pro-v1:0",
+      "status": "ok"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.amazon.nova-lite-v1:0",
+      "status": "ok"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.anthropic.claude-sonnet-4-6",
+      "status": "ok"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "status": "ResourceNotFoundException",
+      "message": "Access denied. This Model is marked by provider as Legacy and you have not been actively using the model in the last 30 days. Please upgrade to an active model on Amazon Bedrock"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "status": "ok"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.openai.gpt-5.6-sol",
+      "status": "ok"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.amazon.nova-pro-v1:0",
+      "status": "ok"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.amazon.nova-lite-v1:0",
+      "status": "ok"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.anthropic.claude-sonnet-4-6",
+      "status": "ok"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "status": "ResourceNotFoundException",
+      "message": "Access denied. This Model is marked by provider as Legacy and you have not been actively using the model in the last 30 days. Please upgrade to an active model on Amazon Bedrock"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "status": "ok"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.openai.gpt-5.6-sol",
+      "status": "ok"
+    }
+  ],
+  "any_ok": true,
+  "note": "AccessDenied means Mode B cannot score this identity. Mitra does not silently switch models. Use inference-profile IDs (us.* / global.*); bare foundation-model IDs often return ValidationException. Claude Sonnet 4 (20250514) is legacy; prefer us.anthropic.claude-sonnet-4-6. GPT-5.6 Sol rejects temperature and requires maxTokens >= 16."
+}
