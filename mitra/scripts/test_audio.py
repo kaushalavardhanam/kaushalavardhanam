@@ -51,13 +51,17 @@ from mitra.audio.wake import TranscriptWakeDetector  # noqa: E402
 
 
 def record(seconds: float, out_path: pathlib.Path) -> None:
-    """Capture from the robot's real mic via the daemon (sim or hardware)."""
+    """Capture using the same mic_source as config.yaml (issue #7)."""
     import soundfile as sf
 
     from mitra.robot.reachy import ReachyRobot
 
-    print(f"connecting to the robot daemon...")
-    robot = ReachyRobot()
+    cfg = _load_app_config()
+    robot_cfg = cfg.get("robot") or {}
+    mic_source = robot_cfg.get("mic_source", "robot")
+    device = robot_cfg.get("built_in_mic_device", "MacBook Pro Microphone")
+    print(f"connecting to the robot daemon (mic_source={mic_source})...")
+    robot = ReachyRobot(mic_source=mic_source, built_in_mic_device=device)
     try:
         print(f"recording {seconds:.1f}s in 2s... speak after the beep-less pause")
         time.sleep(2.0)
@@ -91,6 +95,15 @@ def load_16k_mono(path: pathlib.Path) -> np.ndarray:
     return audio.astype(np.float32)
 
 
+def _load_app_config() -> dict:
+    import yaml
+
+    cfg_path = _ROOT / "config.yaml"
+    if not cfg_path.exists():
+        return {}
+    return yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+
+
 def analyze(path: pathlib.Path) -> None:
     audio = load_16k_mono(path)
     seconds = len(audio) / TARGET_SAMPLERATE
@@ -103,22 +116,41 @@ def analyze(path: pathlib.Path) -> None:
     print(f"(EnergySegmenter min_gate={EnergySegmenter()._min_gate:.4f} — "
           f"{'would likely open the speech gate' if rms >= EnergySegmenter()._min_gate else 'BELOW the gate — raise mic volume or move closer'})")
 
+    config = _load_app_config()
+    wake_cfg = (config.get("models") or {}).get("wake") or {}
+    asr_cfg = (config.get("models") or {}).get("asr") or {}
+    wake = TranscriptWakeDetector(
+        phrase=wake_cfg.get("phrase", "mitra"),
+        asr_model=wake_cfg.get("asr_model", "mlx-community/whisper-small-mlx"),
+    )
     print(f"\n--- wake detector ({wake._asr_model.rsplit('/', 1)[-1]}) ---")
-    wake = TranscriptWakeDetector()
     text = wake._mlx_transcribe(audio)
     cleaned = __import__("re").sub(r"[^\wऀ-ॿ]+", "", text.lower())
     matched = [v for v in wake._variants if v in cleaned]
     print(f"heard: {text.strip()!r}")
     print(f"match: {'WAKE (' + ', '.join(matched) + ')' if matched else 'no match'}")
 
-    print("\n--- main ASR (whisper-large-v3-turbo) ---")
+    asr_name = asr_cfg.get("default", "mlx-community/whisper-large-v3-turbo")
+    print(f"\n--- main ASR ({asr_name.rsplit('/', 1)[-1]}) [same settings as config.yaml] ---")
     from mitra import language_detector
     from mitra.audio.asr import Transcriber
 
-    asr_text, hint = Transcriber().transcribe(audio)
+    asr = Transcriber(
+        default_model=asr_name,
+        sanskrit_model=asr_cfg.get("sanskrit"),
+        backend=asr_cfg.get("backend", "mlx"),
+        device=asr_cfg.get("device", "mps"),
+        initial_prompt=asr_cfg.get("initial_prompt"),
+        condition_on_previous_text=asr_cfg.get("condition_on_previous_text", False),
+        min_peak=asr_cfg.get("min_peak", 0.008),
+        filter_hallucinations=asr_cfg.get("filter_hallucinations", True),
+        english_retry=asr_cfg.get("english_retry", True),
+    )
+    asr_text, hint = asr.transcribe(audio)
     lang = language_detector.detect(asr_text, hint)
     print(f"transcript: {asr_text.strip()!r}")
     print(f"language: {lang} (asr hint: {hint})")
+    print(f"diag: {asr.last_diag}")
 
 
 def main() -> None:

@@ -28,3 +28,14 @@ node_modules/
 # Runtime artifacts
 logs/
 *.log
+
+# Private / consented recordings — never commit (issue #7)
+clips/
+mitra/clips/
+mitra/evals/fixtures/
+*.wav
+*.mp3
+*.m4a
+!mitra/evals/results/*.md
+!mitra/evals/results/*.json
+!mitra/evals/results/*.jsonl
