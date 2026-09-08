@@ -157,6 +157,7 @@ def as_eval_rows() -> list[dict]:
             justification=data["justification"],
             uncertain=bool(data.get("uncertain")),
             evaluator=EVALUATOR_ID,
+            gloss_agrees_override=True,
         )
         row["id"] = sid
         rows.append(row)

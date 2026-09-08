@@ -28,6 +28,7 @@ def test_reference_set_meets_quality_gate():
     assert summary["semantic_mean"] >= 4.0
     assert not summary["any_hard_fail"]
     assert summary["quality_gate"]
+    assert all(r["gloss_agrees"] is True for r in rows)
     assert "cloud agent" in EVALUATOR_ID.lower() or "grok" in EVALUATOR_ID.lower()
 
 

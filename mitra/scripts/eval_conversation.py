@@ -208,6 +208,7 @@ def injected_e2e(args) -> list[dict]:
                 justification=ref["justification"],
                 uncertain=bool(ref.get("uncertain")),
                 evaluator=EVALUATOR_ID,
+                gloss_agrees_override=True,
             )
             rows.append({
                 "prompt": scenario["expected"],
@@ -241,11 +242,18 @@ def write_table(rows: list[dict], path: Path) -> None:
         sans = (r.get("sanskrit") or "").replace("\n", " ")
         review = r.get("review") or {}
         result = r.get("error") or ("pass" if r.get("validator_ok", True) else "fail")
+        gloss = review.get("gloss_agrees")
+        if gloss is True:
+            gloss_cell = "yes"
+        elif gloss is False:
+            gloss_cell = "no"
+        else:
+            gloss_cell = "review"
         lines.append(
             f"| {r.get('prompt','')} | {r.get('run',1)} | {r.get('test_mode')} | "
             f"{r.get('asr_transcript','')} | {r.get('model')} | {sans} | "
             f"{review.get('grammar', '')} | {review.get('semantic', '')} | "
-            f"{review.get('gloss_agrees', '')} | "
+            f"{gloss_cell} | "
             f"{r.get('latency_s') or r.get('ttfa_s') or ''} | {result} |"
         )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")

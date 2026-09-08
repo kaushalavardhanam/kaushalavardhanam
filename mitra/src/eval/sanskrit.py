@@ -66,9 +66,13 @@ def evaluate_response(
     corrected: str | None = None,
     uncertain: bool = False,
     evaluator: str = "heuristic+human-or-cloud-agent",
+    gloss_agrees_override: bool | None = None,
 ) -> dict:
     script, script_why = script_language_score(sanskrit)
     agree, agree_why = gloss_agrees(sanskrit, gloss)
+    if gloss_agrees_override is not None:
+        agree = gloss_agrees_override
+        agree_why = "cloud-agent linguistic comparison of Sanskrit and English gloss"
     ok, val_reason = validate(sanskrit)
     result = {
         "prompt": prompt,

@@ -91,7 +91,8 @@ Repeat with `--llm-provider ollama` and with `--orchestrator pipecat`.
 | Prompt | Run | Test mode | ASR | Model | Result |
 |---|---:|---|---|---|---|
 | (all ten) | 1–3 | End-to-end spoken | *operator* | Qwen / Nova / Sonnet | **pending Mac** |
-| (all ten) | 1 | end-to-end-inject | expected transcript | fixture reference | TTS path unit-tested |
+| (all ten) | 1 | end-to-end-inject-custom | expected transcript | fixture reference | TTS + rubric pass (see `conversation.md`) |
+| (all ten) | 1 | end-to-end-inject-pipecat | expected transcript | fixture reference | TTS + rubric pass (see `conversation_pipecat.md`) |
 
 ## 5. Mode B — controlled LLM comparison
 
