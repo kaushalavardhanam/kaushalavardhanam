@@ -131,6 +131,7 @@ def test_cost_estimate_nova():
 
     usd = estimate_usd("us.amazon.nova-pro-v1:0", 400, 80)
     assert usd is not None and usd > 0
+    assert estimate_usd("us.openai.gpt-5.6-sol", 1000, 100) is not None
     assert estimate_usd("unknown-model", 10, 10) is None
 
 

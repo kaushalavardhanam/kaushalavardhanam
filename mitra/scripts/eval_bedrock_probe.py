@@ -50,7 +50,7 @@ def main() -> int:
                 client.converse(
                     modelId=mid,
                     messages=[{"role": "user", "content": [{"text": "ping"}]}],
-                    inferenceConfig={"maxTokens": 4, "temperature": 0},
+                    inferenceConfig={"maxTokens": 16},
                 )
                 rows.append({"region": region, "model_id": mid, "status": "ok"})
                 print(f"OK  {region} {mid}")

@@ -14,6 +14,7 @@ USD_PER_MTOK = {
     "amazon.nova-premier": {"input": 2.50, "output": 12.50},
     "anthropic.claude-sonnet-4": {"input": 3.00, "output": 15.00},
     "anthropic.claude-haiku-4": {"input": 1.00, "output": 5.00},
+    "openai.gpt-5.6-sol": {"input": 4.40, "output": 22.00},
     "qwen": {"input": 0.0, "output": 0.0},
 }
 

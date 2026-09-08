@@ -15,7 +15,7 @@
 | Local Ollama / `qwen3-vl:8b-instruct` | **No** |
 | AWS identity | Assumed role `cursor_worker-execution-role`, `us-west-2` (account `146666888814`) |
 | Worker RAM | **3.7 GiB** — local Qwen3-VL 8B cannot be loaded here |
-| `bedrock:Converse` / `InvokeModel` | **OK** on inference profiles `us.amazon.nova-pro-v1:0`, `us.amazon.nova-lite-v1:0`, `us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-haiku-4-5-20251001-v1:0` (`us-west-2` and, where retested, `us-east-1`). `InvokeModel` on `us.amazon.nova-pro-v1:0` also **OK**. Bare foundation-model IDs (`amazon.nova-pro-v1:0`, `anthropic.claude-sonnet-4-6`) return `ValidationException` (need an inference profile). Claude Sonnet 4 `us.anthropic.claude-sonnet-4-20250514-v1:0` is **legacy** (`ResourceNotFoundException`). See `evals/results/bedrock_probe.json`. |
+| `bedrock:Converse` / `InvokeModel` | **OK** on `us.amazon.nova-pro-v1:0`, `us.amazon.nova-lite-v1:0`, `us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-haiku-4-5-20251001-v1:0`, `us.openai.gpt-5.6-sol` / `global.openai.gpt-5.6-sol`. Sol rejects `temperature` and requires `maxTokens` ≥ 16. Bare `openai.gpt-5.6-sol` needs an inference profile. Claude Sonnet 4 (`20250514`) is **legacy**. See `evals/results/bedrock_probe.json`. |
 | `bedrock:ListFoundationModels` | Not required for invoke; last probe was AccessDenied (listing only). |
 | EOL ids (Claude 3.5, Titan Text, Cohere Command Light, Llama 3.2 11B) | `ResourceNotFoundException` — retired |
 | Unit tests | Run in this worker (`tests` minus `tests/hw`) |
@@ -103,6 +103,8 @@ python scripts/eval_conversation.py --mode controlled --provider bedrock \
   --model-id us.amazon.nova-pro-v1:0
 python scripts/eval_conversation.py --mode controlled --provider bedrock \
   --model-id us.anthropic.claude-sonnet-4-6
+python scripts/eval_conversation.py --mode controlled --provider bedrock \
+  --model-id us.openai.gpt-5.6-sol --max-tokens 512 --timeout-s 90
 python scripts/eval_conversation.py --mode controlled --provider ollama \
   --model-id qwen3-vl:8b-instruct
 ```
@@ -114,10 +116,11 @@ python scripts/eval_conversation.py --mode controlled --provider ollama \
 | `us.amazon.nova-pro-v1:0` | 10/10 | 3.4 | 4.3 | yes (`नाश्नामी`) | **fail** | 0.55–0.92 |
 | `us.anthropic.claude-sonnet-4-6` | 10/10 | 4.5 | 4.8 | no | **pass** | 1.46–3.09 |
 | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | 9/10 | 3.6 | 4.4 | yes (Hindi `खेल`, English gloss) | **fail** | 0.85–2.42 |
+| `us.openai.gpt-5.6-sol` | 10/10 | 4.6 | 4.8 | no | **pass** | 3.4–23.5 (rejects `temperature`) |
 | `us.anthropic.claude-sonnet-4-20250514-v1:0` | — | — | — | — | not run | legacy / ResourceNotFound |
 | `qwen3-vl:8b-instruct` | — | — | — | — | not scored | no Ollama; 3.7 GiB RAM |
 
-Scored tables: `conversation_nova_pro.md`, `conversation_sonnet46.md`, `conversation_haiku45.md`. JSONL + `mode_b_linguistic_scores.json` / `mode_b_aggregate.json`. Probe: `bedrock_probe.json`.
+Scored tables: `conversation_nova_pro.md`, `conversation_sonnet46.md`, `conversation_haiku45.md`, `conversation_gpt56_sol.md`. JSONL + `mode_b_linguistic_scores.json` / `mode_b_aggregate.json`. Probe: `bedrock_probe.json`.
 
 Ollama was **not** contacted (`ollama_contacted: false` on every Bedrock row). Failures still raise `ProviderError` with no silent swap.
 
@@ -155,10 +158,11 @@ Corrected Sanskrit is omitted where score ≥ 4. Food item flagged uncertain (ro
 | Qwen3-VL 8B Instruct | **Not scored** | No Ollama in worker |
 | Nova Pro (`us.amazon.nova-pro-v1:0`) | **Fail** | Mean grammar 3.4; hard fail on `नाश्नामी`; several 3sg/gender errors |
 | Claude Sonnet 4.6 (`us.anthropic.claude-sonnet-4-6`) | **Pass** | Mean grammar 4.5 / semantic 4.8; all Devanagari; lowest grammar 3 (`प्रिया विषयः`) |
+| GPT-5.6 Sol (`us.openai.gpt-5.6-sol`) | **Pass** | Mean grammar 4.6 / semantic 4.8; all Devanagari; no score below 4. Converse rejects `temperature` (Mode B retries without it). |
 | Claude Haiku 4.5 | **Fail** | Hindi `खेल` + English parenthetical on “Do you play?”; mean grammar 3.6 |
 | Claude Sonnet 4 (20250514) | **Not scored** | Provider marks the ID legacy |
 
-Sonnet 4.6 is the only shortlist ID that passed the written gate on this worker. That is **not** enough to change the default: spoken Mode A, vision bake-off, and human review of the food item are still open. Default remains `ollama` / Qwen until those are measured. The pipeline still *requires* Devanagari + TTS on every normal turn.
+Sonnet 4.6 and GPT-5.6 Sol both passed the written gate on this worker. That is **not** enough to change the default: spoken Mode A, vision bake-off, and human review of food/music persona items are still open. Default remains `ollama` / Qwen until those are measured. The pipeline still *requires* Devanagari + TTS on every normal turn.
 
 ## 7. Vision and tools
 
@@ -196,7 +200,7 @@ Lexicon override for **apple → सेवफलम्** is unit-tested (`test_v
 | Component | Choice | Evidence type |
 |---|---|---|
 | Orchestrator | **Custom** (keep Pipecat flag) | Tests + architecture; no live Pipecat-vs-custom latency |
-| Bedrock LLM | **Claude Sonnet 4.6** for quality (gate pass); **Nova Pro** remains the cheap VLM shortlist but failed the written gate | Live Mode B on this worker |
+| Bedrock LLM | **GPT-5.6 Sol** or **Claude Sonnet 4.6** for quality (both passed written gate); **Nova Pro** remains the cheap VLM shortlist but failed | Live Mode B on this worker |
 | Offline LLM | **Qwen3-VL 8B Instruct** | Existing design + README baseline |
 | Default mode | **ollama** until spoken Mode A + vision are measured on Bedrock | Written gate passed only for Sonnet 4.6 |
 | ASR | Whisper large-v3-turbo MLX + new guards | Code diagnosis |
@@ -230,6 +234,8 @@ python scripts/eval_conversation.py --mode controlled --provider bedrock \
   --model-id us.amazon.nova-pro-v1:0
 python scripts/eval_conversation.py --mode controlled --provider bedrock \
   --model-id us.anthropic.claude-sonnet-4-6
+python scripts/eval_conversation.py --mode controlled --provider bedrock \
+  --model-id us.openai.gpt-5.6-sol --max-tokens 512 --timeout-s 90
 python scripts/eval_conversation.py --mode controlled --provider ollama \
   --model-id qwen3-vl:8b-instruct
 ```

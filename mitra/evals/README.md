@@ -14,5 +14,6 @@ python scripts/eval_bedrock_probe.py
 python scripts/eval_recognition.py --audio-dir /consented/wavs
 python scripts/eval_conversation.py --mode controlled --provider bedrock --model-id us.amazon.nova-pro-v1:0
 python scripts/eval_conversation.py --mode controlled --provider bedrock --model-id us.anthropic.claude-sonnet-4-6
+python scripts/eval_conversation.py --mode controlled --provider bedrock --model-id us.openai.gpt-5.6-sol --max-tokens 512 --timeout-s 90
 python scripts/eval_conversation.py --mode end-to-end --inject
 ```

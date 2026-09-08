@@ -59,6 +59,25 @@
         "today": {"grammar": 5, "semantic": 5, "gloss": "I will teach you Sanskrit. What do you want to learn?", "justification": "शिक्षयिष्यामि causative future is correct.", "uncertain": false},
         "friend": {"grammar": 5, "semantic": 5, "gloss": "Friend, I am your friend! Let us learn Sanskrit.", "justification": "तव मित्रम् अस्मि + आवां शिक्षामः.", "uncertain": false}
       }
+    },
+    "us.openai.gpt-5.6-sol": {
+      "file": "conversation_gpt56_sol.jsonl",
+      "quality_gate": true,
+      "grammar_mean": 4.6,
+      "semantic_mean": 4.8,
+      "all_devanagari": true,
+      "scores": {
+        "doing": {"grammar": 4, "semantic": 5, "gloss": "I am conversing with you.", "justification": "भवता सह is correct. वार्तालापं करोमि is modern laukika vs वदामि.", "uncertain": false},
+        "live": {"grammar": 5, "semantic": 5, "gloss": "I live here on a computer.", "justification": "अत्र + सङ्गणके loc + वसामि. Honest robot.", "uncertain": false},
+        "play": {"grammar": 5, "semantic": 5, "gloss": "Yes, I play. What do you play?", "justification": "क्रीडामि + भवान् किं क्रीडति is the correct 3sg.", "uncertain": false},
+        "food": {"grammar": 4, "semantic": 5, "gloss": "I am a robot, so I do not eat food. I have no favorite food.", "justification": "यन्त्रमानवः is a modern coinage. खादामि is Hindi-leaning vs अश्नामि. Honest.", "uncertain": false},
+        "subject": {"grammar": 4, "semantic": 5, "gloss": "Sanskrit is my favorite subject.", "justification": "प्रियः विषयः agrees masculine. Fronted neuter संस्कृतम् is acceptable laukika.", "uncertain": false},
+        "reading": {"grammar": 5, "semantic": 5, "gloss": "I am not reading anything right now.", "justification": "इदानीं किमपि न पठामि is clean.", "uncertain": false},
+        "music": {"grammar": 5, "semantic": 4, "gloss": "Yes, I listen to music. What is your favorite music?", "justification": "शृणोमि + भवतः प्रियं संगीतं किम् is grammatical. A robot listening is slightly figurative.", "uncertain": false},
+        "sports": {"grammar": 4, "semantic": 5, "gloss": "No, I do not play sports. I help with Sanskrit practice.", "justification": "न … न क्रीडामि is a bit heavy but the same pattern as the reference set.", "uncertain": false},
+        "today": {"grammar": 5, "semantic": 4, "gloss": "Today I speak Sanskrit with you. I answer your questions.", "justification": "वदामि is present rather than future वदिष्यामि, but अद्य + present is acceptable.", "uncertain": false},
+        "friend": {"grammar": 5, "semantic": 5, "gloss": "Yes, I am your friend.", "justification": "आम्, अहं भवतः मित्रम् अस्मि. No hedge.", "uncertain": false}
+      }
     }
   }
 }
