@@ -20,9 +20,6 @@ sys.path.insert(0, str(_ROOT))
 
 import yaml  # noqa: E402
 
-from mitra.eval.corpus import recognition_items  # noqa: E402
-from mitra.eval.metrics import cer, meaning_preserved, wer  # noqa: E402
-
 
 def _ensure_pkg() -> None:
     try:
@@ -68,11 +65,15 @@ def transcriber_from_config(config: dict):
         min_peak=asr.get("min_peak", 0.008),
         filter_hallucinations=asr.get("filter_hallucinations", True),
         english_retry=asr.get("english_retry", True),
+        cpu_model=asr.get("cpu_model"),
     )
 
 
 def main() -> int:
     _ensure_pkg()
+    from mitra.eval.corpus import recognition_items
+    from mitra.eval.metrics import cer, meaning_preserved, wer
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=str(_ROOT / "config.yaml"))
     parser.add_argument("--audio-dir", type=Path, default=None)

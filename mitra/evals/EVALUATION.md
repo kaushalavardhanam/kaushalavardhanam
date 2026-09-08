@@ -1,7 +1,7 @@
 # Evaluation report — issue #7
 
 **Baseline commit (origin/main):** `c4dea80f8334bbcb31560b52ea8eb2de3d437dcf`  
-**Branch:** `cursor/agent-mitra-pipecat-cloudllm-190c`  
+**Branch:** `cursor/agent-MITRA-pipecat-cloudLLM-36fb`  
 **Evaluator (Sanskrit rubric):** `cursor-grok-4.6-high-fast` (cloud agent). Not a candidate model.  
 **PDF `tests/mitra-2026-08-22-1038-mobile.pdf`:** not present, not committed, not required. Corpus is `evals/corpus/conversation.yaml`.
 
@@ -13,10 +13,12 @@
 | Live Reachy Mini MuJoCo daemon | **No** — not installed / no display in this worker |
 | Operator microphone | **No** |
 | Local Ollama / `qwen3-vl:8b-instruct` | **No** |
-| AWS identity | Assumed role `cursor_worker-execution-role`, `us-west-2` |
-| `bedrock:InvokeModel` | **AccessDenied** on Nova, Claude Sonnet 4, Llama 4, Haiku 3 |
-| EOL Claude 3.5 ids | `ResourceNotFoundException` (retired) |
-| Unit tests | Run in this worker (see CI section) |
+| AWS identity | Assumed role `cursor_worker-execution-role`, `us-west-2` (account `146666888814`) |
+| Worker RAM | **3.7 GiB** — local Qwen3-VL 8B cannot be loaded here |
+| `bedrock:Converse` / `InvokeModel` | **AccessDenied** on Nova Micro/Lite/Pro/Premier, Claude Haiku 3, Claude Sonnet 4, Claude Haiku 4.5, Claude Sonnet 4.6, Llama 3 8B/70B, Mistral 7B (both `us-west-2` and `us-east-1`). See `evals/results/bedrock_probe.json`. |
+| `bedrock:ListFoundationModels` | AccessDenied |
+| EOL ids (Claude 3.5, Titan Text, Cohere Command Light, Llama 3.2 11B) | `ResourceNotFoundException` — retired |
+| Unit tests | Run in this worker (`tests` minus `tests/hw`) |
 
 Conclusions below separate **measured in this worker**, **measured in code/tests**, and **requires the operator Mac**.
 
@@ -108,9 +110,11 @@ python scripts/eval_conversation.py --mode controlled --provider ollama \
 
 | Prompt | Run | Mode | Model | Sanskrit | Result |
 |---|---:|---|---|---|---|
-| What are you doing? | 1 | Controlled | `us.amazon.nova-pro-v1:0` | — | AccessDenied |
-| (same set) | 1 | Controlled | `us.anthropic.claude-sonnet-4-20250514-v1:0` | — | AccessDenied |
-| (same set) | 1 | Controlled | `qwen3-vl:8b-instruct` | — | Ollama not installed |
+| What are you doing? | 1 | Controlled | `us.amazon.nova-pro-v1:0` | — | `access_denied` (no silent fallback) |
+| (same set) | 1 | Controlled | `us.anthropic.claude-sonnet-4-20250514-v1:0` | — | `access_denied` |
+| (same set) | 1 | Controlled | `qwen3-vl:8b-instruct` | — | strands-agents / Ollama missing; 3.7 GiB RAM cannot load 8B |
+
+JSONL: `conversation_nova_pro.jsonl`, `conversation_sonnet4.jsonl`, `conversation_qwen.jsonl`. Probe: `bedrock_probe.json`.
 
 **Do not** infer that Bedrock “fixes recognition.” Recognition is Mode A only.
 
@@ -163,6 +167,7 @@ Lexicon override for **apple → सेवफलम्** is unit-tested (`test_v
 | Config flag | `orchestration.engine` / `--orchestrator` |
 | Custom engine still default | Yes |
 | Wake / barge-in / validate / lexicon via `handle_event` | Unit-tested on `PipecatOrchestrator` |
+| Audio pump concurrency | Queues events; does not call `handle_event` on the mic thread |
 | Spoken MuJoCo e2e | Pending Mac |
 | Recommendation | **Do not replace** the custom orchestrator (ADR-001) |
 
@@ -208,9 +213,12 @@ Lexicon override for **apple → सेवफलम्** is unit-tested (`test_v
 cd mitra
 python -m pytest tests -q --ignore=tests/hw
 python scripts/eval_baseline.py
+python scripts/eval_bedrock_probe.py
 python scripts/eval_conversation.py --mode end-to-end --inject
 python scripts/eval_recognition.py          # corpus only
 # with credentials and models enabled:
 python scripts/eval_conversation.py --mode controlled --provider bedrock \
   --model-id us.amazon.nova-pro-v1:0
+python scripts/eval_conversation.py --mode controlled --provider ollama \
+  --model-id qwen3-vl:8b-instruct
 ```

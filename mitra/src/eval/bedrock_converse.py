@@ -24,6 +24,7 @@ def converse_text(
     max_tokens: int = 256,
     timeout_s: float = 45,
     images: list[bytes] | None = None,
+    history: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     try:
         import boto3
@@ -48,12 +49,14 @@ def converse_text(
     for jpeg in images or []:
         content.append({"image": {"format": "jpeg", "source": {"bytes": jpeg}}})
     content.append({"text": user})
+    messages = list(history or [])
+    messages.append({"role": "user", "content": content})
     t0 = time.monotonic()
     try:
         resp = client.converse(
             modelId=model_id,
             system=[{"text": system}],
-            messages=[{"role": "user", "content": content}],
+            messages=messages,
             inferenceConfig={"maxTokens": max_tokens, "temperature": temperature},
         )
     except Exception as e:
@@ -71,4 +74,5 @@ def converse_text(
         "input_tokens": usage.get("inputTokens"),
         "output_tokens": usage.get("outputTokens"),
         "stop_reason": resp.get("stopReason"),
+        "assistant_message": {"role": "assistant", "content": parts or [{"text": text}]},
     }

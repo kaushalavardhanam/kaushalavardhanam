@@ -145,6 +145,7 @@ def analyze(path: pathlib.Path) -> None:
         min_peak=asr_cfg.get("min_peak", 0.008),
         filter_hallucinations=asr_cfg.get("filter_hallucinations", True),
         english_retry=asr_cfg.get("english_retry", True),
+        cpu_model=asr_cfg.get("cpu_model"),
     )
     asr_text, hint = asr.transcribe(audio)
     lang = language_detector.detect(asr_text, hint)

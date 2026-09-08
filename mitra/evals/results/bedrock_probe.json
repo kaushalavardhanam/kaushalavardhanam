@@ -1,0 +1,57 @@
+{
+  "ts": "2026-09-08T20:28:20.584749+00:00",
+  "credentials_present": true,
+  "credential_method": "iam-role",
+  "rows": [
+    {
+      "region": "us-west-2",
+      "model_id": "us.amazon.nova-pro-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.amazon.nova-lite-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814"
+    },
+    {
+      "region": "us-west-2",
+      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-west-2:146666888814"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.amazon.nova-pro-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.amazon.nova-lite-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814"
+    },
+    {
+      "region": "us-east-1",
+      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "status": "AccessDeniedException",
+      "message": "User: arn:aws:sts::146666888814:assumed-role/cursor_worker-execution-role/agentcore-session-cursor_worker_lab-ZYq1vQSRWV-cursor-worker-a6a is not authorized to perform: bedrock:InvokeModel on resource: arn:aws:bedrock:us-east-1:146666888814"
+    }
+  ],
+  "any_ok": false,
+  "note": "AccessDenied means Mode B cannot score this identity. Mitra does not silently switch models."
+}

@@ -24,6 +24,41 @@ def test_looks_unusable_empty_and_punct():
     assert not looks_unusable("Do you play?")
 
 
+def test_transcriber_rejects_unknown_backend():
+    from mitra.audio.asr import Transcriber
+
+    try:
+        Transcriber(backend="cloud")
+    except ValueError as e:
+        assert "unsupported ASR backend" in str(e)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_openai_backend_is_explicit():
+    from mitra.audio.asr import Transcriber
+
+    asr = Transcriber(backend="openai")
+    assert asr.resolved_backend() == "openai"
+
+
+def test_auto_backend_falls_back_when_mlx_missing(monkeypatch):
+    import builtins
+
+    from mitra.audio.asr import Transcriber
+
+    real_import = builtins.__import__
+
+    def guarded(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "mlx_whisper":
+            raise ImportError("mlx_whisper missing in test")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", guarded)
+    asr = Transcriber(backend="auto")
+    assert asr.resolved_backend() == "openai"
+
+
 def test_transcriber_skips_low_energy():
     from mitra.audio.asr import Transcriber
 

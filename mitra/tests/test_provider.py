@@ -89,6 +89,51 @@ def test_bedrock_requires_model_id():
         raise AssertionError("expected ProviderError")
 
 
+def test_make_bedrock_does_not_import_ollama(monkeypatch):
+    import sys
+    import types
+
+    fake_botocore = types.ModuleType("botocore.config")
+
+    class FakeCfg:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+    fake_botocore.Config = FakeCfg
+    monkeypatch.setitem(sys.modules, "botocore.config", fake_botocore)
+
+    created = {}
+
+    class FakeBedrock:
+        def __init__(self, **kwargs):
+            created.update(kwargs)
+
+    fake_models = types.ModuleType("strands.models")
+    fake_models.BedrockModel = FakeBedrock
+    monkeypatch.setitem(sys.modules, "strands", types.ModuleType("strands"))
+    monkeypatch.setitem(sys.modules, "strands.models", fake_models)
+    monkeypatch.setitem(sys.modules, "strands.models.ollama", None)
+
+    from mitra.agent.provider import make_model
+
+    model = make_model({
+        "provider": "bedrock",
+        "id": "us.amazon.nova-pro-v1:0",
+        "region": "us-west-2",
+    })
+    assert isinstance(model, FakeBedrock)
+    assert created["model_id"] == "us.amazon.nova-pro-v1:0"
+    assert sys.modules.get("strands.models.ollama") is None
+
+
+def test_cost_estimate_nova():
+    from mitra.eval.cost import estimate_usd
+
+    usd = estimate_usd("us.amazon.nova-pro-v1:0", 400, 80)
+    assert usd is not None and usd > 0
+    assert estimate_usd("unknown-model", 10, 10) is None
+
+
 def test_mitra_agent_make_model_delegates_to_provider(monkeypatch):
     from mitra.agent.agent import MitraAgent
 

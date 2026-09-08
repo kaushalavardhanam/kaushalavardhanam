@@ -87,6 +87,27 @@ def test_turn_processor_routes_to_orchestrator(make_orchestrator, fake_tts):
     assert fake_tts.spoken == ["नमस्ते मित्र।"]
 
 
+def test_pipecat_audio_pipeline_does_not_call_handle_event(make_orchestrator):
+    """Live path queues events; handle_event stays on the run-loop thread."""
+    orch, _ = make_orchestrator()
+
+    class Wake:
+        def process(self, _chunk):
+            return True
+
+    pipe = PipecatOrchestrator(
+        robot=orch.robot, agent=orch.agent, tts=orch.tts, lexicon=orch.lexicon,
+        wake=Wake(),
+    )
+    assert all(p.name != "mitra_turn" for p in pipe.pipeline.processors)
+    out = pipe.pipeline.push(MitraFrame(AUDIO, np.zeros(160, dtype=np.float32)))
+    assert pipe.state == State.ASLEEP
+    assert pipe.events.empty()
+    pipe.enqueue_pipeline_output(out)
+    ev = pipe.events.get_nowait()
+    assert ev.kind == "wake"
+
+
 def test_components_replaced_keeps_domain_logic():
     mapping = components_replaced()
     assert "unchanged Mitra modules" in mapping["wake / VAD / ASR / LLM / TTS / validator / lexicon"]

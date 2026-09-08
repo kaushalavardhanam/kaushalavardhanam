@@ -10,6 +10,7 @@
 
 ```bash
 python scripts/eval_baseline.py
+python scripts/eval_bedrock_probe.py
 python scripts/eval_recognition.py --audio-dir /consented/wavs
 python scripts/eval_conversation.py --mode controlled --provider bedrock --model-id us.amazon.nova-pro-v1:0
 python scripts/eval_conversation.py --mode end-to-end --inject

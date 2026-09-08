@@ -186,18 +186,34 @@ class PipecatOrchestrator(Orchestrator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         src_rate = getattr(self.robot, "mic_samplerate", TARGET_SAMPLERATE)
+        # Audio processors only. Domain turns still run on the main thread via
+        # handle_event (same as the custom engine) so barge-in, ticks, and
+        # playback_done cannot race the audio pump.
         self.pipeline = Pipeline(
             [
                 ResampleProcessor(src_rate, TARGET_SAMPLERATE),
                 WakeGateProcessor(self.wake, lambda: self.state),
                 VadProcessor(self.segmenter, lambda: self.state),
-                MitraTurnProcessor(self),
             ],
             name="mitra-pipecat",
         )
         logger.info("pipecat PoC pipeline ready (sdk=%s): %s",
                     self.pipeline.sdk,
                     " → ".join(p.name for p in self.pipeline.processors))
+
+    def enqueue_pipeline_output(self, frames: Iterable[MitraFrame]) -> None:
+        """Convert pipeline frames into orchestrator events (main-thread safe)."""
+        for frame in frames:
+            if frame.kind == WAKE:
+                self.events.put(Event("wake"))
+            elif frame.kind == UTTERANCE:
+                self.events.put(Event("utterance", frame.payload))
+            elif frame.kind == INTERRUPT:
+                self.events.put(Event("wake"))
+            elif frame.kind == PLAYBACK_DONE:
+                self.events.put(Event("playback_done"))
+            elif frame.kind == STOP:
+                self.events.put(Event("stop"))
 
     def _audio_loop(self) -> None:
         """Pump mic chunks through the frame pipeline instead of ad-hoc ifs."""
@@ -210,7 +226,10 @@ class PipecatOrchestrator(Orchestrator):
                 continue
             if chunk is None or len(chunk) == 0:
                 continue
-            self.pipeline.push(MitraFrame(AUDIO, chunk, {"samplerate": self.robot.mic_samplerate}))
+            frames = self.pipeline.push(
+                MitraFrame(AUDIO, chunk, {"samplerate": self.robot.mic_samplerate})
+            )
+            self.enqueue_pipeline_output(frames)
 
 
 def time_sleep_retry() -> None:

@@ -33,6 +33,7 @@ def test_asr_recognition_guards_present():
     assert asr["condition_on_previous_text"] is False
     assert asr["english_retry"] is True
     assert asr["min_peak"] > 0
+    assert asr["backend"] in ("mlx", "auto", "openai", "openai-whisper")
     assert CONFIG["models"]["vad"]["min_speech_s"] > 0
 
 

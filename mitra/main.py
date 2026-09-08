@@ -160,6 +160,7 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
         min_peak=asr_cfg.get("min_peak", 0.008),
         filter_hallucinations=asr_cfg.get("filter_hallucinations", True),
         english_retry=asr_cfg.get("english_retry", True),
+        cpu_model=asr_cfg.get("cpu_model"),
     )
     # Warm up ASR before the run loop: Whisper large-v3 (~3 GB) downloads on
     # first use. Without this, the download would stall the FIRST conversation

@@ -52,7 +52,8 @@ models:
     # near-equal en/kn accuracy — the first latency lever in REQUIREMENTS §8
     default: "mlx-community/whisper-large-v3-turbo"
     sanskrit: null         # HF repo of a Sanskrit Whisper fine-tune, once selected (Phase 3)
-    backend: "mlx"
+    backend: "mlx"          # mlx (Mac) | auto | openai-whisper (Linux eval)
+    cpu_model: null        # openai-whisper size when mlx is unavailable
     device: "mps"
     initial_prompt: "Mitra. Short conversational questions in English, Kannada, or Sanskrit."
     condition_on_previous_text: false

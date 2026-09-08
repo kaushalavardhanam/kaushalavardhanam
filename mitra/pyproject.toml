@@ -24,6 +24,7 @@ pipecat = ["pipecat-ai>=0.0.82"]
 wake = ["openwakeword>=0.6", "onnxruntime>=1.16"]
 vad = ["silero-vad>=5.0", "torch>=2.3"]
 asr = ["mlx-whisper>=0.4; platform_machine=='arm64' and sys_platform=='darwin'"]
+asr-cpu = ["openai-whisper>=20231117"]
 # Indic Parler-TTS additionally needs the parler-tts package, which is not on
 # PyPI: pip install git+https://github.com/huggingface/parler-tts.git
 speech = ["transformers>=4.46", "torch>=2.3", "soundfile>=0.12"]

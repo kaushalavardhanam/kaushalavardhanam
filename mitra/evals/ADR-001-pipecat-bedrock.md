@@ -3,7 +3,8 @@
 **Status:** Accepted for the evaluation branch (issue #7)  
 **Date:** 2026-09-08  
 **Default in `config.yaml`:** custom orchestrator + local Ollama  
-**Opt-in:** `--orchestrator pipecat`, `--llm-provider bedrock`
+**Opt-in:** `--orchestrator pipecat`, `--llm-provider bedrock`  
+**Branch:** `cursor/agent-MITRA-pipecat-cloudLLM-36fb`
 
 ## Context
 
@@ -19,7 +20,8 @@ Evidence:
 2. Daily Pipecat’s stock transports (WebRTC / Daily / cloud STT-TTS) would move raw audio off-host or replace Indic TTS. That violates the privacy model and Sanskrit TTS requirement.
 3. Pipecat is async and service-oriented; Mitra is a single-threaded state machine with two daemon helpers. A full replacement would re-implement barge-in, silence timeout, and playback flush with a high regression risk.
 4. Unit tests on `PipecatOrchestrator` show wake, validation, and barge-in parity with the custom engine when events are injected. That is necessary but not sufficient to retire the custom loop.
-5. End-to-end MuJoCo + spoken turns were **not** run in this Linux cloud worker (no Reachy daemon, no operator mic). The PoC is reversible and off by default.
+5. The live audio pump now **queues** wake/utterance events for the existing `handle_event` run loop (no `handle_event` from the mic thread). That matches the custom engine’s concurrency model.
+6. End-to-end MuJoCo + spoken turns were **not** run in this Linux cloud worker (no Reachy daemon, no operator mic, 3.7 GiB RAM). The PoC is reversible and off by default.
 
 **Keep:** `orchestration.engine: custom`.  
 **Keep:** Pipecat path for further A/B on a Mac with the simulator.  
