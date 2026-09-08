@@ -1,7 +1,7 @@
 # Evaluation report — issue #7
 
 **Baseline commit (origin/main):** `c4dea80f8334bbcb31560b52ea8eb2de3d437dcf`  
-**Branch:** `cursor/agent-MITRA-pipecat-cloudLLM-36fb`  
+**Branch:** `cursor/agent-mitra-pipecat-cloudllm-eecf`  
 **Evaluator (Sanskrit rubric):** `cursor-grok-4.6-high-fast` (cloud agent). Not a candidate model.  
 **PDF `tests/mitra-2026-08-22-1038-mobile.pdf`:** not present, not committed, not required. Corpus is `evals/corpus/conversation.yaml`.
 
@@ -86,7 +86,7 @@ python main.py --debug --llm-provider bedrock --llm-id us.amazon.nova-pro-v1:0
 
 Repeat with `--llm-provider ollama` and with `--orchestrator pipecat`.
 
-`scripts/eval_conversation.py --mode end-to-end --inject` exercises wake-less **post-ASR** turns through `Orchestrator` + TTS using reference Sanskrit (fixture). That is **not** a substitute for spoken Mode A.
+`scripts/eval_conversation.py --mode end-to-end --inject` (and `--orchestrator pipecat`) exercises wake-less **post-ASR** turns through both orchestrators + TTS using reference Sanskrit (fixture). That is **not** a substitute for spoken Mode A.
 
 | Prompt | Run | Test mode | ASR | Model | Result |
 |---|---:|---|---|---|---|
@@ -168,6 +168,7 @@ Lexicon override for **apple → सेवफलम्** is unit-tested (`test_v
 | Custom engine still default | Yes |
 | Wake / barge-in / validate / lexicon via `handle_event` | Unit-tested on `PipecatOrchestrator` |
 | Audio pump concurrency | Queues events; does not call `handle_event` on the mic thread |
+| Ten-scenario inject (custom + Pipecat) | Unit-tested; TTS path + Sanskrit rubric scores recorded |
 | Spoken MuJoCo e2e | Pending Mac |
 | Recommendation | **Do not replace** the custom orchestrator (ADR-001) |
 
@@ -215,6 +216,7 @@ python -m pytest tests -q --ignore=tests/hw
 python scripts/eval_baseline.py
 python scripts/eval_bedrock_probe.py
 python scripts/eval_conversation.py --mode end-to-end --inject
+python scripts/eval_conversation.py --mode end-to-end --inject --orchestrator pipecat
 python scripts/eval_recognition.py          # corpus only
 # with credentials and models enabled:
 python scripts/eval_conversation.py --mode controlled --provider bedrock \

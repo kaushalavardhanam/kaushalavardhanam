@@ -129,16 +129,9 @@ def controlled_run(args) -> list[dict]:
     return rows
 
 
-def injected_e2e(args) -> list[dict]:
-    from mitra.agent import prompts
-    from mitra.eval.corpus import conversation_scenarios
-    from mitra.lexicon.store import LexiconStore
-    from mitra.logging_subsystem import TurnLogger
-    from mitra.orchestrator import Event, Orchestrator, State
-    from mitra.robot.reachy import FakeReachy
-
+def _make_scripted_agent(args, replies):
     class ScriptedAgent:
-        def __init__(self, replies):
+        def __init__(self):
             self.replies = list(replies)
             self.calls = []
             self.provider = args.provider
@@ -154,7 +147,30 @@ def injected_e2e(args) -> list[dict]:
         def reset(self):
             pass
 
-    from mitra.eval.sanskrit_reference import REFERENCE_REPLIES
+    return ScriptedAgent()
+
+
+def _make_eval_orchestrator(args, robot, agent, tts, lexicon):
+    from mitra.orchestrator import Orchestrator
+
+    kwargs = dict(
+        robot=robot, agent=agent, tts=tts, lexicon=lexicon,
+        llm_meta={"provider": "fixture", "model_id": "cloud-agent-reference",
+                  "orchestrator": args.orchestrator},
+    )
+    if args.orchestrator == "pipecat":
+        from mitra.orchestration.pipecat_runtime import PipecatOrchestrator
+        return PipecatOrchestrator(**kwargs)
+    return Orchestrator(**kwargs)
+
+
+def injected_e2e(args) -> list[dict]:
+    from mitra.eval.corpus import conversation_scenarios
+    from mitra.eval.sanskrit import evaluate_response
+    from mitra.eval.sanskrit_reference import EVALUATOR_ID, REFERENCE_REPLIES
+    from mitra.lexicon.store import LexiconStore
+    from mitra.orchestrator import Event, State
+    from mitra.robot.reachy import FakeReachy
 
     class FakeTTS:
         def __init__(self):
@@ -166,34 +182,51 @@ def injected_e2e(args) -> list[dict]:
             return np.zeros(1600, dtype="float32"), 16000
 
     rows = []
+    scenarios = conversation_scenarios()
     for run in range(1, args.repeats + 1):
         robot = FakeReachy()
         tts = FakeTTS()
-        replies = [REFERENCE_REPLIES[s["id"]]["sanskrit"]
-                   for s in conversation_scenarios()]
-        agent = ScriptedAgent(replies)
-        orch = Orchestrator(
-            robot=robot, agent=agent, tts=tts, lexicon=LexiconStore(":memory:"),
-            llm_meta={"provider": "fixture", "model_id": "cloud-agent-reference"},
+        replies = [REFERENCE_REPLIES[s["id"]]["sanskrit"] for s in scenarios]
+        agent = _make_scripted_agent(args, replies)
+        orch = _make_eval_orchestrator(
+            args, robot, agent, tts, LexiconStore(":memory:"),
         )
         orch.state = State.LISTENING
-        for scenario in conversation_scenarios():
+        for scenario in scenarios:
             t0 = time.monotonic()
             orch.handle_event(Event("utterance", scenario["expected"]))
             spoken = tts.spoken[-1] if tts.spoken else ""
+            ref = REFERENCE_REPLIES[scenario["id"]]
+            review = evaluate_response(
+                prompt=scenario["expected"],
+                sanskrit=spoken,
+                gloss=ref["gloss"],
+                grammar=ref["grammar"],
+                semantic=ref["semantic"],
+                naturalness=ref["naturalness"],
+                persona=ref["persona"],
+                justification=ref["justification"],
+                uncertain=bool(ref.get("uncertain")),
+                evaluator=EVALUATOR_ID,
+            )
             rows.append({
                 "prompt": scenario["expected"],
                 "id": scenario["id"],
                 "run": run,
-                "test_mode": "end-to-end-inject",
+                "test_mode": f"end-to-end-inject-{args.orchestrator}",
                 "asr_transcript": scenario["expected"],
                 "provider": "fixture",
                 "model": "cloud-agent-reference",
+                "orchestrator": args.orchestrator,
                 "sanskrit": spoken,
                 "ttfa_s": round(time.monotonic() - t0, 3),
                 "tts_played": bool(robot.played),
-                "note": "Injected expected transcript through Orchestrator + TTS. "
-                        "Not a live microphone run.",
+                "validator_ok": review["validator_ok"],
+                "review": review,
+                "note": (
+                    f"Injected expected transcript through {args.orchestrator} "
+                    "Orchestrator + TTS. Not a live microphone run."
+                ),
             })
             orch.state = State.LISTENING
     return rows
@@ -236,6 +269,8 @@ def main() -> int:
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--session", action="store_true",
                         help="Mode B: keep conversation history across the ten prompts")
+    parser.add_argument("--orchestrator", choices=["custom", "pipecat"], default="custom",
+                        help="Mode A inject: which orchestrator handles the turns")
     parser.add_argument("--out", type=Path,
                         default=_ROOT / "evals" / "results" / "conversation.jsonl")
     args = parser.parse_args()

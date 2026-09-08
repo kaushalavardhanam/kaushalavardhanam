@@ -4,7 +4,7 @@
 **Date:** 2026-09-08  
 **Default in `config.yaml`:** custom orchestrator + local Ollama  
 **Opt-in:** `--orchestrator pipecat`, `--llm-provider bedrock`  
-**Branch:** `cursor/agent-MITRA-pipecat-cloudLLM-36fb`
+**Branch:** `cursor/agent-mitra-pipecat-cloudllm-eecf`
 
 ## Context
 

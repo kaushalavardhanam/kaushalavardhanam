@@ -112,3 +112,22 @@ def test_components_replaced_keeps_domain_logic():
     mapping = components_replaced()
     assert "unchanged Mitra modules" in mapping["wake / VAD / ASR / LLM / TTS / validator / lexicon"]
     assert "not used" in mapping["Daily WebRTC transport"].lower() or "not used" in mapping["Daily WebRTC transport"]
+
+
+def test_pipecat_injects_all_ten_conversation_scenarios(make_orchestrator, fake_tts):
+    """Post-ASR Mode A inject through Pipecat — same handle_event path as custom."""
+    from mitra.eval.corpus import conversation_scenarios
+    from mitra.eval.sanskrit_reference import REFERENCE_REPLIES
+
+    scenarios = conversation_scenarios()
+    replies = [REFERENCE_REPLIES[s["id"]]["sanskrit"] for s in scenarios]
+    orch, agent = make_orchestrator(replies=replies)
+    pipe = PipecatOrchestrator(
+        robot=orch.robot, agent=orch.agent, tts=orch.tts, lexicon=orch.lexicon,
+    )
+    pipe.state = State.LISTENING
+    for scenario in scenarios:
+        pipe.handle_event(Event("utterance", scenario["expected"]))
+        pipe.state = State.LISTENING
+    assert fake_tts.spoken == replies
+    assert all(c.startswith("[lang=en]") for c in agent.calls)
