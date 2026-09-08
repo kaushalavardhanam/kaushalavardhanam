@@ -146,3 +146,22 @@ def test_mitra_agent_make_model_delegates_to_provider(monkeypatch):
     monkeypatch.setattr("mitra.agent.provider.make_model", fake)
     assert MitraAgent._make_model({"provider": "bedrock", "id": "x"}) is not None
     assert calls == ["bedrock"]
+
+
+def test_map_temperature_rejected_is_not_unsupported_region():
+    class Fake(Exception):
+        response = {
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "This model doesn't support the temperature field.",
+            }
+        }
+
+    err = map_provider_exception(
+        Fake("This model doesn't support the temperature field. Remove temperature"),
+        provider="bedrock",
+        model_id="us.openai.gpt-5.6-sol",
+        region="us-west-2",
+    )
+    assert err.code == "unsupported_parameter"
+    assert "temperature" in err.actionable.lower()

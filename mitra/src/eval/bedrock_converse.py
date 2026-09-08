@@ -52,16 +52,37 @@ def converse_text(
     messages = list(history or [])
     messages.append({"role": "user", "content": content})
     t0 = time.monotonic()
+    inference: dict[str, Any] = {"maxTokens": max_tokens}
+    if temperature is not None:
+        inference["temperature"] = temperature
     try:
         resp = client.converse(
             modelId=model_id,
             system=[{"text": system}],
             messages=messages,
-            inferenceConfig={"maxTokens": max_tokens, "temperature": temperature},
+            inferenceConfig=inference,
         )
     except Exception as e:
-        raise map_provider_exception(e, provider="bedrock", model_id=model_id,
-                                     region=region) from e
+        text = str(e)
+        if (
+            temperature is not None
+            and "doesn't support the temperature field" in text
+        ):
+            inference.pop("temperature", None)
+            try:
+                resp = client.converse(
+                    modelId=model_id,
+                    system=[{"text": system}],
+                    messages=messages,
+                    inferenceConfig=inference,
+                )
+            except Exception as retry_exc:
+                raise map_provider_exception(
+                    retry_exc, provider="bedrock", model_id=model_id, region=region
+                ) from retry_exc
+        else:
+            raise map_provider_exception(e, provider="bedrock", model_id=model_id,
+                                         region=region) from e
     elapsed = time.monotonic() - t0
     parts = resp.get("output", {}).get("message", {}).get("content") or []
     text = "".join(p.get("text", "") for p in parts if isinstance(p, dict))

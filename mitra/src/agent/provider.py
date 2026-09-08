@@ -267,7 +267,14 @@ def map_provider_exception(exc: BaseException, *, provider: str,
             actionable="Enable model access in the Bedrock console and grant "
                        "bedrock:InvokeModel (and Converse) on that model/inference profile.",
         )
-    if code in {"ResourceNotFoundException", "ValidationException"} or "model identifier is invalid" in text.lower():
+    if "doesn't support the temperature field" in text:
+        return ProviderError(
+            f"{model_id} rejects inferenceConfig.temperature.",
+            code="unsupported_parameter",
+            provider=provider, model_id=model_id, region=region,
+            actionable="Omit temperature for this model (GPT-5.6 Sol and some reasoning IDs).",
+        )
+    if code in {"ResourceNotFoundException"} or "model identifier is invalid" in text.lower():
         return ProviderError(
             f"Model {model_id!r} is not available in {region or 'the configured region'}.",
             code="unsupported_model_or_region",
