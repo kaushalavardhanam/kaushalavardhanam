@@ -7,7 +7,9 @@ Triggers:
   - Issue labeled 'in-progress'
   - workflow_dispatch with an issue number
 
-After tests, Cursor opens a PR against main (autoCreatePR).
+After tests, Cursor opens a PR against main (autoCreatePR) only if the
+AgentCore worker already has write git credentials. Self-hosted workers do
+not inherit this workflow's GITHUB_TOKEN. See .github/WORKER_GIT.md.
 """
 
 from __future__ import annotations

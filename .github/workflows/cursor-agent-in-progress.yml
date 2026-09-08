@@ -2,11 +2,14 @@
 # `agent-*` issue moves to In Progress on
 # https://github.com/orgs/kaushalavardhanam/projects/1
 #
-# Required repo secrets:
+# Required repo secrets (this job only — they are NOT passed to the worker):
 #   CURSOR_API_KEY     Cursor service account key (same value as the AgentCore worker)
 #   GH_PROJECT_TOKEN   Fine-grained PAT: org kaushalavardhanam Projects: Read, plus
 #                      repository access. GITHUB_TOKEN cannot read Projects v2.
-#                      Update this token if it was issued only for user skopp002/projects/2.
+#
+# Agent PRs are created by the AgentCore worker, not this workflow.
+# The worker needs its own write token (CURSOR_GIT_TOKEN). See WORKER_GIT.md.
+# Raising `permissions:` here does not let the agent git push.
 #
 # The AgentCore worker session must already be HealthyBusy or the job waits in the pool.
 name: Cursor agent on In Progress
