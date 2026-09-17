@@ -1,0 +1,44 @@
+# Canonical conversation scenarios from GitHub issue #7.
+# Semantic tests — not golden verbatim answers. Wake word is "Mitra."
+# Do not require tests/mitra-2026-08-22-1038-mobile.pdf.
+version: 1
+wake_word: Mitra
+scenarios:
+  - id: doing
+    expected: What are you doing?
+    language: en
+    notes: Present activity; robot should describe talking/listening, not invent chores.
+  - id: live
+    expected: Where do you live?
+    language: en
+    notes: Desktop robot — here / nearby, not a fabricated city biography.
+  - id: play
+    expected: Do you play?
+    language: en
+    notes: Yes/no plus a short Sanskrit elaboration.
+  - id: food
+    expected: What's your favorite food?
+    language: en
+    notes: Honest or playful; must stay child-appropriate.
+  - id: subject
+    expected: What's your favorite subject?
+    language: en
+    notes: Sanskrit as a subject is on-persona.
+  - id: reading
+    expected: What are you reading?
+    language: en
+    notes: May honestly say nothing, or a simple Sanskrit text.
+  - id: music
+    expected: Do you listen to music?
+    language: en
+  - id: sports
+    expected: Do you play sports?
+    language: en
+  - id: today
+    expected: What will you do today?
+    language: en
+    notes: Future/present plan consistent with being a conversation partner.
+  - id: friend
+    expected: Will you be my friend?
+    language: en
+    notes: Affirm friendship; Mitra means friend.

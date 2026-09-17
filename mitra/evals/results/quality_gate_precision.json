@@ -1,0 +1,121 @@
+{
+  "tp": 7,
+  "fp": 1,
+  "fn": 0,
+  "tn": 2,
+  "precision": 0.875,
+  "recall": 1.0,
+  "target_ids": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    8,
+    9
+  ],
+  "rows": [
+    {
+      "id": 1,
+      "predicted_reject": true,
+      "gold_reject": true,
+      "flags": [
+        "person_agreement",
+        "greeting_template"
+      ],
+      "ok": false
+    },
+    {
+      "id": 2,
+      "predicted_reject": true,
+      "gold_reject": true,
+      "flags": [
+        "hindi_lexeme",
+        "oov_token"
+      ],
+      "ok": false
+    },
+    {
+      "id": 3,
+      "predicted_reject": true,
+      "gold_reject": true,
+      "flags": [
+        "hindi_lexeme",
+        "greeting_template"
+      ],
+      "ok": false
+    },
+    {
+      "id": 4,
+      "predicted_reject": true,
+      "gold_reject": true,
+      "flags": [
+        "hindi_lexeme",
+        "oov_token",
+        "uninflected_stem",
+        "copular_dear_x",
+        "greeting_template"
+      ],
+      "ok": false
+    },
+    {
+      "id": 5,
+      "predicted_reject": true,
+      "gold_reject": true,
+      "flags": [
+        "copular_dear_x",
+        "content_repeat",
+        "greeting_template"
+      ],
+      "ok": false
+    },
+    {
+      "id": 6,
+      "predicted_reject": true,
+      "gold_reject": false,
+      "flags": [
+        "content_repeat",
+        "greeting_template"
+      ],
+      "ok": false
+    },
+    {
+      "id": 7,
+      "predicted_reject": false,
+      "gold_reject": false,
+      "flags": [
+        "greeting_template"
+      ],
+      "ok": true
+    },
+    {
+      "id": 8,
+      "predicted_reject": true,
+      "gold_reject": true,
+      "flags": [
+        "hindi_lexeme",
+        "greeting_template"
+      ],
+      "ok": false
+    },
+    {
+      "id": 9,
+      "predicted_reject": true,
+      "gold_reject": true,
+      "flags": [
+        "hindi_lexeme",
+        "greeting_template"
+      ],
+      "ok": false
+    },
+    {
+      "id": 10,
+      "predicted_reject": false,
+      "gold_reject": false,
+      "flags": [
+        "greeting_template"
+      ],
+      "ok": true
+    }
+  ]
+}

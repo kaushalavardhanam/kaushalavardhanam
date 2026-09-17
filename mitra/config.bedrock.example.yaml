@@ -1,0 +1,28 @@
+# Example Bedrock-primary overlay. Copy keys into config.yaml or pass CLI flags.
+# NEVER put AWS keys in this file. Use the standard credential-provider chain.
+#
+#   python main.py --llm-provider bedrock \
+#       --llm-id us.amazon.nova-pro-v1:0 --llm-region us-west-2
+#
+# Recommended shortlist (confirm access in the Bedrock console for your Region):
+#   us.amazon.nova-pro-v1:0                         # VLM + tools, cost/latency
+#   us.anthropic.claude-sonnet-4-20250514-v1:0      # stronger Sanskrit/tools
+# Offline remains: --llm-provider ollama --llm-id qwen3-vl:8b-instruct
+
+orchestration:
+  engine: custom                 # or pipecat
+
+models:
+  llm:
+    provider: bedrock
+    id: us.amazon.nova-pro-v1:0
+    region: null                 # AWS_REGION / AWS_DEFAULT_REGION
+    temperature: 0.3
+    timeout_s: 45
+    max_retries: 2
+    max_tokens: 256
+    streaming: false
+    fallback:
+      enabled: false             # set true only for an explicit offline escape
+      provider: ollama
+      id: qwen3-vl:8b-instruct

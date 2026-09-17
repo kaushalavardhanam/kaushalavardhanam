@@ -26,9 +26,10 @@ from enum import Enum
 import numpy as np
 
 from mitra import language_detector
-from mitra.agent import prompts, validator
+from mitra.agent import prompts, quality, validator
 from mitra.agent.tools import END_SESSION_SENTINEL
 from mitra.audio import TARGET_SAMPLERATE, resample
+from mitra.audio.echo_gate import EchoGate
 
 
 # "explain in English" detection (FR-3.2 exception): explicit request only —
@@ -58,7 +59,11 @@ class Orchestrator:
                  turn_logger=None, logger: logging.Logger | None = None,
                  silence_timeout_s: float = 30.0,
                  max_reply_chars: int = validator.MAX_REPLY_CHARS,
-                 fallback_agent_factory=None, gestures: bool = True):
+                 fallback_agent_factory=None, gestures: bool = True,
+                 llm_meta: dict | None = None,
+                 echo_gate: EchoGate | None = None,
+                 echo_tail_s: float | None = None,
+                 barge_in_rms: float | None = None):
         self.robot = robot
         self.agent = agent
         self.tts = tts
@@ -73,12 +78,25 @@ class Orchestrator:
         self.max_reply_chars = max_reply_chars
         self._fallback_agent_factory = fallback_agent_factory
         self._fallback_agent = None
+        self.llm_meta = dict(llm_meta or {})
+        if not self.llm_meta:
+            self.llm_meta = {
+                "provider": getattr(agent, "provider", None),
+                "model_id": getattr(agent, "model_id", None),
+                "region": getattr(agent, "region", None),
+            }
 
+        self.echo_gate = echo_gate or EchoGate(
+            playback_tail_s=0.45 if echo_tail_s is None else echo_tail_s,
+            barge_in_rms=0.08 if barge_in_rms is None else barge_in_rms,
+        )
         self.state = State.ASLEEP
         self.events: queue.Queue[Event] = queue.Queue()
         self._stop = threading.Event()
         self._sleep_after_speaking = False
         self._last_activity = time.monotonic()
+        self._last_spoken: str = ""
+        self._utterance_end_t0: float | None = None
 
     # ------------------------------------------------------------------ run
 
@@ -176,13 +194,21 @@ class Orchestrator:
         self.state = State.THINKING
         self._pose("thinking")                # head tilt: "processing..."
         self._last_activity = time.monotonic()
+        turn_t0 = time.monotonic()
+        self._utterance_end_t0 = turn_t0
         tl = self.turn_logger
         if tl:
             tl.start_turn()
+            self._bind_turn_identity(tl, payload)
 
         transcript, hint = self._transcribe(payload)
+        if tl:
+            self._bind_asr_diag(tl)
         if not transcript.strip():
-            self._finish_turn(prompts.APOLOGY_RETRY)
+            if tl:
+                tl.set("llm_empty", False)
+                tl.set("asr_empty", True)
+            self._finish_turn(prompts.APOLOGY_RETRY, turn_t0=turn_t0)
             return
 
         lang = language_detector.detect(transcript, hint)
@@ -192,31 +218,88 @@ class Orchestrator:
         if tl:
             tl.set("lang", lang)
             tl.set("transcript", transcript)
+            tl.set("asr_hint", hint)
             tl.set("explain_in_english", explain_en)
 
         try:
             reply, session_end = self._generate_reply(message, explain_en)
+            if tl:
+                self._bind_llm_usage(tl)
         except Exception:
             self.logger.exception("agent failure (FR-6.4)")
+            if tl:
+                tl.set("llm_error", True)
             self._emotion("confused1")
             reply, session_end = prompts.APOLOGY_RETRY, False
 
         if session_end:
             self._sleep_after_speaking = True
             reply = prompts.FAREWELL
-        self._finish_turn(reply)
+        self._finish_turn(reply, turn_t0=turn_t0)
 
-    def _finish_turn(self, reply: str) -> None:
+    def _bind_turn_identity(self, tl, payload) -> None:
+        tl.set("provider", self.llm_meta.get("provider"))
+        tl.set("model_id", self.llm_meta.get("model_id"))
+        tl.set("region", self.llm_meta.get("region"))
+        loaded = self.llm_meta.get("ollama_loaded")
+        if loaded is None:
+            loaded = self.llm_meta.get("provider") == "ollama"
+        tl.set("ollama_loaded", bool(loaded))
+        tl.set("ollama_contacted", bool(self.llm_meta.get("ollama_contacted", loaded)))
+        self._bind_llm_usage(tl)
+        if isinstance(payload, str):
+            tl.set("payload_kind", "text")
+            return
+        tl.set("payload_kind", "audio")
+        from mitra.pipeline_trace import audio_stats
+
+        tl.set("audio_stats", audio_stats(payload, TARGET_SAMPLERATE))
+
+    def _bind_llm_usage(self, tl) -> None:
+        usage = getattr(self.agent, "last_usage", None) or {}
+        if usage.get("input_tokens") is not None:
+            tl.set("input_tokens", usage.get("input_tokens"))
+        if usage.get("output_tokens") is not None:
+            tl.set("output_tokens", usage.get("output_tokens"))
+        cost = usage.get("est_usd")
+        if cost is None and usage.get("input_tokens") is not None:
+            from mitra.eval.cost import estimate_usd
+
+            cost = estimate_usd(
+                self.llm_meta.get("model_id") or "",
+                usage.get("input_tokens"),
+                usage.get("output_tokens"),
+            )
+        if cost is not None:
+            tl.set("est_usd", cost)
+
+    def _bind_asr_diag(self, tl) -> None:
+        asr = self.asr
+        if asr is None or not getattr(asr, "last_diag", None):
+            return
+        diag = asr.last_diag
+        tl.set("asr_hallucination", bool(diag.get("hallucination")))
+        if diag.get("transcript") is not None:
+            tl.set("asr_raw", diag.get("transcript"))
+        if diag.get("audio_stats"):
+            tl.set("audio_stats", diag["audio_stats"])
+        tl.set("asr_english_retry", bool(diag.get("english_retry")))
+        tl.set("asr_low_energy", bool(diag.get("low_energy")))
+
+    def _finish_turn(self, reply: str, turn_t0: float | None = None) -> None:
         tl = self.turn_logger
         if tl:
             tl.set("reply", reply)
         self._pose("neutral")                 # face forward while speaking
         if tl:
             with tl.stage("tts"):
-                self._speak(reply)
+                self._speak(reply, mark_ttfa=True)
+            if turn_t0 is not None:
+                tl.set("e2e_s", round(time.monotonic() - turn_t0, 3))
             tl.emit()
         else:
             self._speak(reply)
+        self._last_spoken = reply
         self.state = State.SPEAKING
 
     def _transcribe(self, payload) -> tuple[str, str | None]:
@@ -248,28 +331,63 @@ class Orchestrator:
 
         raw = generate(message)
         if END_SESSION_SENTINEL in raw:
+            if tl:
+                tl.set("tool_end_session", True)
             return raw, True
 
         if explain_en:
             reply = raw.strip()
             if reply and len(reply) <= 3 * self.max_reply_chars:
+                if tl:
+                    tl.set("validation_ok", True)
+                    tl.set("validation_reason", "explain_in_english")
                 return reply, False
+            if tl:
+                tl.set("validation_ok", False)
+                tl.set("validation_reason", "english_explanation_unusable")
             return prompts.SAFE_FALLBACK, False
 
         reply = self._apply_lexicon(raw)
         ok, reason = validator.validate(reply, self.max_reply_chars)
-        if ok:
+        q = quality.evaluate_quality(reply, previous_reply=self._last_spoken)
+        if tl:
+            tl.set("raw_reply", raw)
+            tl.set("validation_ok", ok)
+            tl.set("validation_reason", reason)
+            tl.set("quality_ok", q["ok"])
+            tl.set("quality_flags", q["flags"])
+            tl.set("quality_reason", q["reason"])
+            tl.set("lexicon_applied", reply != raw)
+        if ok and q["ok"]:
             return reply, False
 
-        self.logger.warning("reply failed validation (%s); retrying", reason)
-        reply = self._apply_lexicon(
-            generate(message + "\n" + prompts.CORRECTIVE_SUFFIX)
-        )
+        if not ok:
+            self.logger.warning("reply failed script validation (%s); retrying", reason)
+            if tl:
+                tl.set("validation_retry", True)
+            suffix = prompts.CORRECTIVE_SUFFIX
+        else:
+            self.logger.warning("reply failed quality checks (%s); retrying", q["reason"])
+            if tl:
+                tl.set("quality_retry", True)
+            suffix = prompts.QUALITY_CORRECTIVE_SUFFIX
+        reply = self._apply_lexicon(generate(message + "\n" + suffix))
         ok, reason = validator.validate(reply, self.max_reply_chars)
+        q = quality.evaluate_quality(reply, previous_reply=self._last_spoken)
+        if tl:
+            tl.set("validation_ok", ok)
+            tl.set("validation_reason", reason)
+            tl.set("quality_ok", q["ok"])
+            tl.set("quality_flags", q["flags"])
+            tl.set("quality_reason", q["reason"])
+        if ok and q["ok"]:
+            return reply, False
         if ok:
+            # Script passed; speak the flagged reply rather than the apology.
+            # quality_ok stays false so results never treat script OK as quality.
             return reply, False
 
-        self.logger.warning("retry failed validation (%s)", reason)
+        self.logger.warning("retry failed script validation (%s)", reason)
         cloud = self._try_cloud_fallback(message)
         return (cloud if cloud is not None else prompts.SAFE_FALLBACK), False
 
@@ -316,15 +434,36 @@ class Orchestrator:
 
     # ------------------------------------------------------------- speaking
 
-    def _speak(self, text: str) -> None:
+    def _speak(self, text: str, *, mark_ttfa: bool = False) -> None:
         """Deterministic speech path (DESIGN §1.4): synthesize, play without
-        blocking (for barge-in), post playback_done when the speaker frees up."""
+        blocking (for barge-in), post playback_done when the speaker frees up.
+
+        ``ttfa_s`` is end-of-utterance → first sample handed to the speaker,
+        not TTS synthesis duration. Synthesis is recorded as ``tts_synth_s``.
+        """
         self.logger.info("speak: %s", text)
+        tl = self.turn_logger
         try:
+            synth_t0 = time.monotonic()
             wav, samplerate = self.tts.synthesize(text)
+            synth_s = time.monotonic() - synth_t0
+            duration_s = None
+            try:
+                duration_s = float(len(wav)) / float(samplerate or 16000)
+            except Exception:
+                duration_s = None
+            first_audio_t = time.monotonic()
             self.robot.speaker_play(wav, samplerate, block=False)
+            self.echo_gate.notify_playback_started(duration_s)
+            if mark_ttfa and tl is not None:
+                tl.set("tts_synth_s", round(synth_s, 3))
+                if self._utterance_end_t0 is not None:
+                    tl.set("ttfa_s", round(first_audio_t - self._utterance_end_t0, 3))
         except Exception:
             self.logger.exception("TTS/playback failure (FR-6.4)")
+            if mark_ttfa and tl is not None:
+                tl.set("tts_error", True)
+            self.echo_gate.notify_playback_ended()
             self.events.put(Event("playback_done"))
             return
         threading.Thread(target=self._watch_playback, daemon=True).start()
@@ -339,6 +478,7 @@ class Orchestrator:
         # were the next user utterance.
         if hasattr(self.robot, "flush_mic"):
             self.robot.flush_mic()
+        self.echo_gate.notify_playback_ended()
         self.events.put(Event("playback_done"))
 
     # ------------------------------------------------------------ audio I/O
@@ -359,9 +499,12 @@ class Orchestrator:
 
             state = self.state
             if state in (State.ASLEEP, State.SPEAKING, State.WAKING):
-                if self.wake and self.wake.process(chunk):
+                if (self.wake and self.echo_gate.allow_wake(chunk)
+                        and self.wake.process(chunk)):
                     self.events.put(Event("wake"))
             elif state == State.LISTENING and self.segmenter is not None:
+                if not self.echo_gate.allow_listen(chunk):
+                    continue
                 utterance = self.segmenter.process(chunk)
                 if utterance is not None:
                     self.events.put(Event("utterance", utterance))

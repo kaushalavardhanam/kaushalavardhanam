@@ -19,14 +19,18 @@ dependencies = [
 robot = ["reachy-mini", "sounddevice"]        # add [mujoco] extra manually for simulation;
                                                # sounddevice backs mic_source: built_in
 agent = ["strands-agents[ollama]>=1.0"]
+bedrock = ["strands-agents>=1.0", "boto3>=1.34", "botocore>=1.34"]
+pipecat = ["pipecat-ai>=0.0.82"]
 wake = ["openwakeword>=0.6", "onnxruntime>=1.16"]
 vad = ["silero-vad>=5.0", "torch>=2.3"]
 asr = ["mlx-whisper>=0.4; platform_machine=='arm64' and sys_platform=='darwin'"]
+asr-cpu = ["openai-whisper>=20231117"]
 # Indic Parler-TTS additionally needs the parler-tts package, which is not on
 # PyPI: pip install git+https://github.com/huggingface/parler-tts.git
 speech = ["transformers>=4.46", "torch>=2.3", "soundfile>=0.12"]
 dev = ["pytest>=8.0"]
 all = ["mitra[robot,agent,wake,vad,asr,speech]"]
+cloud = ["mitra[agent,bedrock]"]
 
 [project.scripts]
 mitra-lexicon = "mitra.lexicon.store:review_cli"
@@ -37,7 +41,9 @@ packages = [
     "mitra",
     "mitra.agent",
     "mitra.audio",
+    "mitra.eval",
     "mitra.lexicon",
+    "mitra.orchestration",
     "mitra.robot",
     "mitra.speech",
 ]

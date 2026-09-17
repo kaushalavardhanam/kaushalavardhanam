@@ -1,0 +1,19 @@
+# Simulator vision scenes (Reachy Mini MuJoCo `minimal` scene).
+# Compare models on identical images and prompts — do not swap photos.
+version: 1
+scene: minimal
+prompt: "What is this?"
+items:
+  - id: apple
+    object_en: apple
+    verified_sa: सेवफलम्
+    expected_sentence: एतत् सेवफलम् अस्ति।
+    notes: Seed-lexicon verified name must win over a generated synonym.
+  - id: croissant
+    object_en: croissant
+    verified_sa: null
+    notes: Unverified modern coinage is acceptable; lexicon records it.
+  - id: duck
+    object_en: duck
+    verified_sa: null
+    notes: Present in the minimal MuJoCo scene.

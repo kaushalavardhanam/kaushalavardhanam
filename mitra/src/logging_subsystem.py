@@ -39,7 +39,13 @@ class TurnLogger:
         self._turn: dict = {}
 
     def start_turn(self) -> None:
-        self._turn = {"ts": datetime.now(timezone.utc).isoformat(), "stages": {}}
+        from mitra.pipeline_trace import memory_mb
+
+        self._turn = {
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "stages": {},
+            "rss_mb_start": memory_mb(),
+        }
 
     def set(self, key: str, value) -> None:
         self._turn[key] = value
@@ -53,12 +59,21 @@ class TurnLogger:
             self._turn.setdefault("stages", {})[name] = round(time.monotonic() - t0, 3)
 
     def emit(self) -> dict:
+        from mitra.pipeline_trace import first_error_stage, memory_mb
+
         record = self._turn
+        record["rss_mb"] = memory_mb()
+        if "first_error_stage" not in record:
+            record["first_error_stage"] = first_error_stage(record)
         self._turn = {}
         try:
             with self.path.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
         except OSError:  # logging must never take the session down (FR-6.4)
             self.logger.exception("failed to write turn log")
+        stage = record.get("first_error_stage")
+        if stage:
+            self.logger.info("turn first_error_stage=%s provider=%s model=%s",
+                             stage, record.get("provider"), record.get("model_id"))
         self.logger.debug("turn: %s", json.dumps(record, ensure_ascii=False))
         return record

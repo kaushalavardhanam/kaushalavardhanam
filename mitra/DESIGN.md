@@ -1,8 +1,10 @@
 # Mitra — Design Document
 
-**Status:** Design | **Version:** 1.2 (2026-07-08) | **Requirements:** [REQUIREMENTS.md](REQUIREMENTS.md) v1.3
+**Status:** Design | **Version:** 1.3 (2026-09-08) | **Requirements:** [REQUIREMENTS.md](REQUIREMENTS.md) v1.3
 
-This document describes *how* Mitra is built: module decomposition, the Strands ↔ Reachy Mini integration, data flows, prompting, and error handling. All inference is local (Ollama, Whisper, Indic Parler-TTS on the M1 Max host) per REQUIREMENTS §1; §1.5 shows the cloud extension path.
+**v1.3 change:** Bedrock is a first-class, config-gated LLM/VLM provider that never contacts Ollama; Pipecat is an optional proof-of-concept orchestrator (`orchestration.engine`). Default remains local Ollama + the custom state machine. Evaluation notes live in `evals/`.
+
+This document describes *how* Mitra is built: module decomposition, the Strands ↔ Reachy Mini integration, data flows, prompting, and error handling. Default inference is local (Ollama, Whisper, Indic Parler-TTS on the M1 Max host) per REQUIREMENTS §1; §1.5 is now implemented as an explicit Bedrock mode.
 
 **Option A — fully local inference (the v1 target):**
 
@@ -118,7 +120,11 @@ model = AnthropicModel(model_id="claude-sonnet-5")          # or BedrockModel(..
 
 Everything else — the `Agent`, the four tools, prompts, validator, lexicon, orchestrator — is unchanged. The privacy boundary also holds in Option B: wake word, VAD, ASR, and TTS remain on the host, so only session *text* and explicitly captured frames cross the network; raw microphone audio never does. The local Ollama model is kept installed as an offline fallback (dashed path in the diagram): on network failure the orchestrator swaps the provider back and continues degraded rather than dying.
 
-**Reference for building out Option B:** [cagataycali/tiny-the-reachy](https://github.com/cagataycali/tiny-the-reachy) is a Strands-Agents-on-Reachy-Mini project built cloud-first by default (OpenAI Realtime, Amazon Nova Sonic, or Gemini for STT/LLM), the inverse of Mitra's local-first Option A. Relevant when Option B is actually implemented:
+**Option B as shipped (issue #7):** set `models.llm.provider: bedrock` (or `--llm-provider bedrock`) with a model id and optional Region. The standard AWS credential-provider chain is used; nothing in `config.yaml` is a secret. While Bedrock is active the process does not start, load, or HTTP-call Ollama/Qwen. Failures raise an actionable `ProviderError` and do not change models unless `models.llm.fallback.enabled` is true. Wake, VAD, ASR, and TTS stay on the host.
+
+A Pipecat proof of concept (`orchestration.engine: pipecat`) reuses the same `handle_event` domain path behind a frame pipeline. It is **not** the default; see `evals/ADR-001-pipecat-bedrock.md`.
+
+**Reference for further cloud motion work:** [cagataycali/tiny-the-reachy](https://github.com/cagataycali/tiny-the-reachy) is a Strands-Agents-on-Reachy-Mini project built cloud-first by default (OpenAI Realtime, Amazon Nova Sonic, or Gemini for STT/LLM), the inverse of Mitra's local-first Option A:
 - Its `tools/reachy_*` layer shows a fuller motion/expression vocabulary (14 tools vs. Mitra's 4) with a **safety envelope** (head pitch/roll ±40°, yaw ±180°, body yaw ±160°) clamped in every motion tool — Mitra's `POSES` table (`src/robot/reachy.py`) currently has no such clamp and should adopt one before more gesture tuning.
 - It binds expression calls to speech *as it plays* (e.g. antenna wobble during TTS) rather than a single pose per state — a model for evolving Mitra's SPEAKING gesture beyond the current static pose.
 - Its `mcp_server_entry.py` exposes robot tools over MCP for direct control from Claude Code/Desktop — useful as a **dev-only** tool for hardware debugging (this session's throwaway probe scripts are exactly what that would replace), not part of Mitra's runtime.
@@ -135,6 +141,8 @@ mitra/
 ├── main.py                      # entry point: wiring + run loop
 ├── src/
 │   ├── orchestrator.py          # state machine (§3)
+│   ├── orchestration/           # optional Pipecat PoC (issue #7)
+│   ├── eval/                    # recognition / Sanskrit rubric helpers
 │   ├── robot/reachy.py          # thin wrapper over reachy-mini SDK: camera, speaker, head
 │   ├── audio/
 │   │   ├── wake.py              # openWakeWord runner ("mitra" model)
@@ -187,8 +195,10 @@ SQLite table `lexicon(object_en TEXT PRIMARY KEY, name_devanagari TEXT, name_ias
 ## 7. Configuration (`config.yaml`)
 
 ```yaml
+orchestration: {engine: custom}   # or pipecat
 models:
   llm: {provider: ollama, host: "http://localhost:11434", id: "qwen3-vl:8b-instruct", keep_alive: "30m"}
+  # provider: bedrock → id is a Bedrock model/profile; region from AWS_REGION if null
   asr: {default: "whisper-large-v3", sanskrit: "<hf-sanskrit-finetune>", backend: "mlx"}
   tts: {engine: "indic-parler-tts", fallback: "indic-tts-vits", device: "mps"}
   wake: {engine: "openwakeword", model: "models/mitra.onnx", threshold: 0.6}

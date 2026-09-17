@@ -9,10 +9,11 @@ CONFIG = yaml.safe_load(
 
 def test_required_sections_present():
     for key in ("robot", "models", "agent", "cloud_fallback", "session",
-                "lexicon", "logging"):
+                "lexicon", "logging", "orchestration"):
         assert key in CONFIG, key
     for key in ("llm", "asr", "tts", "wake", "vad"):
         assert key in CONFIG["models"], key
+    assert CONFIG["orchestration"]["engine"] in ("custom", "pipecat")
 
 
 def test_load_bearing_model_choices():  # CLAUDE.md decisions 1–2
@@ -21,12 +22,27 @@ def test_load_bearing_model_choices():  # CLAUDE.md decisions 1–2
     # the bare :8b tag is the "thinking" variant — must stay on instruct
     assert llm["id"] == "qwen3-vl:8b-instruct"
     assert CONFIG["cloud_fallback"]["enabled"] is False
+    assert llm["fallback"]["enabled"] is False
+    assert "region" in llm  # present, but not a hard-coded secret Region
+    assert llm.get("region") in (None, "")
+
+
+def test_asr_recognition_guards_present():
+    asr = CONFIG["models"]["asr"]
+    assert asr["filter_hallucinations"] is True
+    assert asr["condition_on_previous_text"] is False
+    assert asr["english_retry"] is True
+    assert asr["min_peak"] > 0
+    assert asr["backend"] in ("mlx", "auto", "openai", "openai-whisper")
+    assert CONFIG["models"]["vad"]["min_speech_s"] > 0
 
 
 def test_value_sanity():
     assert 0 < CONFIG["models"]["wake"]["threshold"] <= 1
     assert CONFIG["session"]["silence_timeout_s"] > 0
     assert CONFIG["session"]["max_reply_chars"] == 220
+    assert CONFIG["robot"]["echo_tail_s"] > 0
+    assert CONFIG["robot"]["barge_in_rms"] > 0
 
 
 def test_vad_segmenter_energy_fallback():
