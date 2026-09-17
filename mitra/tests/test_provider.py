@@ -21,6 +21,7 @@ def test_describe_bedrock_never_claims_ollama_contact(monkeypatch):
     assert info["model_id"] == "us.amazon.nova-pro-v1:0"
     assert info["region"] == "us-west-2"
     assert info["ollama_contacted"] is False
+    assert info["ollama_loaded"] is False
 
 
 def test_region_from_env_not_hardcoded(monkeypatch):

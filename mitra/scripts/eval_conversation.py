@@ -40,7 +40,8 @@ def _ensure_pkg() -> None:
 
 def controlled_run(args) -> list[dict]:
     from mitra.agent.errors import ProviderError
-    from mitra.agent.prompts import SANSKRIT_SYSTEM_PROMPT
+    from mitra.agent.prompts import SANSKRIT_SYSTEM_PROMPT, SANSKRIT_SYSTEM_PROMPT_V1
+    from mitra.agent.quality import evaluate_quality
     from mitra.agent.validator import validate
     from mitra.eval.corpus import conversation_scenarios
     from mitra.eval.cost import estimate_usd
@@ -50,6 +51,7 @@ def controlled_run(args) -> list[dict]:
     rows = []
     history: list[dict] = []
     ollama_agent = None
+    system = SANSKRIT_SYSTEM_PROMPT_V1 if args.prompt_version == "v1" else SANSKRIT_SYSTEM_PROMPT
     for scenario in conversation_scenarios():
         prompt = f"[lang={scenario['language']}] {scenario['expected']}"
         t0 = time.monotonic()
@@ -64,7 +66,7 @@ def controlled_run(args) -> list[dict]:
                 meta = converse_text(
                     model_id=args.model_id,
                     user=prompt,
-                    system=SANSKRIT_SYSTEM_PROMPT,
+                    system=system,
                     region=args.region,
                     temperature=args.temperature,
                     max_tokens=args.max_tokens,
@@ -83,7 +85,7 @@ def controlled_run(args) -> list[dict]:
                     ollama_agent = MitraAgent(
                         {"provider": "ollama", "id": args.model_id,
                          "host": args.ollama_host, "temperature": args.temperature},
-                        tools=[], verbose=False,
+                        tools=[], verbose=False, system_prompt=system,
                     )
                 text = ollama_agent.converse(prompt)
                 meta = {"latency_s": round(time.monotonic() - t0, 3),
@@ -98,6 +100,7 @@ def controlled_run(args) -> list[dict]:
             error = f"{type(e).__name__}: {e}"
             text = ""
         ok, reason = validate(text) if text else (False, "empty")
+        q = evaluate_quality(text) if text else {"ok": False, "flags": [], "reason": "empty"}
         review = evaluate_response(
             prompt=scenario["expected"], sanskrit=text or "",
             evaluator=EVALUATOR_ID,
@@ -110,10 +113,16 @@ def controlled_run(args) -> list[dict]:
             "asr_transcript": scenario["expected"],
             "provider": args.provider,
             "model": args.model_id,
-            "region": args.region,
+            "region": meta.get("region") if meta.get("region") is not None else args.region,
             "sanskrit": text,
             "validator_ok": ok,
             "validator_reason": reason,
+            "quality_ok": q["ok"],
+            "quality_flags": q["flags"],
+            "quality_reason": q["reason"],
+            "prompt_version": args.prompt_version,
+            "ollama_loaded": args.provider == "ollama",
+            "ollama_contacted": args.provider == "ollama",
             "latency_s": meta.get("latency_s"),
             "input_tokens": meta.get("input_tokens"),
             "output_tokens": meta.get("output_tokens"),
@@ -123,7 +132,6 @@ def controlled_run(args) -> list[dict]:
             "error": error,
             "error_code": error_code,
             "review": review,
-            "ollama_contacted": args.provider == "ollama",
         }
         rows.append(row)
         print(f"{scenario['id']:10} ok={ok} {text[:60]!r} {error or ''}")
@@ -242,7 +250,14 @@ def write_table(rows: list[dict], path: Path) -> None:
     for r in rows:
         sans = (r.get("sanskrit") or "").replace("\n", " ")
         review = r.get("review") or {}
-        result = r.get("error") or ("pass" if r.get("validator_ok", True) else "fail")
+        if r.get("error"):
+            result = r["error"]
+        else:
+            # Script OK is not a quality pass (issue #9).
+            q_ok = (r.get("review") or {}).get("quality_ok", r.get("quality_ok"))
+            result = "script_ok/quality_ok" if (r.get("validator_ok") and q_ok) else (
+                "script_ok/quality_flagged" if r.get("validator_ok") else "script_fail"
+            )
         gloss = review.get("gloss_agrees")
         if gloss is True:
             gloss_cell = "yes"
@@ -280,6 +295,8 @@ def main() -> int:
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--session", action="store_true",
                         help="Mode B: keep conversation history across the ten prompts")
+    parser.add_argument("--prompt-version", choices=["v2", "v1"], default="v2",
+                        help="v2 is the issue-#9 prompt; v1 is the pre-change prompt")
     parser.add_argument("--orchestrator", choices=["custom", "pipecat"], default="custom",
                         help="Mode A inject: which orchestrator handles the turns")
     parser.add_argument("--out", type=Path,

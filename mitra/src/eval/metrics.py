@@ -6,7 +6,8 @@ import re
 
 
 def _words(text: str) -> list[str]:
-    return re.findall(r"[A-Za-zÀ-ɏऀ-ॿಕ-೯']+", (text or "").lower())
+    # Digits count as tokens so "2 play sports" is a substitution, not a deletion.
+    return re.findall(r"[A-Za-zÀ-ɏऀ-ॿಕ-೯']+|\d+", (text or "").lower())
 
 
 def levenshtein(a: list[str] | str, b: list[str] | str) -> int:

@@ -63,4 +63,9 @@ def looks_unusable(text: str) -> bool:
         return True
     if not _WORD.search(cleaned):
         return True
+    # "2 play sports" (Do→2) is a real decode/VAD error, not usable English.
+    # English retry may rescue it; if the leading word was truncated by VAD
+    # the retry will still fail and first_error_stage becomes asr.
+    if re.match(r"^\d+\b", cleaned):
+        return True
     return False

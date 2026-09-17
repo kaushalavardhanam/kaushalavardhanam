@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 
+from mitra.agent.quality import evaluate_quality
 from mitra.agent.validator import devanagari_ratio, validate
 
 # Common Hindi / Hinglish function words that should not appear in laukika Sanskrit replies.
@@ -74,12 +75,16 @@ def evaluate_response(
         agree = gloss_agrees_override
         agree_why = "cloud-agent linguistic comparison of Sanskrit and English gloss"
     ok, val_reason = validate(sanskrit)
+    quality = evaluate_quality(sanskrit)
     result = {
         "prompt": prompt,
         "sanskrit": sanskrit,
         "gloss": gloss,
         "validator_ok": ok,
         "validator_reason": val_reason,
+        "quality_ok": quality["ok"],
+        "quality_flags": quality["flags"],
+        "quality_reason": quality["reason"],
         "script_score": script,
         "script_note": script_why,
         "grammar": grammar,
@@ -112,11 +117,14 @@ def evaluate_response(
 def aggregate(rows: list[dict]) -> dict:
     grammars = [r["grammar"] for r in rows if r.get("grammar") is not None]
     semantics = [r["semantic"] for r in rows if r.get("semantic") is not None]
+    quality_flags = [r.get("quality_ok") for r in rows if "quality_ok" in r]
     return {
         "n": len(rows),
         "grammar_mean": round(sum(grammars) / len(grammars), 2) if grammars else None,
         "semantic_mean": round(sum(semantics) / len(semantics), 2) if semantics else None,
         "all_devanagari": all(r.get("validator_ok") for r in rows),
+        "script_ok_count": sum(1 for r in rows if r.get("validator_ok")),
+        "quality_ok_count": sum(1 for v in quality_flags if v),
         "any_hard_fail": any(r.get("hard_fail") for r in rows),
         "quality_gate": bool(
             rows

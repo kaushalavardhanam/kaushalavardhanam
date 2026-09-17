@@ -41,6 +41,8 @@ def test_value_sanity():
     assert 0 < CONFIG["models"]["wake"]["threshold"] <= 1
     assert CONFIG["session"]["silence_timeout_s"] > 0
     assert CONFIG["session"]["max_reply_chars"] == 220
+    assert CONFIG["robot"]["echo_tail_s"] > 0
+    assert CONFIG["robot"]["barge_in_rms"] > 0
 
 
 def test_vad_segmenter_energy_fallback():

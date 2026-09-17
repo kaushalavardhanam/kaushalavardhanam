@@ -25,6 +25,8 @@ robot:
                            # speaker, and motion are unaffected either way.
                            # Set back to "robot" once Apple/Pollen fix this.
   built_in_mic_device: "MacBook Pro Microphone"  # only used when mic_source: built_in
+  echo_tail_s: 0.45        # post-playback mic mute; speaker bleed dies after this
+  barge_in_rms: 0.08       # wake/VAD still fire during playback if RMS exceeds this
 
 models:
   llm:

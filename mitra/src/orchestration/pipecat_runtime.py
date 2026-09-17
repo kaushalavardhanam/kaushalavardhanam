@@ -91,15 +91,18 @@ class ResampleProcessor(Processor):
 class WakeGateProcessor(Processor):
     name = "wake"
 
-    def __init__(self, wake, state_fn: Callable[[], State]):
+    def __init__(self, wake, state_fn: Callable[[], State], echo_gate=None):
         self.wake = wake
         self.state_fn = state_fn
+        self.echo_gate = echo_gate
 
     def process(self, frame: MitraFrame) -> list[MitraFrame]:
         if frame.kind != AUDIO or self.wake is None:
             return [frame]
         state = self.state_fn()
         if state in (State.ASLEEP, State.SPEAKING, State.WAKING):
+            if self.echo_gate is not None and not self.echo_gate.allow_wake(frame.payload):
+                return []
             if self.wake.process(frame.payload):
                 return [MitraFrame(WAKE, meta=dict(frame.meta))]
             return []
@@ -109,14 +112,17 @@ class WakeGateProcessor(Processor):
 class VadProcessor(Processor):
     name = "vad"
 
-    def __init__(self, segmenter, state_fn: Callable[[], State]):
+    def __init__(self, segmenter, state_fn: Callable[[], State], echo_gate=None):
         self.segmenter = segmenter
         self.state_fn = state_fn
+        self.echo_gate = echo_gate
 
     def process(self, frame: MitraFrame) -> list[MitraFrame]:
         if frame.kind != AUDIO or self.segmenter is None:
             return [frame]
         if self.state_fn() != State.LISTENING:
+            return []
+        if self.echo_gate is not None and not self.echo_gate.allow_listen(frame.payload):
             return []
         utterance = self.segmenter.process(frame.payload)
         if utterance is None:
@@ -192,8 +198,8 @@ class PipecatOrchestrator(Orchestrator):
         self.pipeline = Pipeline(
             [
                 ResampleProcessor(src_rate, TARGET_SAMPLERATE),
-                WakeGateProcessor(self.wake, lambda: self.state),
-                VadProcessor(self.segmenter, lambda: self.state),
+                WakeGateProcessor(self.wake, lambda: self.state, self.echo_gate),
+                VadProcessor(self.segmenter, lambda: self.state, self.echo_gate),
             ],
             name="mitra-pipecat",
         )

@@ -18,6 +18,14 @@ logger = logging.getLogger("mitra")
 
 SUPPORTED_PROVIDERS = ("ollama", "anthropic", "bedrock")
 
+# Set True only inside ``_make_ollama``. Bedrock/Anthropic never flip this.
+_OLLAMA_CONSTRUCTED = False
+
+
+def ollama_was_loaded() -> bool:
+    """Explicit boolean: an Ollama model object was constructed this process."""
+    return bool(_OLLAMA_CONSTRUCTED)
+
 
 def provider_name(cfg: dict) -> str:
     return str(cfg.get("provider") or "ollama").strip().lower()
@@ -42,6 +50,8 @@ def describe_llm(cfg: dict) -> dict[str, Any]:
         "provider": name,
         "model_id": model_id(cfg),
         "temperature": cfg.get("temperature", 0.3),
+        "ollama_loaded": ollama_was_loaded(),
+        "ollama_contacted": ollama_was_loaded(),
     }
     if name == "bedrock":
         info["region"] = resolve_region(cfg)
@@ -49,10 +59,16 @@ def describe_llm(cfg: dict) -> dict[str, Any]:
         info["max_retries"] = cfg.get("max_retries", 2)
         info["max_tokens"] = cfg.get("max_tokens", 256)
         info["streaming"] = bool(cfg.get("streaming", False))
+        # Explicit, not inferred from provider: Bedrock never constructs Ollama.
+        info["ollama_loaded"] = False
+        info["ollama_contacted"] = False
+    elif name == "anthropic":
+        info["ollama_loaded"] = False
         info["ollama_contacted"] = False
     elif name == "ollama":
         info["host"] = cfg.get("host", "http://localhost:11434")
         info["keep_alive"] = cfg.get("keep_alive", "30m")
+        info["region"] = None
     return info
 
 
@@ -118,9 +134,11 @@ def _make_ollama(cfg: dict):
             model_id=model_id(cfg),
             actionable="Install with: pip install 'mitra[agent]'",
         ) from e
+    global _OLLAMA_CONSTRUCTED
     mid = model_id(cfg) or "qwen3-vl:8b-instruct"
     logger.info("LLM provider=ollama model=%s host=%s", mid,
                 cfg.get("host", "http://localhost:11434"))
+    _OLLAMA_CONSTRUCTED = True
     return OllamaModel(
         host=cfg.get("host", "http://localhost:11434"),
         model_id=mid,

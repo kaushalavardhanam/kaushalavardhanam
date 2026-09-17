@@ -26,9 +26,10 @@ from enum import Enum
 import numpy as np
 
 from mitra import language_detector
-from mitra.agent import prompts, validator
+from mitra.agent import prompts, quality, validator
 from mitra.agent.tools import END_SESSION_SENTINEL
 from mitra.audio import TARGET_SAMPLERATE, resample
+from mitra.audio.echo_gate import EchoGate
 
 
 # "explain in English" detection (FR-3.2 exception): explicit request only —
@@ -59,7 +60,10 @@ class Orchestrator:
                  silence_timeout_s: float = 30.0,
                  max_reply_chars: int = validator.MAX_REPLY_CHARS,
                  fallback_agent_factory=None, gestures: bool = True,
-                 llm_meta: dict | None = None):
+                 llm_meta: dict | None = None,
+                 echo_gate: EchoGate | None = None,
+                 echo_tail_s: float | None = None,
+                 barge_in_rms: float | None = None):
         self.robot = robot
         self.agent = agent
         self.tts = tts
@@ -82,11 +86,17 @@ class Orchestrator:
                 "region": getattr(agent, "region", None),
             }
 
+        self.echo_gate = echo_gate or EchoGate(
+            playback_tail_s=0.45 if echo_tail_s is None else echo_tail_s,
+            barge_in_rms=0.08 if barge_in_rms is None else barge_in_rms,
+        )
         self.state = State.ASLEEP
         self.events: queue.Queue[Event] = queue.Queue()
         self._stop = threading.Event()
         self._sleep_after_speaking = False
         self._last_activity = time.monotonic()
+        self._last_spoken: str = ""
+        self._utterance_end_t0: float | None = None
 
     # ------------------------------------------------------------------ run
 
@@ -185,6 +195,7 @@ class Orchestrator:
         self._pose("thinking")                # head tilt: "processing..."
         self._last_activity = time.monotonic()
         turn_t0 = time.monotonic()
+        self._utterance_end_t0 = turn_t0
         tl = self.turn_logger
         if tl:
             tl.start_turn()
@@ -212,6 +223,8 @@ class Orchestrator:
 
         try:
             reply, session_end = self._generate_reply(message, explain_en)
+            if tl:
+                self._bind_llm_usage(tl)
         except Exception:
             self.logger.exception("agent failure (FR-6.4)")
             if tl:
@@ -228,6 +241,12 @@ class Orchestrator:
         tl.set("provider", self.llm_meta.get("provider"))
         tl.set("model_id", self.llm_meta.get("model_id"))
         tl.set("region", self.llm_meta.get("region"))
+        loaded = self.llm_meta.get("ollama_loaded")
+        if loaded is None:
+            loaded = self.llm_meta.get("provider") == "ollama"
+        tl.set("ollama_loaded", bool(loaded))
+        tl.set("ollama_contacted", bool(self.llm_meta.get("ollama_contacted", loaded)))
+        self._bind_llm_usage(tl)
         if isinstance(payload, str):
             tl.set("payload_kind", "text")
             return
@@ -235,6 +254,24 @@ class Orchestrator:
         from mitra.pipeline_trace import audio_stats
 
         tl.set("audio_stats", audio_stats(payload, TARGET_SAMPLERATE))
+
+    def _bind_llm_usage(self, tl) -> None:
+        usage = getattr(self.agent, "last_usage", None) or {}
+        if usage.get("input_tokens") is not None:
+            tl.set("input_tokens", usage.get("input_tokens"))
+        if usage.get("output_tokens") is not None:
+            tl.set("output_tokens", usage.get("output_tokens"))
+        cost = usage.get("est_usd")
+        if cost is None and usage.get("input_tokens") is not None:
+            from mitra.eval.cost import estimate_usd
+
+            cost = estimate_usd(
+                self.llm_meta.get("model_id") or "",
+                usage.get("input_tokens"),
+                usage.get("output_tokens"),
+            )
+        if cost is not None:
+            tl.set("est_usd", cost)
 
     def _bind_asr_diag(self, tl) -> None:
         asr = self.asr
@@ -254,16 +291,15 @@ class Orchestrator:
         if tl:
             tl.set("reply", reply)
         self._pose("neutral")                 # face forward while speaking
-        tts_t0 = time.monotonic()
         if tl:
             with tl.stage("tts"):
-                self._speak(reply)
-            tl.set("ttfa_s", round(time.monotonic() - tts_t0, 3))
+                self._speak(reply, mark_ttfa=True)
             if turn_t0 is not None:
                 tl.set("e2e_s", round(time.monotonic() - turn_t0, 3))
             tl.emit()
         else:
             self._speak(reply)
+        self._last_spoken = reply
         self.state = State.SPEAKING
 
     def _transcribe(self, payload) -> tuple[str, str | None]:
@@ -313,28 +349,45 @@ class Orchestrator:
 
         reply = self._apply_lexicon(raw)
         ok, reason = validator.validate(reply, self.max_reply_chars)
+        q = quality.evaluate_quality(reply, previous_reply=self._last_spoken)
         if tl:
             tl.set("raw_reply", raw)
             tl.set("validation_ok", ok)
             tl.set("validation_reason", reason)
+            tl.set("quality_ok", q["ok"])
+            tl.set("quality_flags", q["flags"])
+            tl.set("quality_reason", q["reason"])
             tl.set("lexicon_applied", reply != raw)
-        if ok:
+        if ok and q["ok"]:
             return reply, False
 
-        self.logger.warning("reply failed validation (%s); retrying", reason)
-        if tl:
-            tl.set("validation_retry", True)
-        reply = self._apply_lexicon(
-            generate(message + "\n" + prompts.CORRECTIVE_SUFFIX)
-        )
+        if not ok:
+            self.logger.warning("reply failed script validation (%s); retrying", reason)
+            if tl:
+                tl.set("validation_retry", True)
+            suffix = prompts.CORRECTIVE_SUFFIX
+        else:
+            self.logger.warning("reply failed quality checks (%s); retrying", q["reason"])
+            if tl:
+                tl.set("quality_retry", True)
+            suffix = prompts.QUALITY_CORRECTIVE_SUFFIX
+        reply = self._apply_lexicon(generate(message + "\n" + suffix))
         ok, reason = validator.validate(reply, self.max_reply_chars)
+        q = quality.evaluate_quality(reply, previous_reply=self._last_spoken)
         if tl:
             tl.set("validation_ok", ok)
             tl.set("validation_reason", reason)
+            tl.set("quality_ok", q["ok"])
+            tl.set("quality_flags", q["flags"])
+            tl.set("quality_reason", q["reason"])
+        if ok and q["ok"]:
+            return reply, False
         if ok:
+            # Script passed; speak the flagged reply rather than the apology.
+            # quality_ok stays false so results never treat script OK as quality.
             return reply, False
 
-        self.logger.warning("retry failed validation (%s)", reason)
+        self.logger.warning("retry failed script validation (%s)", reason)
         cloud = self._try_cloud_fallback(message)
         return (cloud if cloud is not None else prompts.SAFE_FALLBACK), False
 
@@ -381,15 +434,36 @@ class Orchestrator:
 
     # ------------------------------------------------------------- speaking
 
-    def _speak(self, text: str) -> None:
+    def _speak(self, text: str, *, mark_ttfa: bool = False) -> None:
         """Deterministic speech path (DESIGN §1.4): synthesize, play without
-        blocking (for barge-in), post playback_done when the speaker frees up."""
+        blocking (for barge-in), post playback_done when the speaker frees up.
+
+        ``ttfa_s`` is end-of-utterance → first sample handed to the speaker,
+        not TTS synthesis duration. Synthesis is recorded as ``tts_synth_s``.
+        """
         self.logger.info("speak: %s", text)
+        tl = self.turn_logger
         try:
+            synth_t0 = time.monotonic()
             wav, samplerate = self.tts.synthesize(text)
+            synth_s = time.monotonic() - synth_t0
+            duration_s = None
+            try:
+                duration_s = float(len(wav)) / float(samplerate or 16000)
+            except Exception:
+                duration_s = None
+            first_audio_t = time.monotonic()
             self.robot.speaker_play(wav, samplerate, block=False)
+            self.echo_gate.notify_playback_started(duration_s)
+            if mark_ttfa and tl is not None:
+                tl.set("tts_synth_s", round(synth_s, 3))
+                if self._utterance_end_t0 is not None:
+                    tl.set("ttfa_s", round(first_audio_t - self._utterance_end_t0, 3))
         except Exception:
             self.logger.exception("TTS/playback failure (FR-6.4)")
+            if mark_ttfa and tl is not None:
+                tl.set("tts_error", True)
+            self.echo_gate.notify_playback_ended()
             self.events.put(Event("playback_done"))
             return
         threading.Thread(target=self._watch_playback, daemon=True).start()
@@ -404,6 +478,7 @@ class Orchestrator:
         # were the next user utterance.
         if hasattr(self.robot, "flush_mic"):
             self.robot.flush_mic()
+        self.echo_gate.notify_playback_ended()
         self.events.put(Event("playback_done"))
 
     # ------------------------------------------------------------ audio I/O
@@ -424,9 +499,12 @@ class Orchestrator:
 
             state = self.state
             if state in (State.ASLEEP, State.SPEAKING, State.WAKING):
-                if self.wake and self.wake.process(chunk):
+                if (self.wake and self.echo_gate.allow_wake(chunk)
+                        and self.wake.process(chunk)):
                     self.events.put(Event("wake"))
             elif state == State.LISTENING and self.segmenter is not None:
+                if not self.echo_gate.allow_listen(chunk):
+                    continue
                 utterance = self.segmenter.process(chunk)
                 if utterance is not None:
                     self.events.put(Event("utterance", utterance))

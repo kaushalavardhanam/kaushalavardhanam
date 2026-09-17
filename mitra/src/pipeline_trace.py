@@ -16,6 +16,7 @@ STAGES = (
     "prompt",
     "llm",
     "validation",
+    "quality",
     "lexicon",
     "translation",
     "tts",
@@ -64,6 +65,9 @@ def first_error_stage(turn: dict) -> str | None:
         return "asr"
     if turn.get("asr_filtered_empty"):
         return "asr"
+    if turn.get("payload_kind") == "audio" and _asr_leading_digit(transcript or asr_raw):
+        # "Do you play sports?" → "2 play sports": VAD/decode, not the LLM.
+        return "asr"
 
     expected = turn.get("expected_transcript")
     if expected and transcript and _normalize(transcript) != _normalize(expected):
@@ -80,6 +84,8 @@ def first_error_stage(turn: dict) -> str | None:
 
     if turn.get("validation_ok") is False and not turn.get("explain_in_english"):
         return "validation"
+    if turn.get("quality_ok") is False and not turn.get("explain_in_english"):
+        return "quality"
 
     if turn.get("tts_error"):
         return "tts"
@@ -95,6 +101,14 @@ def first_error_stage(turn: dict) -> str | None:
         if not ok:
             return "validation"
     return None
+
+
+def _asr_leading_digit(text: str) -> bool:
+    """True for the Do→2 class: a leading digit token in an otherwise Latin utterance."""
+    import re
+
+    cleaned = (text or "").strip()
+    return bool(re.match(r"^\d+\b", cleaned))
 
 
 def _normalize(text: str) -> str:

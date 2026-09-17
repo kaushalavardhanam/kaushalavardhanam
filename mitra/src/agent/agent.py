@@ -34,6 +34,7 @@ class MitraAgent:
         self.model_id = llm_provider.model_id(llm_config)
         self.region = llm_provider.resolve_region(llm_config) if self.provider == "bedrock" else None
         self.last_error: ProviderError | None = None
+        self.last_usage: dict = {}
         # Strands' default callback handler streams reply tokens straight to
         # stdout — set verbose=False (e.g. in batch/test scripts) to silence
         # it and get only the final string from converse().
@@ -49,6 +50,24 @@ class MitraAgent:
     def _make_model(cfg: dict):
         """Back-compat wrapper — prefer ``mitra.agent.provider.make_model``."""
         return llm_provider.make_model(cfg)
+
+    def warmup(self) -> None:
+        """Load the local model so the first user turn is not the cold start.
+
+        Bedrock has nothing to load locally; this is a no-op there. History is
+        reset so the dummy ping never appears in the session.
+        """
+        if self.provider != "ollama":
+            logger.info("LLM warmup skipped (provider=%s has no local weights)",
+                        self.provider)
+            return
+        logger.info("warming up LLM provider=ollama model=%s", self.model_id)
+        try:
+            self.converse("[lang=en] ping")
+        except Exception:
+            logger.exception("LLM warmup failed — first user turn may be cold")
+        finally:
+            self.reset()
 
     def converse(self, message: str) -> str:
         """One turn: user message in, final agent text out (tools may run)."""

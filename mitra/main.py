@@ -209,6 +209,14 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
 
     tools = build_tools(robot, tts)
     agent = MitraAgent(llm_cfg, tools)
+    identity = llm_provider.describe_llm(llm_cfg)
+    identity["ollama_loaded"] = (
+        False if identity["provider"] != "ollama"
+        else llm_provider.ollama_was_loaded()
+    )
+    identity["ollama_contacted"] = identity["ollama_loaded"]
+    if hasattr(agent, "warmup"):
+        agent.warmup()
     explicit_fb = llm_provider.fallback_config(llm_cfg)
     if explicit_fb:
         logger.warning("explicit LLM fallback enabled: %s/%s (not silent)",
@@ -249,6 +257,8 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
         max_reply_chars=config["session"]["max_reply_chars"],
         fallback_agent_factory=fallback_factory,
         llm_meta=identity,
+        echo_tail_s=config["robot"].get("echo_tail_s", 0.45),
+        barge_in_rms=config["robot"].get("barge_in_rms", 0.08),
     )
     try:
         orchestrator.run()

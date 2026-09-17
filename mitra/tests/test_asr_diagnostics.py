@@ -22,6 +22,7 @@ def test_looks_unusable_empty_and_punct():
     assert looks_unusable("")
     assert looks_unusable("...")
     assert not looks_unusable("Do you play?")
+    assert looks_unusable("2 play sports")
 
 
 def test_transcriber_rejects_unknown_backend():
