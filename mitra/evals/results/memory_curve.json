@@ -1,0 +1,160 @@
+{
+  "n": 30,
+  "path": "inject + FakeReachy + canned agent (no model weights)",
+  "rss_mb_start": 30.9,
+  "rss_mb_end": 31.5,
+  "delta_mb": 0.6,
+  "curve": [
+    {
+      "turn": 1,
+      "rss_mb": 30.9,
+      "id": "doing"
+    },
+    {
+      "turn": 2,
+      "rss_mb": 30.9,
+      "id": "live"
+    },
+    {
+      "turn": 3,
+      "rss_mb": 30.9,
+      "id": "play"
+    },
+    {
+      "turn": 4,
+      "rss_mb": 30.9,
+      "id": "food"
+    },
+    {
+      "turn": 5,
+      "rss_mb": 30.9,
+      "id": "subject"
+    },
+    {
+      "turn": 6,
+      "rss_mb": 31.0,
+      "id": "reading"
+    },
+    {
+      "turn": 7,
+      "rss_mb": 31.0,
+      "id": "music"
+    },
+    {
+      "turn": 8,
+      "rss_mb": 31.0,
+      "id": "sports"
+    },
+    {
+      "turn": 9,
+      "rss_mb": 31.0,
+      "id": "today"
+    },
+    {
+      "turn": 10,
+      "rss_mb": 31.0,
+      "id": "friend"
+    },
+    {
+      "turn": 11,
+      "rss_mb": 31.0,
+      "id": "doing"
+    },
+    {
+      "turn": 12,
+      "rss_mb": 31.0,
+      "id": "live"
+    },
+    {
+      "turn": 13,
+      "rss_mb": 31.1,
+      "id": "play"
+    },
+    {
+      "turn": 14,
+      "rss_mb": 31.1,
+      "id": "food"
+    },
+    {
+      "turn": 15,
+      "rss_mb": 31.1,
+      "id": "subject"
+    },
+    {
+      "turn": 16,
+      "rss_mb": 31.1,
+      "id": "reading"
+    },
+    {
+      "turn": 17,
+      "rss_mb": 31.1,
+      "id": "music"
+    },
+    {
+      "turn": 18,
+      "rss_mb": 31.3,
+      "id": "sports"
+    },
+    {
+      "turn": 19,
+      "rss_mb": 31.3,
+      "id": "today"
+    },
+    {
+      "turn": 20,
+      "rss_mb": 31.3,
+      "id": "friend"
+    },
+    {
+      "turn": 21,
+      "rss_mb": 31.3,
+      "id": "doing"
+    },
+    {
+      "turn": 22,
+      "rss_mb": 31.3,
+      "id": "live"
+    },
+    {
+      "turn": 23,
+      "rss_mb": 31.4,
+      "id": "play"
+    },
+    {
+      "turn": 24,
+      "rss_mb": 31.4,
+      "id": "food"
+    },
+    {
+      "turn": 25,
+      "rss_mb": 31.4,
+      "id": "subject"
+    },
+    {
+      "turn": 26,
+      "rss_mb": 31.4,
+      "id": "reading"
+    },
+    {
+      "turn": 27,
+      "rss_mb": 31.4,
+      "id": "music"
+    },
+    {
+      "turn": 28,
+      "rss_mb": 31.5,
+      "id": "sports"
+    },
+    {
+      "turn": 29,
+      "rss_mb": 31.5,
+      "id": "today"
+    },
+    {
+      "turn": 30,
+      "rss_mb": 31.5,
+      "id": "friend"
+    }
+  ],
+  "note": "2026-09-16 live session grew 4120\u21925070 MB (+950 MB / 10 turns) including Whisper/TTS caches and excluding the Ollama process. This inject curve isolates orchestrator/history."
+}

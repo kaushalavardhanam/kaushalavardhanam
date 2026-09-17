@@ -1,79 +1,83 @@
-# ADR-001 — Pipecat PoC and Bedrock inference mode
+# ADR-001 — Default mode, orchestrator, and model IDs
 
-**Status:** Accepted for the evaluation branch (issue #7)  
-**Date:** 2026-09-08  
-**Default in `config.yaml`:** custom orchestrator + local Ollama  
-**Opt-in:** `--orchestrator pipecat`, `--llm-provider bedrock`  
-**Branch:** `cursor/agent-mitra-pipecat-cloudllm-eecf`
+**Status:** Accepted for issue #9 (closes the #7 deferral)  
+**Date:** 2026-09-17  
+**Config default in `config.yaml`:** custom orchestrator + local Ollama (offline / privacy)  
+**Recommended mode for the Sanskrit quality gate:** Bedrock + Claude Sonnet 4.6, prompt v1  
+**Opt-in:** `--orchestrator pipecat`, `--llm-provider bedrock`
 
 ## Context
 
-Mitra’s custom orchestrator (`src/orchestrator.py`) already implements wake, barge-in, VAD, ASR, Strands tools, Devanagari validation, lexicon override, TTS, and `flush_mic` after playback. Issue #7 asked whether Pipecat should replace that layer and whether Amazon Bedrock should replace local Qwen3-VL for conversation and vision.
+PR #8 delivered Bedrock, a Pipecat PoC, diagnostics, and a written bake-off, then deferred the default-mode decision pending Mode A and vision. Issue #9 recorded the first live Mode A run (2026-09-16, offline Qwen) and required that decision to be written down.
 
-## Decision 1 — Orchestrator: keep custom; retain Pipecat as a flag
+## Decision 1 — Orchestrator: keep custom
 
-**Adopt Pipecat as the default? No.**
+**Adopt Pipecat as the default? No.** Unchanged from #8.
 
-Evidence:
+Evidence: unit + inject parity, echo-gate tests on both paths, no spoken Pipecat-vs-custom A/B. Daily transports would leave the privacy boundary. See `evals/results/pipecat_e2e.md`.
 
-1. The PoC (`src/orchestration/pipecat_runtime.py`) maps audio → processors → the *same* `handle_event` path. Domain logic is not rewritten (issue constraint).
-2. Daily Pipecat’s stock transports (WebRTC / Daily / cloud STT-TTS) would move raw audio off-host or replace Indic TTS. That violates the privacy model and Sanskrit TTS requirement.
-3. Pipecat is async and service-oriented; Mitra is a single-threaded state machine with two daemon helpers. A full replacement would re-implement barge-in, silence timeout, and playback flush with a high regression risk.
-4. Unit tests on `PipecatOrchestrator` show wake, validation, and barge-in parity with the custom engine when events are injected. That is necessary but not sufficient to retire the custom loop.
-5. The live audio pump now **queues** wake/utterance events for the existing `handle_event` run loop (no `handle_event` from the mic thread). That matches the custom engine’s concurrency model.
-6. End-to-end MuJoCo + spoken turns were **not** run in this Linux cloud worker (no Reachy daemon, no operator mic, 3.7 GiB RAM). The PoC is reversible and off by default.
+## Decision 2 — Cloud vs local (the #7 deferral)
 
-**Keep:** `orchestration.engine: custom`.  
-**Keep:** Pipecat path for further A/B on a Mac with the simulator.  
-**Do not:** force a full replacement.
+**Recorded, not deferred.**
 
-### What Pipecat replaces vs what remains
-
-| Replaced | Remains |
-|---|---|
-| Mic pump if/else (`_audio_loop`) | Wake detectors |
-|  | Silero / energy VAD |
-|  | Local Whisper ASR |
-|  | Language detector |
-|  | Strands agent + tools |
-|  | Validator + lexicon |
-|  | Indic Parler-TTS / VITS |
-|  | `flush_mic` / barge-in events |
-
-## Decision 2 — LLM/VLM: Bedrock is a first-class explicit mode
-
-**Default remains Ollama `qwen3-vl:8b-instruct` (offline).**  
-**Bedrock mode** (`models.llm.provider: bedrock`) runs *all* conversational and vision inference through Bedrock and **does not** start, load, or contact Ollama/Qwen.
-
-Rules:
-
-- Standard AWS credential chain only. No keys in git.
-- Region, model id, temperature, timeout, retries, max tokens are configurable.
-- Failures raise `ProviderError` with an actionable hint. No silent model swap.
-- `models.llm.fallback.enabled` is the only way to use another provider after a failure (default false).
-- The older `cloud_fallback` block (validation-time) is unchanged and still default-off.
-
-### Preferred Bedrock IDs (pending live Sanskrit gate)
-
-| Role | ID | Why |
+| Question | Decision | Evidence |
 |---|---|---|
-| Cost / latency shortlist | `us.amazon.nova-pro-v1:0` | VLM + Converse tools; CRIS from `us-west-2`. Mode B written gate **failed** (grammar 3.4). |
-| Quality shortlist | `us.openai.gpt-5.6-sol` or `us.anthropic.claude-sonnet-4-6` | Live Mode B written gate **passed** (Sol 4.6/4.8; Sonnet 4.6 4.5/4.8). Sol rejects `temperature` and requires `maxTokens` ≥ 16. |
-| Offline | `qwen3-vl:8b-instruct` | Unchanged local path |
+| Does the offline default meet the #7 Sanskrit gate? | **No.** | Mode A run 1 (2026-09-16): grammar 2.2 / semantic 2.2, Hindi on three turns, greeting closer on every turn. Eight of ten scores below 3. |
+| What is offline mode for? | Privacy, air-gapped demo, no AWS. It remains installed and is still `config.yaml` default so a laptop without credentials works. | Local-first is a load-bearing product rule (DESIGN / CLAUDE.md). |
+| What should an operator use when the quality gate matters? | **Bedrock**, model `us.anthropic.claude-sonnet-4-6` (or `us.openai.gpt-5.6-sol`), **prompt v1**. | Mode B written gate passed (Sonnet 4.6: 4.5/4.8; Sol: 4.6/4.8). Nova Pro 3.4 grammar **fail**. Haiku 4.5 3.6 + non-Devanagari **fail**. |
+| Was that gate measured on spoken Mode A? | **No.** Spoken Bedrock Mode A was not run (no daemon/mic). The recommendation is Mode B + the fact that offline Mode A failed. | `mode_a_status.md` |
 
-Live `Converse` and `InvokeModel` on inference-profile ARNs succeed for this worker (2026-09-08). Do not change the default to Bedrock until spoken Mode A and vision are also measured.
+`config.yaml` is **not** flipped to Bedrock in this PR. Flipping it would break offline-first without credentials. The ADR is the recommendation; the CLI is `--llm-provider bedrock --llm-id us.anthropic.claude-sonnet-4-6`.
 
-## Decision 3 — ASR / VAD stay local; recognition fixes
+Prompt v2 (Hindi bans, no greeting closer) is in the tree to attack the Qwen failure modes. It was **not** evaluated on Qwen (no Ollama). On Sonnet it *regressed* the sports turn (English self-correction + `खेलः`). Do not report v2 as the configuration that cleared the gate.
 
-First-error analysis of the reported “simulator hears sentences wrong” problem (see EVALUATION.md):
+## Decision 3 — Selected IDs
 
-- Not assumed to be the LLM.
-- Confirmed code defects: diagnostic script used a different ASR/mic than `config.yaml`; Silero dropped `min_speech_s`; Whisper peak-normalized near-silence; known hallucinations accepted as transcripts.
-- Fixes shipped; live WER still needs consented WAVs on the Mac.
+Exact IDs. None are hard-coded as the only legal value in config.
+
+| Role | Selected ID | Why | Evidence type |
+|---|---|---|---|
+| Conversation (quality gate) | `us.anthropic.claude-sonnet-4-6` | Written gate pass; faster/cheaper than Sol on this worker | Mode B 2026-09-08 |
+| Conversation (alternate) | `us.openai.gpt-5.6-sol` | Written gate pass; rejects `temperature`; high tail latency | Mode B 2026-09-08 |
+| Conversation (offline) | `qwen3-vl:8b-instruct` | Only local VLM with tools in-tree | Mode A run 1 **fails** the gate |
+| Vision (quality) | `us.anthropic.claude-sonnet-4-6` | Same id; more grounded than Nova on identical stand-in JPEGs | Synthetic vision 2026-09-17 |
+| Vision (offline) | `qwen3-vl:8b-instruct` | Unscored here | — |
+| ASR | `mlx-community/whisper-large-v3-turbo` on Mac; whisper-small/transformers was what 2026-09-16 actually ran | English WER 0.048 on the ten items | Mode A run 1 + config |
+| VAD / wake | Silero (fixed `min_speech_s`) / transcript “mitra” on whisper-small | Code + #8 diagnosis | Tests |
+| TTS | Indic Parler-TTS primary; `facebook/mms-tts-hin` is what 2026-09-16 actually used | Hindi VITS is a known limitation | Mode A run 1 |
+
+## Decision 4 — Recognition
+
+#7’s “simulator recognizes sentences incorrectly” objective is **restated, not treated as the blocking LLM bug**. Nine of ten English transcripts were exact; micro-WER **0.048**. Residual: `Do you play sports?` → `2 play sports` (likely VAD truncation / Do→2). `first_error_stage` is now `asr` for a leading-digit hypothesis; English retry treats it as unusable.
+
+## Assumptions vs measurements
+
+**Measured**
+
+- Offline Mode A run 1 quality (2.2 / 2.2) and WER (0.048)
+- Mode B written scores for Nova, Sonnet 4.6, Haiku 4.5, GPT-5.6 Sol (prompt v1)
+- Sonnet 4.6 prompt-v2 sports leak
+- Quality-stage precision 0.875 / recall 1.0 on the ten scored turns (target 1,2,3,4,5,8,9)
+- Bedrock `region=us-west-2`, token cost, `ollama_loaded=false`
+- Inject-path RSS +0.6 MB over 30 turns
+- Echo-gate unit tests (custom + Pipecat)
+
+**Assumptions / not measured**
+
+- Spoken Bedrock Mode A would match written Sonnet quality
+- Prompt v2 would lift Qwen (not run)
+- MuJoCo camera JPEGs would match the synthetic stand-ins
+- Parler-TTS is more Sanskrit-appropriate than VITS Hindi (not A/B’d)
+- MLX large-v3-turbo is faster than transformers whisper-small at equal WER (not A/B’d on this host)
+- 950 MB / 10-turn live growth is cache, not a leak (inject path does not reproduce it)
+
+## Human linguistic review
+
+Register, food-persona honesty, and any score below 5 still need a Sanskrit reviewer. Agreement and Hindi items in the 2026-09-16 table are high confidence.
 
 ## Consequences
 
-- Operators choose Bedrock with CLI/config; laptops no longer need ~6 GB Qwen resident in that mode.
-- Offline demo still works with `--llm-provider ollama`.
-- Pipecat can be deleted later without touching domain modules.
-- Sanskrit written gate for a Bedrock default: **GPT-5.6 Sol and Sonnet 4.6 passed** Mode B on this worker. Spoken Mode A and vision are still required before changing `config.yaml`.
+- Operators who need the #7 gate use Bedrock Sonnet 4.6 (prompt v1) and accept cloud cost + a non-null Region.
+- Offline remains; it will still fail the gate with current Qwen until a local model is re-baked.
+- `validation_ok` is script-only. Results must report `quality_ok` separately.
+- Pipecat stays a flag.

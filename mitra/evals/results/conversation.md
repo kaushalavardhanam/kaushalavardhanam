@@ -1,3 +1,5 @@
+# Hand-written cloud-agent **reference fixture** — not model output, not a result.
+
 | Prompt | Run | Test mode | ASR transcript | Model | Sanskrit | Grammar | Semantic | Gloss matches | Latency | Result |
 |---|---:|---|---|---|---|---:|---:|---|---:|---|
 | What are you doing? | 1 | end-to-end-inject-custom | What are you doing? | cloud-agent-reference | अहं त्वया सह वदामि। | 5 | 5 | yes |  | pass |

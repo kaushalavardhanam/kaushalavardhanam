@@ -4,8 +4,8 @@
     python scripts/eval_vision.py --image-dir evals/fixtures/vision \\
         --provider bedrock --model-id us.amazon.nova-pro-v1:0
 
-Images are not committed. Capture them from the MuJoCo minimal scene
-(apple / croissant / duck) and pass the directory of {id}.jpg files.
+Synthetic stand-ins live in evals/fixtures/vision (not MuJoCo captures).
+MuJoCo JPEGs, when available, should replace those files and keep the same names.
 """
 
 from __future__ import annotations
@@ -82,10 +82,13 @@ def main() -> int:
             raw, meta, err = "", {}, f"{type(e).__name__}: {e}"
         # Reuse lexicon substitution without a live orchestrator instance
         class _Lex:
-            lexicon = lexicon
-            def _apply_lexicon(self, reply):
+            def __init__(self, store):
+                self.lexicon = store
+
+            def apply(self, reply):
                 return Orchestrator._apply_lexicon(self, reply)
-        spoken = _Lex()._apply_lexicon(raw) if raw else ""
+
+        spoken = _Lex(lexicon).apply(raw) if raw else ""
         parsed = _extract_json(raw) if raw else None
         rows.append({
             **item,

@@ -1,7 +1,8 @@
 # Model and service research matrix
 
-**Date:** 2026-09-08  
-**Scope:** GitHub issue #7 — Bedrock LLM/VLM, ASR, VAD/wake, TTS.  
+**Date:** 2026-09-17 (issue #9 close-out; Mode B numbers from 2026-09-08)  
+**Scope:** GitHub issue #7 / #9 — Bedrock LLM/VLM, ASR, VAD/wake, TTS.  
+**Default-mode decision:** see ADR-001. Nova Pro grammar 3.4 and Haiku 4.5 grammar 3.6 **fail** the #7 gate.  
 **Privacy boundary (unchanged):** raw microphone audio stays on the host. Only transcribed text and explicitly captured images may leave the machine.
 
 Sources are linked per row. “Newest/largest” was not used as a selection rule.

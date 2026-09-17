@@ -1,9 +1,12 @@
-# Evaluation report — issue #7
+# Evaluation report — issue #7 close-out (issue #9)
 
 **Baseline commit (origin/main):** `c4dea80f8334bbcb31560b52ea8eb2de3d437dcf`  
-**Branch:** `cursor/agent-mitra-pipecat-cloudllm-eecf`  
+**Started from:** PR #8 head `9dbdf55` (not rebased)  
+**This branch:** `cursor/agent-mitra-closeout-issue7-modea-sanskrit-gate-cac6`  
 **Evaluator (Sanskrit rubric):** `cursor-grok-4.6-high-fast` (cloud agent). Not a candidate model.  
 **PDF `tests/mitra-2026-08-22-1038-mobile.pdf`:** not present, not committed, not required. Corpus is `evals/corpus/conversation.yaml`.
+
+Issue #9 is the unmet evidence from #7. PR #8 infrastructure is reused, not re-specified. `conversation.md` remains a **hand-written reference fixture** and is never counted as a model result.
 
 ## 1. Environment limits (measurements vs assumptions)
 
@@ -66,13 +69,18 @@ The reported failure — simulator “recognizes some spoken sentences incorrect
 
 ### Recognition scores
 
-No consented WAVs are in git. `scripts/eval_recognition.py --audio-dir <dir>` computes WER/CER with the **application** Transcriber.
+`recognition.jsonl` is populated from the **2026-09-16 live ASR hypotheses** (audio not committed).
 
-Until clips exist, WER is **not claimed**. Exact utterances that reproduce the bug on a Mac: the ten English questions in `evals/corpus/recognition.yaml`, spoken after “Mitra.”
+| Language | Items | Micro-WER | Mean item WER | Residual |
+|---|---:|---:|---:|---|
+| en | 10 | **0.048** | 0.050 | Turn 8 `Do you play sports?` → `2 play sports` |
+| sa | 0 | — | — | no consented WAV |
+
+#7’s sentence-recognition objective is **restated**: English WER on this set is ~0.05, not the blocking failure. `first_error_stage` is now `asr` for a leading-digit hypothesis; `looks_unusable` triggers English retry. If VAD ate “Do”, retry will still fail — accepted residual until a Mac re-measures. WER did not regress against the 0.06 quoted in #9.
 
 ## 4. Mode A — end-to-end simulator (spoken ×3)
 
-**Status:** not executed in this worker (no daemon, no mic).
+**Status:** run 1 recorded (2026-09-16 offline). Runs 2–3 and all Bedrock/Pipecat spoken runs **not executed** in this worker (no daemon, no mic, 3.7 GiB). See `evals/results/mode_a_status.md`.
 
 How to run on the operator Mac:
 
@@ -80,19 +88,21 @@ How to run on the operator Mac:
 # terminal 1
 mjpython -m reachy_mini.daemon.app.main --sim --scene minimal
 # terminal 2 — Bedrock (Ollama must stay down)
-python main.py --debug --llm-provider bedrock --llm-id us.amazon.nova-pro-v1:0
+python main.py --debug --llm-provider bedrock --llm-id us.anthropic.claude-sonnet-4-6
 # say "Mitra", then each question three times
 ```
 
 Repeat with `--llm-provider ollama` and with `--orchestrator pipecat`.
 
-`scripts/eval_conversation.py --mode end-to-end --inject` (and `--orchestrator pipecat`) exercises wake-less **post-ASR** turns through both orchestrators + TTS using reference Sanskrit (fixture). That is **not** a substitute for spoken Mode A.
+`scripts/eval_conversation.py --mode end-to-end --inject` (and `--orchestrator pipecat`) exercises wake-less **post-ASR** turns through both orchestrators + TTS using reference Sanskrit (fixture). That is **not** a substitute for spoken Mode A and is **not** counted as a result.
 
 | Prompt | Run | Test mode | ASR | Model | Result |
 |---|---:|---|---|---|---|
-| (all ten) | 1–3 | End-to-end spoken | *operator* | Qwen / Nova / Sonnet | **pending Mac** |
-| (all ten) | 1 | end-to-end-inject-custom | expected transcript | fixture reference | TTS + rubric pass (see `conversation.md`) |
-| (all ten) | 1 | end-to-end-inject-pipecat | expected transcript | fixture reference | TTS + rubric pass (see `conversation_pipecat.md`) |
+| (all ten) | 1 | mode-a-spoken-2026-09-16 | live | qwen3-vl:8b-instruct | **fail** gate 2.2/2.2 — `mode_a_run1_2026-09-16.md` |
+| (all ten) | 2–3 | End-to-end spoken | *operator* | Qwen | **not run** (Mac) |
+| (all ten) | 1–3 | End-to-end spoken | *operator* | Sonnet 4.6 | **not run** (Mac) |
+| (all ten) | 1 | end-to-end-inject-custom | expected transcript | fixture reference | TTS path only — not a result |
+| (all ten) | 1 | end-to-end-inject-pipecat | expected transcript | fixture reference | TTS path only — not a result |
 
 ## 5. Mode B — controlled LLM comparison
 
@@ -118,7 +128,7 @@ python scripts/eval_conversation.py --mode controlled --provider ollama \
 | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | 9/10 | 3.6 | 4.4 | yes (Hindi `खेल`, English gloss) | **fail** | 0.85–2.42 |
 | `us.openai.gpt-5.6-sol` | 10/10 | 4.6 | 4.8 | no | **pass** | 3.4–23.5 (rejects `temperature`) |
 | `us.anthropic.claude-sonnet-4-20250514-v1:0` | — | — | — | — | not run | legacy / ResourceNotFound |
-| `qwen3-vl:8b-instruct` | — | — | — | — | not scored | no Ollama; 3.7 GiB RAM |
+| `qwen3-vl:8b-instruct` | 10/10 script | 2.2 | 2.2 | yes | **fail** (Mode A spoken, not Mode B) | no Ollama here; scored from 2026-09-16 log |
 
 Scored tables: `conversation_nova_pro.md`, `conversation_sonnet46.md`, `conversation_haiku45.md`, `conversation_gpt56_sol.md`. JSONL + `mode_b_linguistic_scores.json` / `mode_b_aggregate.json`. Probe: `bedrock_probe.json`.
 
@@ -155,21 +165,32 @@ Corrected Sanskrit is omitted where score ≥ 4. Food item flagged uncertain (ro
 
 | Model | Gate | Reason |
 |---|---|---|
-| Qwen3-VL 8B Instruct | **Not scored** | No Ollama in worker |
+| Qwen3-VL 8B Instruct | **Fail** (Mode A spoken 2026-09-16) | Grammar 2.2 / semantic 2.2; Hindi; greeting template. Written Mode B still not run. |
 | Nova Pro (`us.amazon.nova-pro-v1:0`) | **Fail** | Mean grammar 3.4; hard fail on `नाश्नामी`; several 3sg/gender errors |
 | Claude Sonnet 4.6 (`us.anthropic.claude-sonnet-4-6`) | **Pass** | Mean grammar 4.5 / semantic 4.8; all Devanagari; lowest grammar 3 (`प्रिया विषयः`) |
 | GPT-5.6 Sol (`us.openai.gpt-5.6-sol`) | **Pass** | Mean grammar 4.6 / semantic 4.8; all Devanagari; no score below 4. Converse rejects `temperature` (Mode B retries without it). |
 | Claude Haiku 4.5 | **Fail** | Hindi `खेल` + English parenthetical on “Do you play?”; mean grammar 3.6 |
 | Claude Sonnet 4 (20250514) | **Not scored** | Provider marks the ID legacy |
 
-Sonnet 4.6 and GPT-5.6 Sol both passed the written gate on this worker. That is **not** enough to change the default: spoken Mode A, vision bake-off, and human review of food/music persona items are still open. Default remains `ollama` / Qwen until those are measured. The pipeline still *requires* Devanagari + TTS on every normal turn.
+Sonnet 4.6 and GPT-5.6 Sol both passed the written gate on **prompt v1**. Nova Pro (grammar 3.4) and Haiku 4.5 (grammar 3.6, not all-Devanagari) **failed** — surface these negatives in the PR, not only in JSONL.
+
+Offline Qwen **failed** the gate on live Mode A. The default-mode decision is recorded in ADR-001: `config.yaml` stays ollama for privacy; the recommended quality-gate mode is Bedrock Sonnet 4.6 + prompt v1. Prompt v2 was evaluated on Sonnet only and **regressed** the sports turn; it is not claimed as a Qwen fix.
+
+The pipeline still *requires* Devanagari + TTS on every normal turn. `validation_ok` is script-only; `quality_ok` is the linguistic signal.
 
 ## 7. Vision and tools
 
-Corpus: `evals/corpus/vision.yaml` (apple / croissant / duck, MuJoCo `minimal`).  
-Script: `scripts/eval_vision.py --image-dir …` (images not in git).
+Corpus: `evals/corpus/vision.yaml`.  
+Script: `scripts/eval_vision.py --image-dir evals/fixtures/vision`.  
+Images: **synthetic stand-ins** (identical across candidates), not MuJoCo captures. See `evals/results/vision.md`.
 
-Lexicon override for **apple → सेवफलम्** is unit-tested (`test_verified_lexicon_overrides_generated_name`). Live VLM comparison is pending identical JPEGs (Bedrock invoke now works; images are not in git).
+| Object | Sonnet 4.6 | Nova Pro |
+|---|---|---|
+| apple | सेवफलम् (grounded) | सेवफलम् (grounded) |
+| croissant | पिष्टकः (pastry, partial) | “fan” / क्रितान्का (wrong) |
+| duck | lexicon → कारण्डवः | lexicon → कारण्डवःो (broken) |
+
+`ollama_loaded: false`. Qwen vision not run. `capture_image` tool loop still needs the simulator. Lexicon apple override remains unit-tested.
 
 ## 8. Pipecat
 
@@ -180,7 +201,8 @@ Lexicon override for **apple → सेवफलम्** is unit-tested (`test_v
 | Wake / barge-in / validate / lexicon via `handle_event` | Unit-tested on `PipecatOrchestrator` |
 | Audio pump concurrency | Queues events; does not call `handle_event` on the mic thread |
 | Ten-scenario inject (custom + Pipecat) | Unit-tested; TTS path + Sanskrit rubric scores recorded |
-| Spoken MuJoCo e2e | Pending Mac |
+| Spoken MuJoCo e2e | Not run (Mac) |
+| Echo gate / barge-in | Unit-tested custom + Pipecat |
 | Recommendation | **Do not replace** the custom orchestrator (ADR-001) |
 
 ## 9. Bedrock mode checklist
@@ -202,7 +224,7 @@ Lexicon override for **apple → सेवफलम्** is unit-tested (`test_v
 | Orchestrator | **Custom** (keep Pipecat flag) | Tests + architecture; no live Pipecat-vs-custom latency |
 | Bedrock LLM | **GPT-5.6 Sol** or **Claude Sonnet 4.6** for quality (both passed written gate); **Nova Pro** remains the cheap VLM shortlist but failed | Live Mode B on this worker |
 | Offline LLM | **Qwen3-VL 8B Instruct** | Existing design + README baseline |
-| Default mode | **ollama** until spoken Mode A + vision are measured on Bedrock | Written gate passed only for Sonnet 4.6 |
+| Default mode | **config.yaml = ollama** (privacy). **Recommended quality-gate mode = Bedrock Sonnet 4.6 + prompt v1.** Offline Qwen failed Mode A run 1. | Mode A run 1 + Mode B |
 | ASR | Whisper large-v3-turbo MLX + new guards | Code diagnosis |
 | VAD / wake | Silero (fixed) / transcript “mitra” | Code diagnosis |
 | TTS | Indic Parler-TTS, VITS fallback | Unchanged |
@@ -211,13 +233,17 @@ Lexicon override for **apple → सेवफलम्** is unit-tested (`test_v
 
 ## 11. Unresolved / follow-up
 
-1. ~~Grant `bedrock:InvokeModel` / inference-profile access and rerun Mode B.~~ Done 2026-09-08. Sonnet 4.6 passed the written gate; Nova Pro and Haiku 4.5 failed.
-2. On the M1 Max: spoken Mode A ×3 per question, both orchestrators, both providers; attach `logs/turns.jsonl` (no audio).
-3. Consented recognition WAVs → WER/CER by language.
-4. Identical simulator JPEGs → vision bake-off.
-5. Human Sanskrit review of the food/sports items and any candidate score &lt; 5.
-6. Custom openWakeWord “mitra” model (Phase 1).
-7. Confirm Bedrock image+tool loop through Strands on the operator account.
+1. ~~Grant `bedrock:InvokeModel` / inference-profile access and rerun Mode B.~~ Done 2026-09-08.
+2. ~~Score the Qwen baseline.~~ Done from Mode A run 1 (`conversation_qwen.md`). Written Mode B Qwen still needs Ollama.
+3. ~~Populate recognition WER.~~ Done (0.048 English micro-WER from the live log).
+4. ~~Close the ADR default-mode deferral.~~ Done — offline fails the gate; recommended quality mode is Bedrock Sonnet 4.6 + prompt v1.
+5. On the M1 Max: spoken Mode A **runs 2–3**, Bedrock spoken ×3, Pipecat spoken; attach `logs/turns.jsonl` (no audio).
+6. Consented WAVs if a second WER (MLX vs transformers) is required.
+7. Replace synthetic vision JPEGs with identical MuJoCo frames; run Qwen on the same files.
+8. Human Sanskrit review of food/sports items and any score &lt; 5.
+9. Custom openWakeWord “mitra” model (Phase 1).
+10. Confirm Bedrock image+tool loop through Strands on the operator account.
+11. Prompt v2 × Qwen Mode B (needs RAM) before claiming a local-model lift.
 
 ## 12. How to reproduce
 

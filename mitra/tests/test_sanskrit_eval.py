@@ -57,6 +57,7 @@ def test_prompt_v2_separable_from_v1():
     assert "भवान् कथम्?" in SANSKRIT_SYSTEM_PROMPT_V1
     # v2 still answers a greeting with a reciprocal question, but not every turn.
     assert "What are you doing?" in SANSKRIT_SYSTEM_PROMPT
+    assert "Never write English commentary" in SANSKRIT_SYSTEM_PROMPT
 
 
 def test_aggregate_separates_script_from_quality():
