@@ -10,3 +10,6 @@ data/
 models/*.onnx
 sim_frame.jpg
 clips/
+data/daily.pdf
+__pycache__/
+*.pyc

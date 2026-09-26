@@ -112,6 +112,8 @@ def review_cli() -> None:
                         help="mark this object's name as human-verified")
     parser.add_argument("--name", metavar="DEVANAGARI",
                         help="corrected Devanagari name (with --verify)")
+    parser.add_argument("--no-dictionary", action="store_true",
+                        help="skip the Cologne lookups (faster, less context)")
     args = parser.parse_args()
 
     store = LexiconStore(args.db)
@@ -123,8 +125,31 @@ def review_cli() -> None:
     if not pending:
         print("no unverified entries")
         return
+    # What the reviewer needs is not the coinage alone but something to
+    # judge it against: what the word the model invented actually means, and
+    # what the dictionaries offer for the same object (DESIGN §5).
+    dictionary = None
+    if not args.no_dictionary:
+        try:
+            from mitra.lexicon.dictionary import Dictionary
+            from mitra.sanskrit import Analyzer
+
+            analyzer = Analyzer()
+            dictionary = Dictionary(analyzer=analyzer if analyzer.available else None)
+        except ImportError:
+            dictionary = None
+
     for row in pending:
         print(f"{row['object_en']:20} {row['name_devanagari']:20} "
               f"{row['name_iast'] or '-':20} ({row['updated_at']})")
+        if dictionary is not None and dictionary.available:
+            senses = dictionary.define(row["name_devanagari"], limit=1)
+            if senses:
+                print(f"    means:   {senses[0][:110]}")
+            else:
+                print("    means:   (not in Monier-Williams — likely coined)")
+            suggested = dictionary.suggestions(row["object_en"])
+            if suggested:
+                print(f"    Apte:    {', '.join(suggested[:5])}")
     print(f"\n{len(pending)} entries. Verify with: "
           f"mitra-lexicon --verify OBJECT --name नाम")

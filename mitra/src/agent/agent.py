@@ -9,10 +9,19 @@ from __future__ import annotations
 
 from .prompts import SANSKRIT_SYSTEM_PROMPT
 
+# Turns of history kept in the agent's context. The model imitates its own
+# recent output more strongly than the few-shot examples: in one logged
+# session turn 1 produced the correct भवान् कथम्?, then drifted to the
+# ungrammatical कथं भवतः? and repeated it for five straight turns. A short
+# window keeps the conversation coherent while letting a bad pattern age out
+# instead of compounding. 0 disables trimming.
+DEFAULT_MAX_HISTORY_TURNS = 4
+
 
 class MitraAgent:
     def __init__(self, llm_config: dict, tools: list,
-                 system_prompt: str = SANSKRIT_SYSTEM_PROMPT, verbose: bool = True):
+                 system_prompt: str = SANSKRIT_SYSTEM_PROMPT, verbose: bool = True,
+                 max_history_turns: int = DEFAULT_MAX_HISTORY_TURNS):
         try:
             from strands import Agent
         except ImportError as e:
@@ -23,6 +32,7 @@ class MitraAgent:
         # Strands' default callback handler streams reply tokens straight to
         # stdout — set verbose=False (e.g. in batch/test scripts) to silence
         # it and get only the final string from converse().
+        self.max_history_turns = max_history_turns
         agent_kwargs = {} if verbose else {"callback_handler": None}
         self._agent = Agent(
             model=self._make_model(llm_config),
@@ -58,7 +68,45 @@ class MitraAgent:
 
     def converse(self, message: str) -> str:
         """One turn: user message in, final agent text out (tools may run)."""
-        return str(self._agent(message)).strip()
+        reply = str(self._agent(message)).strip()
+        self._trim_history()
+        return reply
+
+    @staticmethod
+    def _is_clean_start(message) -> bool:
+        """True if history may begin here — a plain user turn.
+
+        A window that opens on a tool result, or on the assistant's half of an
+        exchange, is not a conversation the provider will accept.
+        """
+        if not isinstance(message, dict) or message.get("role") != "user":
+            return False
+        content = message.get("content")
+        if isinstance(content, list):
+            return not any(isinstance(block, dict) and "toolResult" in block
+                           for block in content)
+        return True
+
+    def _trim_history(self) -> None:
+        """Hold the context to the last ``max_history_turns`` exchanges.
+
+        Defensive throughout: Strands owns this list and its shape is the
+        provider's, not ours, so anything unexpected leaves history untouched
+        rather than risking a malformed conversation.
+        """
+        if self.max_history_turns <= 0:
+            return
+        messages = getattr(self._agent, "messages", None)
+        if not isinstance(messages, list):
+            return
+        keep = self.max_history_turns * 2
+        if len(messages) <= keep:
+            return
+        window = messages[-keep:]
+        while window and not self._is_clean_start(window[0]):
+            window.pop(0)
+        if window:
+            self._agent.messages = window
 
     def reset(self) -> None:
         """Drop conversation history at session end (FR-3.3: per-session context)."""

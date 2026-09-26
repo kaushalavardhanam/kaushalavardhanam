@@ -51,7 +51,13 @@ def load_config(path: str | Path) -> dict:
 
 
 def check(config: dict) -> int:
-    """Report availability of every optional layer (Phase 0 helper)."""
+    """Report availability of every optional layer (Phase 0 helper).
+
+    Speech probes follow the configured backend rather than a fixed list: the
+    mlx/parler stack is Apple-Silicon-only, so on Linux those are *expected*
+    to be absent and reporting them as MISSING sends people chasing a
+    non-problem. Only the layer this config will actually load is checked.
+    """
     import importlib
     import json
     import urllib.request
@@ -65,41 +71,113 @@ def check(config: dict) -> int:
             print(f"  MISSING  {name}  ({e.name or e})")
             return False
 
+    models = config["models"]
+    asr_backend = models["asr"].get("backend", "mlx")
+    wake_backend = models["wake"].get("backend", "mlx")
+    tts_engine = models["tts"].get("engine", "indic-parler-tts")
+
     print("components:")
     probe("reachy-mini (robot/sim)", "reachy_mini")
     probe("strands-agents (agent)", "strands")
     probe("openwakeword (wake)", "openwakeword")
     probe("silero-vad (VAD)", "silero_vad")
-    probe("mlx-whisper (ASR)", "mlx_whisper")
-    probe("parler-tts (TTS)", "parler_tts")
 
-    host = config["models"]["llm"]["host"]
-    model_id = config["models"]["llm"]["id"]
+    if asr_backend == "mlx" or wake_backend == "mlx":
+        probe(f"mlx-whisper (ASR, backend={asr_backend})", "mlx_whisper")
+    else:
+        probe(f"transformers (ASR, backend={asr_backend})", "transformers")
+
+    if tts_engine == "indic-parler-tts":
+        probe(f"parler-tts (TTS, engine={tts_engine})", "parler_tts")
+    else:
+        probe(f"transformers (TTS, engine={tts_engine})", "transformers")
+
+    host = models["llm"]["host"]
+    model_id = models["llm"]["id"]
     print("ollama:")
     try:
         with urllib.request.urlopen(f"{host}/api/tags", timeout=3) as resp:
-            models = [m["name"] for m in json.load(resp).get("models", [])]
-        state = "ok" if any(m.startswith(model_id) for m in models) else "MISSING"
+            installed = [m["name"] for m in json.load(resp).get("models", [])]
+        state = "ok" if any(m.startswith(model_id) for m in installed) else "MISSING"
         print(f"  ok       server at {host}")
-        print(f"  {state:8} model {model_id}  (installed: {', '.join(models) or 'none'})")
+        print(f"  {state:8} model {model_id}  (installed: {', '.join(installed) or 'none'})")
     except OSError as e:
         print(f"  DOWN     {host}  ({e})")
 
+    from mitra.lexicon.phrasebook import Phrasebook
     from mitra.lexicon.store import LexiconStore
 
     store = LexiconStore()  # in-memory, seeds from the bundled JSON
     print(f"lexicon: {store.count()} seed entries")
+
+    from mitra.lexicon.dictionary import Dictionary
+    from mitra.sanskrit import Analyzer
+
+    settings = config.get("sanskrit", {})
+    analyzer = Analyzer(settings.get("data_dir", "data/vidyut"))
+    if analyzer.available:
+        from mitra.lexicon.vocabulary import Vocabulary
+
+        vocabulary = Vocabulary(analyzer, seed_path=_ROOT / "src" / "lexicon" /
+                                "seed_lexicon.json")
+        print(f"sanskrit: kosha ok, {len(vocabulary.lemmas)} allowed lemmas, "
+              f"checks {', '.join(settings.get('checks', ()))}")
+    else:
+        print("sanskrit: MISSING morphology data — replies are checked for "
+              "script only.\n  pip install 'mitra[sanskrit]' && "
+              "python3 scripts/fetch_sanskrit_data.py")
+    dictionary = Dictionary()
+    print(f"dictionary: {'ok' if dictionary.available else 'MISSING'} "
+          f"(Cologne MW/Apte, used by mitra-lexicon)")
+
+    pb_path = config.get("phrasebook", {}).get("path", "data/phrasebook.jsonl")
+    phrasebook = Phrasebook(pb_path)
+    if phrasebook.count():
+        print(f"phrasebook: {phrasebook.count()} entries ({pb_path})")
+    else:
+        print(f"phrasebook: MISSING at {pb_path} — replies will be ungrounded.\n"
+              f"  build it: python3 scripts/build_phrasebook.py data/daily.pdf")
     return 0
 
 
+def _build_grammar_checker(config: dict, phrasebook, logger):
+    """Analyzer + vocabulary + enabled checks, or None if switched off.
+
+    Every failure here is non-fatal by design: the checks are an addition to
+    the deterministic validator, not a prerequisite for speaking (FR-6.4).
+    """
+    settings = config.get("sanskrit", {})
+    if not settings.get("enabled", True):
+        return None
+    from mitra.lexicon.vocabulary import Vocabulary
+    from mitra.sanskrit import Analyzer
+    from mitra.sanskrit.grammar import DEFAULT_CHECKS, Checker
+
+    analyzer = Analyzer(settings.get("data_dir", "data/vidyut"), logger)
+    if not analyzer.available:
+        return None
+    extra: tuple[str, ...] = ()
+    if settings.get("ground_in_phrasebook", True) and phrasebook is not None:
+        extra = tuple(phrasebook.sentences())
+    vocabulary = Vocabulary(
+        analyzer, seed_path=Path(__file__).resolve().parent / "src" /
+        "lexicon" / "seed_lexicon.json",
+        extra_texts=extra, logger_=logger)
+    checks = tuple(settings.get("checks", DEFAULT_CHECKS))
+    logger.info("sanskrit checks enabled: %s", ", ".join(checks) or "none")
+    return Checker(analyzer, vocabulary, checks)
+
+
 def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
-    logger = setup_logging(debug or config["logging"].get("debug", False))
+    debug = debug or config["logging"].get("debug", False)
+    logger = setup_logging(debug)
 
     from mitra.agent.agent import MitraAgent
     from mitra.agent.tools import build_tools
     from mitra.audio.asr import Transcriber
     from mitra.audio.vad import make_segmenter
     from mitra.audio.wake import make_wake_detector
+    from mitra.lexicon.phrasebook import Phrasebook
     from mitra.lexicon.store import LexiconStore
     from mitra.orchestrator import Orchestrator
     from mitra.speech.tts import SanskritTTS
@@ -109,12 +187,14 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
     if models["tts"].get("voice_description"):
         tts_kwargs["voice_description"] = models["tts"]["voice_description"]
     tts = SanskritTTS(model=models["tts"]["model"], device=models["tts"]["device"],
+                      engine=models["tts"].get("engine", "indic-parler-tts"),
                       fallback_model=models["tts"].get("fallback", "facebook/mms-tts-hin"),
                       **tts_kwargs)
     # Warm up TTS at startup for the same reason as ASR below: the Parler
     # voice is a ~3.8 GB one-time download and a slow first load — without
-    # this, the robot goes silent exactly when it should first greet.
-    logger.info("warming up TTS (first run downloads the voice, ~3.8 GB one time)...")
+    # this, the robot goes silent exactly when it should first greet. The VITS
+    # path (engine: vits) is far smaller, but the warmup still hides its load.
+    logger.info("warming up TTS (first run downloads the voice)...")
     try:
         tts.synthesize("नमस्ते")
     except Exception:
@@ -145,6 +225,15 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
         logger.exception("ASR warmup failed — continuing; the first turn will retry")
     lexicon = LexiconStore(config["lexicon"]["db_path"])
 
+    # Retrieval corpus for conversational grounding. Loaded before the robot
+    # connects so a missing or empty file is visible in the log ahead of the
+    # first turn rather than being silently absent from every reply.
+    phrasebook = Phrasebook(
+        config.get("phrasebook", {}).get("path", "data/phrasebook.jsonl"))
+    if not phrasebook.count():
+        logger.warning("phrasebook empty — replies will be ungrounded. Build it "
+                       "with: python3 scripts/build_phrasebook.py data/daily.pdf")
+
     # Connect to the robot ONLY after all model warmups: opening the daemon
     # connection starts the microphone pipeline, and the multi-GB model loads
     # above starve the audio threads badly enough that GStreamer floods the
@@ -161,9 +250,10 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
 
         mic_source = config["robot"].get("mic_source", "robot")
         if mic_source == "built_in":
-            logger.warning("mic_source=built_in: listening through the Mac's "
-                           "own mic (workaround for reachy_mini#820), not the "
-                           "robot's — camera/speaker/motion still go through it")
+            logger.warning("mic_source=built_in: listening through the host's "
+                           "own mic, not the robot's — camera/speaker/motion "
+                           "still go through it (macOS: reachy_mini#820; "
+                           "Linux: missing GStreamer webrtc plugin)")
         logger.info("connecting to the robot daemon...")
         robot = ReachyRobot(
             mic_chunk_s=config["robot"].get("mic_chunk_s", 0.08),
@@ -172,24 +262,54 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
                 "built_in_mic_device", "MacBook Pro Microphone"),
         )
 
-    agent = MitraAgent(models["llm"], build_tools(robot, tts))
+    # verbose=False silences Strands' default callback handler, which streams
+    # reply tokens straight to stdout and interleaves them with the log lines
+    # ("क2026-08-08 23:07:56 INFO mitra: speak: ..."). The --debug log already
+    # carries every reply, so nothing is lost.
+    agent = MitraAgent(
+        models["llm"], build_tools(robot, tts), verbose=False,
+        max_history_turns=config.get("agent", {}).get("max_history_turns", 4))
 
     fallback_factory = None
     cloud = config.get("cloud_fallback", {})
     if cloud.get("enabled") and cloud.get("provider"):  # FR-6.3
         fallback_factory = lambda: MitraAgent(  # noqa: E731
             {"provider": cloud["provider"], "id": cloud["model_id"]},
-            build_tools(robot, tts),
+            build_tools(robot, tts), verbose=False,
+            max_history_turns=config.get("agent", {}).get("max_history_turns", 4),
+        )
+
+    # Morphology checks over every reply (DESIGN §5). Built after the
+    # phrasebook so the vocabulary can absorb it, and before the agent so a
+    # missing dataset is reported once at startup rather than per turn.
+    grammar_checker = _build_grammar_checker(config, phrasebook, logger)
+
+    # Debug runs mirror every spoken line in English (FR-7.2). It is a second,
+    # history-free call to the same Ollama model — no extra VRAM, and it runs
+    # after playback starts, so it never delays speech. Off outside --debug,
+    # and switchable there with logging.gloss_english.
+    glosser = None
+    if debug and config["logging"].get("gloss_english", True):
+        from mitra.gloss import GLOSS_SYSTEM_PROMPT, Glosser
+
+        glosser = Glosser(
+            lambda: MitraAgent(models["llm"], [],
+                               system_prompt=GLOSS_SYSTEM_PROMPT,
+                               verbose=False, max_history_turns=0),
+            logger=logger,
         )
 
     orchestrator = Orchestrator(
         robot=robot, agent=agent, tts=tts, lexicon=lexicon,
-        wake=wake, segmenter=segmenter, asr=asr,
+        wake=wake, segmenter=segmenter, asr=asr, phrasebook=phrasebook,
         turn_logger=TurnLogger(config["logging"]["dir"], logger),
+        glosser=glosser,
+        grammar_checker=grammar_checker,
         logger=logger,
         gestures=config["robot"].get("gestures", True),
         silence_timeout_s=config["session"]["silence_timeout_s"],
         max_reply_chars=config["session"]["max_reply_chars"],
+        max_sentences=config["session"].get("max_sentences", 1),
         fallback_agent_factory=fallback_factory,
     )
     try:

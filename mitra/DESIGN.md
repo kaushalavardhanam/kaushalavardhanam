@@ -1,6 +1,10 @@
 # Mitra — Design Document
 
-**Status:** Design | **Version:** 1.2 (2026-07-08) | **Requirements:** [REQUIREMENTS.md](REQUIREMENTS.md) v1.3
+**Status:** Design | **Version:** 1.4 (2026-08-22) | **Requirements:** [REQUIREMENTS.md](REQUIREMENTS.md) v1.5
+
+**v1.4 change:** §5 — morphology-backed output checks (`mitra.sanskrit`, vidyut): a reply's words must be attested Sanskrit forms, must be on Mitra's vocabulary list, and must agree with their subject in person. This replaces script-only validation as the primary accuracy gate for *language* (the Devanagari ratio cannot see Hindi written in Devanagari). §6 — Cologne dictionaries (Monier-Williams, Apte) behind the lexicon review CLI. §5 — a debug English gloss of every spoken line (FR-7.2).
+
+**v1.3 change:** §5 — replies held to one sentence (deterministic truncation, `session.max_sentences`); the validator gains a Hindi-marker check alongside the Devanagari ratio; the agent keeps a bounded conversation window (`agent.max_history_turns`) so the model stops imitating its own errors. Phrasebook retrieval rebuilt on IDF-weighted trigrams with question→answer resolution (§4).
 
 This document describes *how* Mitra is built: module decomposition, the Strands ↔ Reachy Mini integration, data flows, prompting, and error handling. All inference is local (Ollama, Whisper, Indic Parler-TTS on the M1 Max host) per REQUIREMENTS §1; §1.5 shows the cloud extension path.
 
@@ -148,6 +152,11 @@ mitra/
 │   │   ├── prompts.py           # system prompt, few-shot exchanges, vision prompt
 │   │   └── validator.py         # Devanagari/length validation + retry (§5)
 │   ├── lexicon/store.py         # SQLite object-name cache (§6)
+│   ├── lexicon/vocabulary.py    # the words Mitra may say — lemma whitelist (§5)
+│   ├── lexicon/dictionary.py    # Cologne MW/Apte lookups for review (§6)
+│   ├── sanskrit/analyzer.py     # vidyut kosha: attestation + morphology (§5)
+│   ├── sanskrit/grammar.py      # attestation/vocabulary/agreement checks (§5)
+│   ├── gloss.py                 # --debug English gloss of each spoken line (FR-7.2)
 │   └── logging_subsystem.py     # structured per-turn logs (ported concept)
 └── tests/                       # pytest; module-per-module, mocks for robot + Ollama
 ```
@@ -176,13 +185,24 @@ Single-threaded core with two daemon threads: the always-on wake-word listener a
 
 ## 5. Prompting & Output Validation
 
-- **System prompt** (in `prompts.py`): persona (friendly Sanskrit-speaking robot friend), hard rules (reply only in Sanskrit/Devanagari, ≤ 2 short sentences, simple laukika register, no sandhi-heavy constructions), followed by ~8 **few-shot exchanges** covering greetings, object naming, simple Q&A, and graceful "I don't know" — few-shot steering matters far more for a 12B local model than for frontier models.
+- **System prompt** (in `prompts.py`): persona (friendly Sanskrit-speaking robot friend), hard rules (reply only in Sanskrit/Devanagari, **one** short sentence with no reciprocal question, Sanskrit not Hindi vocabulary, simple laukika register, no sandhi-heavy constructions), followed by ~8 **few-shot exchanges** covering greetings, object naming, simple Q&A, and graceful "I don't know" — few-shot steering matters far more for a 12B local model than for frontier models.
 - **Vision prompt**: asks for strict JSON — `{"object_en": ..., "name_sa_devanagari": ..., "name_iast": ..., "sentence_sa": ...}` — parsed, then only `sentence_sa` (with lexicon substitution) is spoken.
 - **Validator** (`validator.py`): checks the reply is ≥ 80 % Devanagari codepoints, ≤ 220 chars, and non-empty. Failure → one retry with a corrective suffix ("उत्तरं संस्कृतेन एव देहि …"); second failure → fixed safe phrase, and (only if an API key is configured) the optional cloud fallback path (FR-6.3).
+- **Morphology checks** (`mitra.sanskrit`, backed by [vidyut](https://github.com/ambuda-org/vidyut) — a 30 M-form inflected lexicon with Pāṇinian tags, MIT, ~78 MB, offline). The script ratio above is blind to the dominant failure: Hindi written in Devanagari scores 1.00. Three checks run on every reply, each rejecting into the same retry path, which now names the offending words rather than repeating a generic instruction:
+
+  | check | catches | measured false-positive rate |
+  |---|---|---|
+  | `unattested` | words that are no Sanskrit form at all — करोष्यसि, कुरुमि, मक्खनम्, दालः | 0/20 in Mitra's register; ~17 % on the adult phrasebook |
+  | `vocabulary` | real Sanskrit words that are not on Mitra's list — आज, घरे, खेलानि (`lexicon/vocabulary.jsonl`, 558 words: Open Pathshala's beginner list + closed-class core + the prompt's own examples, widened by the seed lexicon and the phrasebook) | 0/20; ~32 % on the adult phrasebook |
+  | `agreement` | subject and verb disagreeing in person — भवान् … पठसि, अहं … चलन्ति, त्वम् … अस्मि | 0/20; 0.7 % on the phrasebook |
+
+  Both false-positive columns matter: a rejected reply costs a retry and can end in the safe phrase, so `scripts/eval_grammar.py` scores every change against 924 human-authored sentences before it ships. The whitelist is stored as **lemmas**, so one entry covers a paradigm (क्रीडति admits क्रीडामि, क्रीडिष्यामि), and it is built from stem readings while membership is tested against all readings — the asymmetry is what stops आज entering through अजा's shared root.
 
 ## 6. Lexicon Store
 
 SQLite table `lexicon(object_en TEXT PRIMARY KEY, name_devanagari TEXT, name_iast TEXT, gloss_en TEXT, verified INTEGER, updated_at TEXT)`. Ships pre-seeded with ~100 human-verified everyday objects (FR-2.6). Verified rows always override model output; unverified rows are review candidates surfaced by a `mitra-lexicon review` CLI helper. This is the primary accuracy mechanism compensating for local-model Sanskrit (REQUIREMENTS R1/R2).
+
+`mitra-lexicon` shows each pending name alongside the **Cologne Digital Sanskrit Lexicon** (`lexicon/dictionary.py`): what Monier-Williams says the coined word means — "not in Monier-Williams" is itself the signal that the model invented it — and what Apte's English-Sanskrit dictionary offers for the same object. Asked for "butter", Apte answers नवनीतम्, the word the model missed when it said मक्खनम्. This stays on the review path and out of the speaking path deliberately: Apte carries idioms as well as words, so "apple" leads with तारा (from "apple of the eye"). A dictionary that is right about butter and wrong about apples is a suggestion for a human, not an authority over the child's answer.
 
 ## 7. Configuration (`config.yaml`)
 

@@ -2,7 +2,9 @@
 
 Appends one JSON line per conversation turn (timestamps, language, transcript,
 reply, per-stage latency) to ``logs/turns.jsonl``. ``--debug`` mirrors the
-conversation on the console (FR-7.2). No audio is ever persisted (FR-7.3).
+conversation on the console, each spoken line followed by its English gloss
+(FR-7.2, ``gloss.py``; the gloss is also recorded here as ``reply_en``). No
+audio is ever persisted (FR-7.3).
 """
 
 from __future__ import annotations

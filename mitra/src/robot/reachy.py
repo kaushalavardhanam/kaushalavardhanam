@@ -2,9 +2,10 @@
 
 All hardware access in Mitra goes through this module (DESIGN §2). The same
 wrapper talks to a real Reachy Mini Lite over USB or to the MuJoCo simulation
-daemon (``mjpython -m reachy_mini.daemon.app.main --sim``) — the daemon API is
-identical, so nothing above this layer knows which one is running.
-``FakeReachy`` is the in-process test double (no daemon at all).
+daemon (``mjpython -m reachy_mini.daemon.app.main --sim`` on macOS,
+``reachy-mini-daemon --sim`` elsewhere) — the daemon API is identical, so
+nothing above this layer knows which one is running. ``FakeReachy`` is the
+in-process test double (no daemon at all).
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ import numpy as np
 from mitra.audio import resample
 
 _PLAYBACK_CHUNK_S = 0.25  # push audio in small chunks so barge-in can stop it
+_HOST_OUTPUT_SR = 22050   # used when playing through the host sound card
 
 
 class ReachyRobot:
@@ -26,11 +28,23 @@ class ReachyRobot:
     def __init__(self, mic_chunk_s: float = 0.08, mic_source: str = "robot",
                  built_in_mic_device: str = "MacBook Pro Microphone"):
         """mic_source: "robot" (default) reads the robot's own mic through the
-        SDK. "built_in" instead captures from a Mac input device via
-        sounddevice/PortAudio — a workaround for a macOS 26 (Tahoe) Core Audio
-        regression that returns all-zero samples for the robot's multichannel
-        USB mic (pollen-robotics/reachy_mini#820). Camera, speaker, and head
-        motion are unaffected and always go through the robot regardless.
+        SDK, and plays speech back through the robot's speaker.
+
+        "built_in" instead captures from a host input device via
+        sounddevice/PortAudio AND plays back through the host's default output.
+        Two different problems need this same escape hatch:
+
+        - macOS: a macOS 26 (Tahoe) Core Audio regression returns all-zero
+          samples for the robot's multichannel USB mic
+          (pollen-robotics/reachy_mini#820). Capture is broken, playback works.
+        - Linux: the daemon's media server needs the GStreamer webrtc plugin
+          (``webrtcsink``), which is not packaged for Ubuntu 22.04, so the
+          daemon must run with ``--no-media`` and exposes no audio at all.
+          ``get_output_audio_samplerate()`` then returns -1, which makes
+          ``resample()`` compute a negative sample count and raise. Hence the
+          hardcoded output rate below rather than asking the SDK.
+
+        Camera and head motion always go through the robot regardless.
         """
         try:
             from reachy_mini import ReachyMini
@@ -42,11 +56,33 @@ class ReachyRobot:
             ) from e
         self._create_head_pose = create_head_pose
         self._mini = ReachyMini()
-        self._mini.media.start_recording()
-        self._mini.media.start_playing()
-        self._out_sr = int(self._mini.media.get_output_audio_samplerate())
-        self._mic_chunk_s = mic_chunk_s
+
+        # Set BEFORE the samplerate probe below — the probe is what fails when
+        # the daemon has no media pipeline.
         self._mic_source = mic_source
+        self._use_host_audio = mic_source == "built_in"
+
+        # start_recording/start_playing are no-ops (and may warn) under
+        # --no-media; never let them abort the connection.
+        for _start in (self._mini.media.start_recording,
+                       self._mini.media.start_playing):
+            try:
+                _start()
+            except Exception:
+                pass
+
+        if self._use_host_audio:
+            self._out_sr = _HOST_OUTPUT_SR
+        else:
+            self._out_sr = int(self._mini.media.get_output_audio_samplerate())
+            if self._out_sr <= 0:
+                # Daemon reported no usable speaker (e.g. started --no-media)
+                # while mic_source=robot. Fall back rather than crash on the
+                # first reply, which is the only place a bad rate surfaces.
+                self._out_sr = _HOST_OUTPUT_SR
+                self._use_host_audio = True
+
+        self._mic_chunk_s = mic_chunk_s
         self._stop_playback = threading.Event()
         self._playing = threading.Event()
         # Ring buffer + drain thread(s) feed mic_read() identically regardless
@@ -57,6 +93,7 @@ class ReachyRobot:
         self._mic_buf: deque[np.ndarray] = deque()
         self._mic_samples = 0
         self._mic_ready = threading.Condition()
+        self._built_in_stream = None
         self._emotions_lib = None  # lazy: only load the ~85-move library if used
         self._dances_lib = None
 
@@ -175,6 +212,9 @@ class ReachyRobot:
             thread.join()
 
     def _playback_worker(self, wav: np.ndarray) -> None:
+        if self._use_host_audio:
+            self._playback_host(wav)
+            return
         chunk = max(1, int(self._out_sr * _PLAYBACK_CHUNK_S))
         try:
             for i in range(0, len(wav), chunk):
@@ -187,8 +227,37 @@ class ReachyRobot:
         finally:
             self._playing.clear()
 
+    def _playback_host(self, wav: np.ndarray) -> None:
+        """Play through the host's default output device.
+
+        sd.play() is non-blocking and sd.stop() cancels it, so barge-in works
+        the same way it does on the robot path — no manual chunking needed.
+        """
+        try:
+            import sounddevice as sd
+
+            sd.play(np.asarray(wav, dtype=np.float32), self._out_sr)
+            while sd.get_stream().active:
+                if self._stop_playback.is_set():
+                    sd.stop()
+                    break
+                time.sleep(0.02)
+        except Exception:
+            # A failed reply must never kill the run loop (FR-6.4). The
+            # orchestrator logs; here we just make sure _playing clears.
+            pass
+        finally:
+            self._playing.clear()
+
     def speaker_stop(self) -> None:
         self._stop_playback.set()
+        if self._use_host_audio:
+            try:
+                import sounddevice as sd
+
+                sd.stop()
+            except Exception:
+                pass
 
     def speaker_busy(self) -> bool:
         return self._playing.is_set()
@@ -290,14 +359,20 @@ class ReachyRobot:
     def close(self) -> None:
         self._closed.set()
         self._stop_playback.set()
+        self.speaker_stop()
         with self._mic_ready:
             self._mic_ready.notify_all()
-        if self._mic_source == "built_in":
-            self._built_in_stream.stop()
-            self._built_in_stream.close()
+        if self._built_in_stream is not None:
+            try:
+                self._built_in_stream.stop()
+                self._built_in_stream.close()
+            except Exception:
+                pass
         try:
             self._mini.media.stop_recording()
             self._mini.media.stop_playing()
+        except Exception:
+            pass
         finally:
             self._mini.__exit__(None, None, None)
 

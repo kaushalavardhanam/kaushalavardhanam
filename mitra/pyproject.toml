@@ -25,8 +25,12 @@ asr = ["mlx-whisper>=0.4; platform_machine=='arm64' and sys_platform=='darwin'"]
 # Indic Parler-TTS additionally needs the parler-tts package, which is not on
 # PyPI: pip install git+https://github.com/huggingface/parler-tts.git
 speech = ["transformers>=4.46", "torch>=2.3", "soundfile>=0.12"]
+# Morphology checks (DESIGN §5): a 30M-form inflected lexicon, a segmenter,
+# and a Pāṇinian derivation engine. The wheel is small; the data it needs is
+# fetched separately by scripts/fetch_sanskrit_data.py.
+sanskrit = ["vidyut>=0.4"]
 dev = ["pytest>=8.0"]
-all = ["mitra[robot,agent,wake,vad,asr,speech]"]
+all = ["mitra[robot,agent,wake,vad,asr,speech,sanskrit]"]
 
 [project.scripts]
 mitra-lexicon = "mitra.lexicon.store:review_cli"
@@ -36,6 +40,7 @@ package-dir = {"mitra" = "src"}
 packages = [
     "mitra",
     "mitra.agent",
+    "mitra.sanskrit",
     "mitra.audio",
     "mitra.lexicon",
     "mitra.robot",
@@ -43,7 +48,7 @@ packages = [
 ]
 
 [tool.setuptools.package-data]
-"mitra.lexicon" = ["seed_lexicon.json"]
+"mitra.lexicon" = ["seed_lexicon.json", "vocabulary.jsonl"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

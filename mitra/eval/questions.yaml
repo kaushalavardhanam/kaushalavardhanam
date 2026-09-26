@@ -1,0 +1,396 @@
+# Mitra grammar evaluation, 50 questions.
+#
+# Each question carries the expectations the scorer checks against the reply.
+#   person:       expected grammatical person of the answer clause
+#   tense:        present | future | past
+#   content_any:  at least one of these must appear, else the reply is empty of
+#                 an actual answer (the "My favorite food exists" failure)
+#   forbid:       question-specific words that must not appear, on top of the
+#                 global Hindi-marker and non-word lists in the scorer
+#   pair:         two questions with the same pair id are near-synonyms; if both
+#                 replies are byte-identical the scorer records a collapse
+#   frame:        possessive  -> expects मम X अस्ति or मह्यं X रोचते, never अहं X प्रियं अस्मि
+#
+# Questions are asked in English, matching how runs A to D were driven.
+
+questions:
+
+  # --- A. daily actions, first person present -----------------------------
+  - id: q01
+    text: What are you doing?
+    category: action
+    person: first
+    tense: present
+    content_any: [करोमि, पठामि, वदामि, चिन्तयामि, कार्यं, पाठं]
+
+  - id: q02
+    text: Do you play?
+    category: action
+    person: first
+    tense: present
+    content_any: [क्रीडामि, क्रीडां]
+    pair: play
+
+  - id: q03
+    text: Do you play sports?
+    category: action
+    person: first
+    tense: present
+    content_any: [क्रीडामि, क्रीडां]
+    pair: play
+
+  - id: q04
+    text: What are you reading?
+    category: action
+    person: first
+    tense: present
+    content_any: [पुस्तकं, पुस्तकम्, पठामि, ग्रन्थं]
+
+  - id: q05
+    text: Do you listen to music?
+    category: action
+    person: first
+    tense: present
+    content_any: [सङ्गीतं, सङ्गीतम्, संगीतं, शृणोमि, श्रोतुम्]
+
+  - id: q06
+    text: Do you sing?
+    category: action
+    person: first
+    tense: present
+    content_any: [गायामि, गीतं, गानं]
+
+  - id: q07
+    text: Do you dance?
+    category: action
+    person: first
+    tense: present
+    content_any: [नृत्यामि, नृत्यं]
+
+  - id: q08
+    text: Do you write?
+    category: action
+    person: first
+    tense: present
+    content_any: [लिखामि, लेखनं]
+
+  - id: q09
+    text: Do you sleep?
+    category: action
+    person: first
+    tense: present
+    content_any: [स्वपिमि, निद्रां, शयनं]
+
+  - id: q10
+    text: Do you run?
+    category: action
+    person: first
+    tense: present
+    content_any: [धावामि, धावनं]
+
+  - id: q11
+    text: What do you study?
+    category: action
+    person: first
+    tense: present
+    content_any: [संस्कृतं, संस्कृतम्, गणितं, विज्ञानं, पठामि]
+
+  - id: q12
+    text: Do you speak Sanskrit?
+    category: action
+    person: first
+    tense: present
+    content_any: [संस्कृतं, संस्कृतम्, वदामि, भाषे]
+
+  # --- B. preferences, possessive or dative frame -------------------------
+  - id: q13
+    text: What's your favorite food?
+    category: preference
+    person: first
+    tense: present
+    frame: possessive
+    content_any: [नवनीतम्, ओदनं, ओदनम्, फलं, फलम्, दुग्धम्, क्षीरम्, मोदकं, मोदकम्, सूपः, शाकम्]
+    forbid: [मक्खनम्, मक्खनं, दालः, दाल]
+
+  - id: q14
+    text: What's your favorite subject?
+    category: preference
+    person: first
+    tense: present
+    frame: possessive
+    content_any: [संस्कृतं, संस्कृतम्, गणितं, गणितम्, व्याकरणं, व्याकरणम्, विज्ञानं]
+
+  - id: q15
+    text: What's your favorite color?
+    category: preference
+    person: first
+    tense: present
+    frame: possessive
+    content_any: [नीलः, नीलं, रक्तः, रक्तं, हरितं, पीतं, श्वेतं, कृष्णं]
+
+  - id: q16
+    text: What's your favorite animal?
+    category: preference
+    person: first
+    tense: present
+    frame: possessive
+    content_any: [गजः, अश्वः, सिंहः, मयूरः, धेनुः, शुकः, बिडालः]
+
+  - id: q17
+    text: What's your favorite fruit?
+    category: preference
+    person: first
+    tense: present
+    frame: possessive
+    content_any: [आम्रम्, आम्रं, कदलीफलम्, सेवफलम्, द्राक्षा, फलम्]
+
+  - id: q18
+    text: What's your favorite season?
+    category: preference
+    person: first
+    tense: present
+    frame: possessive
+    content_any: [वसन्तः, ग्रीष्मः, वर्षा, शरद्, हेमन्तः, शिशिरः, ऋतुः]
+
+  - id: q19
+    text: Which game do you like?
+    category: preference
+    person: first
+    tense: present
+    frame: possessive
+    content_any: [क्रीडा, क्रीडां, कन्दुकं, कन्दुकम्]
+
+  - id: q20
+    text: Do you like milk?
+    category: preference
+    person: first
+    tense: present
+    content_any: [दुग्धम्, दुग्धं, क्षीरम्, क्षीरं, पिबामि, रोचते]
+    forbid: [दूधम्, दूधं]
+
+  # --- C. place and possession --------------------------------------------
+  - id: q21
+    text: Where do you live?
+    category: place
+    person: first
+    tense: present
+    content_any: [गृहे, गृहम्, नगरे, ग्रामे, वसामि]
+    forbid: [घरे, घरम्]
+    pair: live
+
+  - id: q22
+    text: Where is your house?
+    category: place
+    person: first
+    tense: present
+    content_any: [गृहम्, गृहे, नगरे, ग्रामे]
+    forbid: [घरे, घरम्]
+    pair: live
+
+  - id: q23
+    text: Where are you now?
+    category: place
+    person: first
+    tense: present
+    content_any: [अत्र, गृहे, नगरे, अस्मि]
+
+  - id: q24
+    text: Do you have a book?
+    category: place
+    person: first
+    tense: present
+    content_any: [पुस्तकं, पुस्तकम्, अस्ति, मम]
+
+  - id: q25
+    text: What is in your bag?
+    category: place
+    person: first
+    tense: present
+    content_any: [पुस्तकं, पुस्तकम्, लेखनी, स्यूते, अस्ति]
+
+  - id: q26
+    text: Where do you go every day?
+    category: place
+    person: first
+    tense: present
+    content_any: [विद्यालयं, गृहं, उद्यानं, गच्छामि]
+
+  # --- D. tense ------------------------------------------------------------
+  - id: q27
+    text: What will you do today?
+    category: tense
+    person: first
+    tense: future
+    content_any: [करिष्यामि, पठिष्यामि, क्रीडिष्यामि, गमिष्यामि]
+    forbid: [आज]
+    pair: today
+
+  - id: q28
+    text: What are your plans for today?
+    category: tense
+    person: first
+    tense: future
+    content_any: [करिष्यामि, पठिष्यामि, क्रीडिष्यामि, गमिष्यामि]
+    forbid: [आज]
+    pair: today
+
+  - id: q29
+    text: What will you do tomorrow?
+    category: tense
+    person: first
+    tense: future
+    content_any: [श्वः, करिष्यामि, पठिष्यामि, गमिष्यामि]
+
+  - id: q30
+    text: What did you do yesterday?
+    category: tense
+    person: first
+    tense: past
+    content_any: [ह्यः, अकरवम्, अपठम्, अगच्छम्, कृतवान्, पठितवान्]
+
+  - id: q31
+    text: Will you read tomorrow?
+    category: tense
+    person: first
+    tense: future
+    content_any: [पठिष्यामि, श्वः]
+
+  - id: q32
+    text: Did you eat today?
+    category: tense
+    person: first
+    tense: past
+    content_any: [अद्य, खादितवान्, अखादम्, भोजनं]
+    forbid: [आज]
+
+  # --- E. yes/no and negation ---------------------------------------------
+  - id: q33
+    text: Are you happy?
+    category: polarity
+    person: first
+    tense: present
+    content_any: [आम्, प्रसन्नः, प्रसन्नम्, सुखी, आनन्दः]
+
+  - id: q34
+    text: Are you tired?
+    category: polarity
+    person: first
+    tense: present
+    content_any: [न, आम्, श्रान्तः, श्रान्तम्]
+
+  - id: q35
+    text: Do you eat meat?
+    category: polarity
+    person: first
+    tense: present
+    content_any: [न, आम्, खादामि]
+
+  - id: q36
+    text: Can you swim?
+    category: polarity
+    person: first
+    tense: present
+    content_any: [न, आम्, शक्नोमि, तरामि]
+
+  - id: q37
+    text: Do you know Hindi?
+    category: polarity
+    person: first
+    tense: present
+    content_any: [न, आम्, जानामि]
+
+  - id: q38
+    text: Are you a student?
+    category: polarity
+    person: first
+    tense: present
+    content_any: [न, आम्, छात्रः, छात्रम्, अस्मि]
+
+  # --- F. identity and persona --------------------------------------------
+  - id: q39
+    text: What is your name?
+    category: identity
+    person: first
+    tense: present
+    content_any: [मित्रम्, नाम, मम]
+
+  - id: q40
+    text: Who are you?
+    category: identity
+    person: first
+    tense: present
+    content_any: [मित्रम्, अस्मि, अहं]
+    pair: who
+
+  - id: q41
+    text: Tell me about yourself.
+    category: identity
+    person: first
+    tense: present
+    content_any: [मित्रम्, अस्मि, अहं]
+    pair: who
+
+  - id: q42
+    text: Will you be my friend?
+    category: identity
+    person: first
+    tense: present
+    content_any: [मित्रम्, भवतः, अस्मि]
+
+  - id: q43
+    text: How old are you?
+    category: identity
+    person: first
+    tense: present
+    content_any: [वर्षाणि, वर्षम्, मम, वयः]
+
+  - id: q44
+    text: Are you a robot?
+    category: identity
+    person: first
+    tense: present
+    content_any: [यन्त्रं, यन्त्रम्, मित्रम्, अस्मि, आम्, न]
+
+  # --- G. simple facts, short answers -------------------------------------
+  - id: q45
+    text: How many eyes do you have?
+    category: fact
+    person: first
+    tense: present
+    content_any: [द्वे, नेत्रे, नेत्रम्, मम]
+
+  - id: q46
+    text: What color is the sky?
+    category: fact
+    person: third
+    tense: present
+    content_any: [नीलम्, नीलं, आकाशः, आकाशम्]
+
+  - id: q47
+    text: What day is it today?
+    category: fact
+    person: third
+    tense: present
+    content_any: [वासरः, अद्य]
+    forbid: [आज]
+
+  - id: q48
+    text: Count from one to five.
+    category: fact
+    person: third
+    tense: present
+    content_any: [एकम्, द्वे, त्रीणि, चत्वारि, पञ्च]
+
+  - id: q49
+    text: What is two plus three?
+    category: fact
+    person: third
+    tense: present
+    content_any: [पञ्च]
+
+  - id: q50
+    text: Say hello.
+    category: fact
+    person: third
+    tense: present
+    content_any: [नमस्ते, नमः, स्वागतम्]

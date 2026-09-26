@@ -1,40 +1,62 @@
 # Mitra runtime configuration (DESIGN.md §7)
+#
+# Platform note: tuned here for macOS on Apple Silicon (M1 Max, 32 GB unified
+# memory). Linux values are kept inline as comments so one file serves both.
+# The mlx and parler paths are Apple-Silicon-only.
 
 robot:
-  backend: reachy          # reachy (real Lite over USB, or --sim daemon) | fake
-  mic_chunk_s: 0.08        # seconds of audio per microphone read
-  gestures: true           # state poses: antennas perk when listening, head
-                           # tilts while thinking, droops when asleep (FR-5.3)
-  mic_source: built_in     # robot (default) | built_in — workaround for a macOS
-                           # 26 (Tahoe) Core Audio regression that returns
-                           # all-zero samples for the robot's own multichannel
-                           # USB mic (pollen-robotics/reachy_mini#820). Camera,
-                           # speaker, and motion are unaffected either way.
-                           # Set back to "robot" once Apple/Pollen fix this.
-  built_in_mic_device: "MacBook Pro Microphone"  # only used when mic_source: built_in
+  backend: reachy # reachy (real Lite over USB, or --sim daemon) | fake
+  mic_chunk_s: 0.08 # seconds of audio per microphone read
+  gestures:
+    true # state poses: antennas perk when listening, head
+    # tilts while thinking, droops when asleep (FR-5.3)
+  mic_source:
+    built_in # robot (default) | built_in
+    # macOS: workaround for a macOS 26 (Tahoe) Core Audio
+    # regression returning all-zero samples from the
+    # robot's multichannel USB mic (reachy_mini#820).
+    # Linux: the daemon's media server needs the GStreamer
+    # webrtc plugin (webrtcsink), absent on Ubuntu 22.04 —
+    # run the daemon with --no-media and capture here.
+  built_in_mic_device:
+    "MacBook Pro Microphone" # mac: the laptop's own mic.
+    # linux: "pulse" (PulseAudio/PipeWire default source).
+    # List candidates: python -c "import sounddevice as sd;
+    # print(sd.query_devices())"
 
 models:
   llm:
-    provider: ollama       # ollama | anthropic | bedrock (Option B, DESIGN §1.5)
+    provider: ollama # ollama | anthropic | bedrock (Option B, DESIGN §1.5)
     host: "http://localhost:11434"
-    id: "qwen3-vl:8b-instruct"  # NOT the bare :8b tag — that is the "thinking"
-                                # variant: slow and returns empty content
-    keep_alive: "30m"      # keeps the model resident between turns (REQUIREMENTS §8)
+    id:
+      "qwen3-vl:8b-instruct" # NOT the bare :8b tag — that is the "thinking"
+      # variant: slow and returns empty content
+    keep_alive:
+      "30m" # keeps the model resident between turns (REQUIREMENTS §8).
+      # The M1 Max's 32 GB unified memory has room for the
+      # speech models on mps alongside it.
     temperature: 0.3
   asr:
     # turbo: half the download of large-v3 and 4-6x faster decoding at
-    # near-equal en/kn accuracy — the first latency lever in REQUIREMENTS §8
-    default: "mlx-community/whisper-large-v3-turbo"
-    sanskrit: null         # HF repo of a Sanskrit Whisper fine-tune, once selected (Phase 3)
-    backend: "mlx"
-    device: "mps"
+    # near-equal en/kn accuracy — the first latency lever in REQUIREMENTS §8.
+    # This is the fastest path on this host: mlx runs Whisper on the Metal GPU.
+    default: "mlx-community/whisper-large-v3-turbo" # linux: openai/whisper-small
+    sanskrit: null # HF repo of a Sanskrit Whisper fine-tune, once selected (Phase 3)
+    backend: "mlx" # mlx (mac, Apple Silicon only) | transformers (linux)
+    device: "mps" # linux: cpu
   tts:
-    engine: "indic-parler-tts"
-    model: "ai4bharat/indic-parler-tts"
-    fallback: "facebook/mms-tts-hin"   # ungated VITS; auto-used when parler is inaccessible
-    device: "mps"
+    engine:
+      "indic-parler-tts" # indic-parler-tts (mac) | vits (linux)
+      # parler-tts pins transformers<=4.46.1 and collides with
+      # reachy-mini's huggingface-hub>=1.17. If pip refuses to
+      # install both, set this to "vits" — synthesize() also
+      # degrades to VITS on its own (see src/speech/tts.py).
+    model: "ai4bharat/indic-parler-tts" # gated repo: accept the conditions on HF first
+    fallback: "facebook/mms-tts-hin" # ungated VITS; used when parler is inaccessible
+    device: "mps" # linux: cpu
     # Parler-TTS is steered by describing the voice in words, not by picking
     # a named voice — edit this description to change how Mitra sounds.
+    # Ignored by engine: vits, which has no voice steering.
     voice_description: "A cheerful young child speaker with a bright, high-pitched voice delivers slow, warm, clear speech in a close-sounding recording with no background noise."
   wake:
     # asr: a small Whisper transcribes short speech windows and matches the
@@ -42,19 +64,27 @@ models:
     # engine once the custom "mitra" onnx model is trained (Phase 1, FR-1.4).
     engine: "asr"
     phrase: "mitra"
-    asr_model: "mlx-community/whisper-small-mlx"  # tiny mis-hears "mitra"; small is accurate (see src/audio/wake.py)
-    model: "models/mitra.onnx"   # used by engine: openwakeword
+    asr_model:
+      "mlx-community/whisper-small-mlx" # tiny mis-hears "mitra"; small is
+      # accurate (see src/audio/wake.py). linux: openai/whisper-small
+    backend: "mlx" # mlx (mac) | transformers (linux)
+    device: "cpu" # transformers path only; mlx uses Metal regardless
+    model: "models/mitra.onnx" # used by engine: openwakeword
     threshold: 0.6
   vad:
-    engine: "silero"       # silero | energy (dependency-free fallback)
+    engine: "silero" # silero | energy (dependency-free fallback)
     min_speech_s: 0.3
     min_silence_s: 0.8
     max_utterance_s: 15.0
 
 agent:
-  deterministic_vision: false   # true = orchestrator-mediated capture_image (DESIGN §1.4)
+  deterministic_vision: false # true = orchestrator-mediated capture_image (DESIGN §1.4)
+  max_history_turns:
+    4 # exchanges kept in the model's context. Qwen imitates its own
+    # recent output more than the few-shot examples, so a bad
+    # phrasing repeats until it ages out of the window. 0 = keep all.
 
-cloud_fallback:                 # FR-6.3 — no key/provider configured == feature absent
+cloud_fallback: # FR-6.3 — no key/provider configured == feature absent
   enabled: false
   provider: null
   model_id: null
@@ -62,10 +92,46 @@ cloud_fallback:                 # FR-6.3 — no key/provider configured == featu
 session:
   silence_timeout_s: 30
   max_reply_chars: 220
+  max_sentences:
+    1 # replies are truncated to this many sentences. Every logged
+    # reply appended a stock "and you?", and that trailing question
+    # carried most of the grammar errors. 2 allows it back.
 
 lexicon:
   db_path: "data/lexicon.db"
 
+# Morphology-backed checks over every reply (DESIGN §5). The Devanagari ratio
+# in validator.py cannot see Hindi written in Devanagari — खेलानि, आज, घरे and
+# मक्खनम् all scored 1.00 and were spoken — and cannot see invented verb forms
+# like करोष्यसि at all. These can.
+#   pip install 'mitra[sanskrit]' && python3 scripts/fetch_sanskrit_data.py
+# Absent data disables the checks with a warning; nothing else changes.
+sanskrit:
+  enabled: true
+  data_dir: "data/vidyut"
+  checks:
+    # unattested: the word is not a form of any Sanskrit word (करोष्यसि, कुरुमि,
+    #             मक्खनम्, दालः). Measured: rejects 0/20 hand-verified sentences
+    #             in Mitra's register, ~17% of the adult phrasebook's.
+    # agreement:  subject and verb disagree in person (भवान् … पठसि, अहं …
+    #             चलन्ति). The most reliable of the three: ~0.7% on correct text.
+    # vocabulary: a real Sanskrit word, but not one on Mitra's list — this is
+    #             the check that catches आज, घरे, खेलानि. Strictest of the
+    #             three; drop it here to log those without rejecting.
+    - unattested
+    - agreement
+    - vocabulary
+  ground_in_phrasebook:
+    true # widen the vocabulary with the phrasebook corpus. The
+    # model is told to imitate those sentences, so refusing
+    # their words would punish it for complying.
+
 logging:
   dir: "logs"
   debug: false
+  gloss_english:
+    true # --debug only: log an English translation of every line
+    # Mitra speaks ("speak (en): ..."), so the console is
+    # readable without Devanagari. Costs one extra call to
+    # the same local model per distinct line, made after
+    # playback starts — never on the path to the speaker.

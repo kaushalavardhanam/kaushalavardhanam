@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import yaml
@@ -53,3 +54,32 @@ def test_energy_segmenter_detects_utterance():
     assert seg.process(quiet) is None          # silence accumulating
     utterance = seg.process(quiet)             # silence >= 0.2 s → utterance
     assert utterance is not None and len(utterance) == 4 * chunk
+
+
+def test_silero_segmenter_restores_torch_thread_pool(monkeypatch):
+    """silero-vad clamps torch to one thread process-wide; Whisper shares the
+    interpreter and decodes ~5x slower single-threaded (src/audio/vad.py)."""
+    import types
+
+    import pytest
+
+    torch = pytest.importorskip("torch")
+    from mitra.audio.vad import SileroSegmenter
+
+    def load_silero_vad():
+        torch.set_num_threads(1)  # what the real package does at import
+        return object()
+
+    monkeypatch.setitem(sys.modules, "silero_vad", types.SimpleNamespace(
+        load_silero_vad=load_silero_vad,
+        VADIterator=lambda model, **kw: types.SimpleNamespace(
+            reset_states=lambda: None),
+    ))
+    original = torch.get_num_threads()
+    try:
+        torch.set_num_threads(max(2, original))
+        expected = torch.get_num_threads()
+        SileroSegmenter()
+        assert torch.get_num_threads() == expected
+    finally:
+        torch.set_num_threads(original)

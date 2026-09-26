@@ -94,6 +94,13 @@ class SileroSegmenter:
                  preroll_s: float = 0.2):
         try:
             import torch  # noqa: F401
+
+            # silero_vad/model.py runs `torch.set_num_threads(1)` at import —
+            # a *process-wide* setting, sensible for a 512-sample VAD window and
+            # ruinous for the Whisper that shares this interpreter: single
+            # threaded, whisper-small takes ~8 s on an utterance it transcribes
+            # in ~1.5 s across cores. Restore whatever torch was set to before.
+            threads = torch.get_num_threads()
             from silero_vad import VADIterator, load_silero_vad
         except ImportError as e:
             raise ImportError(
@@ -106,6 +113,13 @@ class SileroSegmenter:
             load_silero_vad(), sampling_rate=samplerate,
             min_silence_duration_ms=int(min_silence_s * 1000),
         )
+        # Restore after loading too, not just after the import: whichever call
+        # clamps the pool, Whisper is the one that pays for it.
+        if self._torch.get_num_threads() != threads:
+            logger.info("silero-vad clamped torch to %d thread(s); restoring %d "
+                        "— ASR shares this interpreter",
+                        self._torch.get_num_threads(), threads)
+            self._torch.set_num_threads(threads)
         self._max_utterance = int(max_utterance_s * samplerate)
         self._preroll = int(preroll_s * samplerate)
         self.reset()

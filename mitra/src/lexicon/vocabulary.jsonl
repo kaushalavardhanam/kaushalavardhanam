@@ -1,0 +1,558 @@
+{"devanagari": "अहम्", "iast": "aham", "lemmas": ["aha", "asmad"], "english": "I", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "त्वम्", "iast": "tvam", "lemmas": ["tva", "yuzmad"], "english": "You (Singular)", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "भवान्", "iast": "bhavān", "lemmas": ["Bava", "Bavat"], "english": "You (Formal/Respectful)", "tag": "M", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "भवती", "iast": "bhavatī", "lemmas": ["Bavat", "BavatI"], "english": "You (Formal/Respectful)", "tag": "F", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "सः", "iast": "saḥ", "lemmas": ["sa", "tad"], "english": "He / That", "tag": "M", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "सा", "iast": "sā", "lemmas": ["sA", "sAman", "sIman", "sa", "soman", "tad"], "english": "She / That", "tag": "F", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "तत्", "iast": "tat", "lemmas": ["tad"], "english": "It / That", "tag": "N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "एषः", "iast": "eṣaḥ", "lemmas": ["etad", "eza"], "english": "This (He)", "tag": "M", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "एषा", "iast": "eṣā", "lemmas": ["etad", "ezA", "eza"], "english": "This (She)", "tag": "F", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "एतत्", "iast": "etat", "lemmas": ["etad"], "english": "This (It)", "tag": "N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "वयम्", "iast": "vayam", "lemmas": ["asmad", "vaya", "ve"], "english": "We", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "यूयम्", "iast": "yūyam", "lemmas": ["yuzmad"], "english": "You all", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "कः", "iast": "kaḥ", "lemmas": ["ka", "kim"], "english": "Who?", "tag": "M", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "का", "iast": "kā", "lemmas": ["ka", "kim"], "english": "Who?", "tag": "F", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "किम्", "iast": "kim", "lemmas": ["kim"], "english": "What?", "tag": "N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "मम", "iast": "mama", "lemmas": ["asmad", "mA"], "english": "My", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "तव", "iast": "tava", "lemmas": ["yuzmad"], "english": "Your", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "अस्माकम्", "iast": "asmākam", "lemmas": ["asmAka", "asmad"], "english": "Our", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "युष्माकम्", "iast": "yuṣmākam", "lemmas": ["yuzmAka", "yuzmad"], "english": "Your (plural)", "tag": "M/F/N", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "सर्वत्र", "iast": "sarvatra", "lemmas": ["sarvatra"], "english": "Everywhere", "tag": "Ind", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "अत्र", "iast": "atra", "lemmas": ["atra"], "english": "Here", "tag": "Ind", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "तत्र", "iast": "tatra", "lemmas": ["tatra"], "english": "There", "tag": "Ind", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "कुत्र", "iast": "kutra", "lemmas": ["kutra"], "english": "Where?", "tag": "Ind", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "यत्र", "iast": "yatra", "lemmas": ["yatra"], "english": "Where (relative)", "tag": "Ind", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "आम्", "iast": "ām", "lemmas": ["A", "Am", "a", "eman", "o", "oman"], "english": "Yes", "tag": "Ind", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "न", "iast": "na", "lemmas": ["nA", "na"], "english": "No/Not", "tag": "Ind", "section": "1. Pronouns & Essentials (सर्वनामानि)", "source": "openpathshala"}
+{"devanagari": "अस्ति", "iast": "asti", "lemmas": ["as", "asti"], "english": "is / exists", "tag": "as", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "नास्ति", "iast": "nāsti", "lemmas": ["nAsti"], "english": "is not", "tag": "na+as", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "करोति", "iast": "karoti", "lemmas": ["kf"], "english": "does", "tag": "kṛ", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "गच्छति", "iast": "gacchati", "lemmas": ["gam"], "english": "goes", "tag": "gam", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "आगच्छति", "iast": "āgacchati", "lemmas": ["Agam"], "english": "comes", "tag": "ā+gam", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "वदति", "iast": "vadati", "lemmas": ["vad"], "english": "speaks", "tag": "vad", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "पठति", "iast": "paṭhati", "lemmas": ["paW"], "english": "reads/studies", "tag": "paṭh", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "लिखति", "iast": "likhati", "lemmas": ["liK"], "english": "writes", "tag": "likh", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "खादति", "iast": "khādati", "lemmas": ["KAd"], "english": "eats", "tag": "khād", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "पिबति", "iast": "pibati", "lemmas": ["pA"], "english": "drinks", "tag": "pā", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "पश्यति", "iast": "paśyati", "lemmas": ["dfS"], "english": "sees", "tag": "dṛś", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "शृणोति", "iast": "śṛṇoti", "lemmas": ["Sru"], "english": "hears", "tag": "śru", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "क्रीडति", "iast": "krīḍati", "lemmas": ["krIq"], "english": "plays", "tag": "krīḍ", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "धावति", "iast": "dhāvati", "lemmas": ["DAv", "sf"], "english": "runs", "tag": "dhāv", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "उपविशति", "iast": "upaviśati", "lemmas": ["upaviS"], "english": "sits", "tag": "up+viś", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "उत्तिष्ठति", "iast": "uttiṣṭhati", "lemmas": ["utTA"], "english": "stands up", "tag": "ut+sthā", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "हसति", "iast": "hasati", "lemmas": ["has"], "english": "laughs", "tag": "has", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "रोदिति", "iast": "roditi", "lemmas": ["rud"], "english": "cries", "tag": "rud", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "निद्राति", "iast": "nidrāti", "lemmas": ["nidrA"], "english": "sleeps", "tag": "nidrā", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "जानाति", "iast": "jānāti", "lemmas": ["jYA"], "english": "knows", "tag": "jñā", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "पृच्छति", "iast": "pṛcchati", "lemmas": ["pracC"], "english": "asks", "tag": "prach", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "ददाति", "iast": "dadāti", "lemmas": ["dA", "dadAti"], "english": "gives", "tag": "dā", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "स्वीकरोति", "iast": "svīkaroti", "lemmas": [], "english": "accepts", "tag": "svī+kṛ", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala", "forms": ["स्वीकरोति"]}
+{"devanagari": "चिन्तयति", "iast": "cintayati", "lemmas": ["cint", "cinti"], "english": "thinks", "tag": "cint", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "स्मरति", "iast": "smarati", "lemmas": ["smf"], "english": "remembers", "tag": "smṛ", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "नमति", "iast": "namati", "lemmas": ["nam"], "english": "bows/salutes", "tag": "nam", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "नृत्यति", "iast": "nṛtyati", "lemmas": ["nft"], "english": "dances", "tag": "nṛt", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "गायति", "iast": "gāyati", "lemmas": ["gE"], "english": "sings", "tag": "gai", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "मिलति", "iast": "milati", "lemmas": ["mil"], "english": "meets", "tag": "mil", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "इच्छति", "iast": "icchati", "lemmas": ["iz"], "english": "wants/wishes", "tag": "iṣ", "section": "2. Daily Actions / Verbs (क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "माता", "iast": "mātā", "lemmas": ["mA", "mAtA", "mAta", "mAtf", "mI", "me", "mi"], "english": "Mother", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "अम्बा", "iast": "ambā", "lemmas": ["ambA"], "english": "Mother", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "पिता", "iast": "pitā", "lemmas": ["pitf"], "english": "Father", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "जनकः", "iast": "janakaḥ", "lemmas": ["janaka"], "english": "Father", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "भ्राता", "iast": "bhrātā", "lemmas": ["BrAtf"], "english": "Brother", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "भगिनी", "iast": "bhaginī", "lemmas": ["Bagin", "BaginI"], "english": "Sister", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "अग्रजः", "iast": "agrajaḥ", "lemmas": ["agraja"], "english": "Elder Brother", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "अनुजः", "iast": "anujaḥ", "lemmas": ["anuja"], "english": "Younger Brother", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "अग्रजा", "iast": "agrajā", "lemmas": ["agrajA", "agraja"], "english": "Elder Sister", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "अनुजा", "iast": "anujā", "lemmas": ["anujA", "anuja"], "english": "Younger Sister", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "पुत्रः", "iast": "putraḥ", "lemmas": ["putra"], "english": "Son", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "पुत्री", "iast": "putrī", "lemmas": ["putrI", "putrin"], "english": "Daughter", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "पितामहः", "iast": "pitāmahaḥ", "lemmas": ["pitAmaha"], "english": "Grandfather (Paternal)", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "पितामही", "iast": "pitāmahī", "lemmas": ["pitAmahI", "pitAmaha"], "english": "Grandmother (Paternal)", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "मातामहः", "iast": "mātāmahaḥ", "lemmas": ["mAtAmaha"], "english": "Grandfather (Maternal)", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "मातामही", "iast": "mātāmahī", "lemmas": ["mAtAmahI", "mAtAmaha"], "english": "Grandmother (Maternal)", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "पतिः", "iast": "patiḥ", "lemmas": ["pati"], "english": "Husband", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "पत्नी", "iast": "patnī", "lemmas": ["patnI"], "english": "Wife", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "भार्या", "iast": "bhāryā", "lemmas": ["BAri", "BAryA", "BArya"], "english": "Wife", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "मित्रम्", "iast": "mitram", "lemmas": ["mitra"], "english": "Friend", "tag": "N", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "शिशुः", "iast": "śiśuḥ", "lemmas": ["SiSu"], "english": "Baby", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "बालकः", "iast": "bālakaḥ", "lemmas": ["bAlaka"], "english": "Boy", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "बालिका", "iast": "bālikā", "lemmas": [], "english": "Girl", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala", "forms": ["बालिका", "बालिकाः", "बालिकाभिः", "बालिकाभ्यः", "बालिकाभ्याम्", "बालिकाम्", "बालिकासु", "बालिके", "बालिकै", "बालिकौ", "बालिकौः"]}
+{"devanagari": "पुरुषः", "iast": "puruṣaḥ", "lemmas": ["puruza"], "english": "Man", "tag": "M", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "महिला", "iast": "mahilā", "lemmas": ["mahilA"], "english": "Woman", "tag": "F", "section": "3. Family (परिवारः)", "source": "openpathshala"}
+{"devanagari": "शरीरम्", "iast": "śarīram", "lemmas": ["SarIra"], "english": "Body", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "शिरः", "iast": "śiraḥ", "lemmas": ["Sira", "Siras"], "english": "Head", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "मुखम्", "iast": "mukham", "lemmas": ["muKa"], "english": "Face / Mouth", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "नेत्रम्", "iast": "netram", "lemmas": ["netra"], "english": "Eye", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "नयनम्", "iast": "nayanam", "lemmas": ["nayana"], "english": "Eye", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "कर्णः", "iast": "karṇaḥ", "lemmas": ["karRa"], "english": "Ear", "tag": "M", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "नासिका", "iast": "nāsikā", "lemmas": ["nAsikA", "nAsika"], "english": "Nose", "tag": "F", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "दन्तः", "iast": "dantaḥ", "lemmas": ["danta"], "english": "Tooth", "tag": "M", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "जिह्वा", "iast": "jihvā", "lemmas": ["jihvA", "jihva"], "english": "Tongue", "tag": "F", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "केशः", "iast": "keśaḥ", "lemmas": ["keSa"], "english": "Hair", "tag": "M", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "कण्ठः", "iast": "kaṇṭhaḥ", "lemmas": ["kaRWa"], "english": "Throat", "tag": "M", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "हस्तः", "iast": "hastaḥ", "lemmas": ["hasta"], "english": "Hand", "tag": "M", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "करः", "iast": "karaḥ", "lemmas": ["kara", "karas"], "english": "Hand/Arm", "tag": "M", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "अङ्गुली", "iast": "aṅgulī", "lemmas": ["aNgulI", "aNguli"], "english": "Finger", "tag": "F", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "पादः", "iast": "pādaḥ", "lemmas": ["pAda"], "english": "Foot/Leg", "tag": "M", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "उदरम्", "iast": "udaram", "lemmas": ["udara"], "english": "Stomach", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "पृष्ठम्", "iast": "pṛṣṭham", "lemmas": ["pfzWa"], "english": "Back", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "हृदयम्", "iast": "hṛdayam", "lemmas": ["hfdaya"], "english": "Heart", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "रक्तम्", "iast": "raktam", "lemmas": ["rakta"], "english": "Blood", "tag": "N", "section": "4. Body Parts (शरीराङ्गानि)", "source": "openpathshala"}
+{"devanagari": "विद्यालयः", "iast": "vidyālayaḥ", "lemmas": ["vidyAlaya"], "english": "School", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "छात्रः", "iast": "chātraḥ", "lemmas": [], "english": "Student (M)", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala", "forms": ["छात्र", "छात्रः", "छात्रम्", "छात्रयोः", "छात्रस्य", "छात्राः", "छात्राणाम्", "छात्रात्", "छात्राद्", "छात्रान्", "छात्राभ्याम्", "छात्राय", "छात्रे", "छात्रेण", "छात्रेभ्यः", "छात्रेषु", "छात्रैः", "छात्रौ"]}
+{"devanagari": "छात्रा", "iast": "chātrā", "lemmas": ["Co"], "english": "Student (F)", "tag": "F", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "शिक्षकः", "iast": "śikṣakaḥ", "lemmas": ["SiSakiza", "SiSakizi", "Sikz", "Sikza", "Sikzi"], "english": "Teacher (M)", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "शिक्षिका", "iast": "śikṣikā", "lemmas": [], "english": "Teacher (F)", "tag": "F", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala", "forms": ["शिक्षिका", "शिक्षिकाः", "शिक्षिकाभिः", "शिक्षिकाभ्यः", "शिक्षिकाभ्याम्", "शिक्षिकाम्", "शिक्षिकासु", "शिक्षिके", "शिक्षिकै", "शिक्षिकौ", "शिक्षिकौः"]}
+{"devanagari": "पुस्तकम्", "iast": "pustakam", "lemmas": ["pustaka"], "english": "Book", "tag": "N", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "लेखनी", "iast": "lekhanī", "lemmas": ["leKanI"], "english": "Pen", "tag": "F", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "अङ्कनी", "iast": "aṅkanī", "lemmas": ["aNk", "aNki"], "english": "Pencil", "tag": "F", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "स्यूतः", "iast": "syūtaḥ", "lemmas": ["syUta"], "english": "Bag", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "कृष्णफलकम्", "iast": "kṛṣṇaphalakam", "lemmas": [], "english": "Blackboard", "tag": "N", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala", "forms": ["कृष्णफलक", "कृष्णफलकम्", "कृष्णफलकयोः", "कृष्णफलकस्य", "कृष्णफलकात्", "कृष्णफलकाद्", "कृष्णफलकानाम्", "कृष्णफलकानि", "कृष्णफलकाभ्याम्", "कृष्णफलकाय", "कृष्णफलके", "कृष्णफलकेन", "कृष्णफलकेभ्यः", "कृष्णफलकेषु", "कृष्णफलकैः"]}
+{"devanagari": "सुधाखण्डः", "iast": "sudhākhaṇḍaḥ", "lemmas": [], "english": "Chalk", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala", "forms": ["सुधाखण्ड", "सुधाखण्डः", "सुधाखण्डम्", "सुधाखण्डयोः", "सुधाखण्डस्य", "सुधाखण्डाः", "सुधाखण्डात्", "सुधाखण्डाद्", "सुधाखण्डानाम्", "सुधाखण्डान्", "सुधाखण्डाभ्याम्", "सुधाखण्डाय", "सुधाखण्डे", "सुधाखण्डेन", "सुधाखण्डेभ्यः", "सुधाखण्डेषु", "सुधाखण्डैः", "सुधाखण्डौ"]}
+{"devanagari": "उत्पीठिका", "iast": "utpīṭhikā", "lemmas": [], "english": "Table/Desk", "tag": "F", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala", "forms": ["उत्पीठिका", "उत्पीठिकाः", "उत्पीठिकाभिः", "उत्पीठिकाभ्यः", "उत्पीठिकाभ्याम्", "उत्पीठिकाम्", "उत्पीठिकासु", "उत्पीठिके", "उत्पीठिकै", "उत्पीठिकौ", "उत्पीठिकौः"]}
+{"devanagari": "आसन्दः", "iast": "āsandaḥ", "lemmas": ["Asanda"], "english": "Chair", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "कक्षा", "iast": "kakṣā", "lemmas": ["kakzA", "kakza"], "english": "Class/Room", "tag": "F", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "परीक्षा", "iast": "parīkṣā", "lemmas": ["parIkzA"], "english": "Exam", "tag": "F", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "प्रश्नः", "iast": "praśnaḥ", "lemmas": ["praSna"], "english": "Question", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "उत्तरम्", "iast": "uttaram", "lemmas": ["uttara", "uttaram"], "english": "Answer", "tag": "N", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "अभ्यासः", "iast": "abhyāsaḥ", "lemmas": ["aByAsa"], "english": "Practice", "tag": "M", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "ज्ञानम्", "iast": "jñānam", "lemmas": ["jYAna"], "english": "Knowledge", "tag": "N", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala"}
+{"devanagari": "कर्गजम्", "iast": "kargajam", "lemmas": [], "english": "Paper", "tag": "N", "section": "5. School & Education (विद्यालयः)", "source": "openpathshala", "forms": ["कर्गज", "कर्गजम्", "कर्गजयोः", "कर्गजस्य", "कर्गजात्", "कर्गजाद्", "कर्गजानाम्", "कर्गजानि", "कर्गजाभ्याम्", "कर्गजाय", "कर्गजे", "कर्गजेन", "कर्गजेभ्यः", "कर्गजेषु", "कर्गजैः"]}
+{"devanagari": "गृहम्", "iast": "gṛham", "lemmas": ["gfha"], "english": "House/Home", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "द्वारम्", "iast": "dvāram", "lemmas": ["dvAra"], "english": "Door", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "वातायनम्", "iast": "vātāyanam", "lemmas": ["vAtAyana"], "english": "Window", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "सोपानम्", "iast": "sopānam", "lemmas": ["sopAna"], "english": "Stairs", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "छदिः", "iast": "chadiḥ", "lemmas": ["Cadi", "Cadis"], "english": "Roof", "tag": "F", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "पाकशाला", "iast": "pākaśālā", "lemmas": ["pAkaSAlA"], "english": "Kitchen", "tag": "F", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "शयनकक्षः", "iast": "śayanakakṣaḥ", "lemmas": [], "english": "Bedroom", "tag": "M", "section": "6. House & Objects (गृहम्)", "source": "openpathshala", "forms": ["शयनकक्ष", "शयनकक्षः", "शयनकक्षम्", "शयनकक्षयोः", "शयनकक्षस्य", "शयनकक्षाः", "शयनकक्षाणाम्", "शयनकक्षात्", "शयनकक्षाद्", "शयनकक्षान्", "शयनकक्षाभ्याम्", "शयनकक्षाय", "शयनकक्षे", "शयनकक्षेण", "शयनकक्षेभ्यः", "शयनकक्षेषु", "शयनकक्षैः", "शयनकक्षौ"]}
+{"devanagari": "दर्पणः", "iast": "darpaṇaḥ", "lemmas": ["darpaRa"], "english": "Mirror", "tag": "M", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "घटी", "iast": "ghaṭī", "lemmas": ["GawI", "Gawi", "Gawin"], "english": "Clock", "tag": "F", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "दीपः", "iast": "dīpaḥ", "lemmas": ["dIpa"], "english": "Lamp", "tag": "M", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "व्यजनम्", "iast": "vyajanam", "lemmas": ["vyajana"], "english": "Fan", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "दूरवाणी", "iast": "dūravāṇī", "lemmas": [], "english": "Telephone/Mobile", "tag": "F", "section": "6. House & Objects (गृहम्)", "source": "openpathshala", "forms": ["दूरवाणि", "दूरवाणीः", "दूरवाणीनाम्", "दूरवाणीभिः", "दूरवाणीभ्यः", "दूरवाणीभ्याम्", "दूरवाणीम्", "दूरवाणीषु", "दूरवाण्यः", "दूरवाण्या", "दूरवाण्याः", "दूरवाण्याम्", "दूरवाण्यै", "दूरवाण्योः", "दूरवाण्यौ"]}
+{"devanagari": "दूरदर्शनम्", "iast": "dūradarśanam", "lemmas": ["dUradarSana"], "english": "Television", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "कन्दुकम्", "iast": "kandukam", "lemmas": ["kanduka"], "english": "Ball", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "धनम्", "iast": "dhanam", "lemmas": ["Dana"], "english": "Money", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "वस्त्रम्", "iast": "vastram", "lemmas": ["vastra"], "english": "Clothes", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "युतकम्", "iast": "yutakam", "lemmas": ["yutaka"], "english": "Shirt", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "उपनेत्रम्", "iast": "upanetram", "lemmas": ["upanI"], "english": "Spectacles", "tag": "N", "section": "6. House & Objects (गृहम्)", "source": "openpathshala"}
+{"devanagari": "भोजनम्", "iast": "bhojanam", "lemmas": ["Bojana"], "english": "Food/Meal", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "जलम्", "iast": "jalam", "lemmas": ["jala"], "english": "Water", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "दुग्धम्", "iast": "dugdham", "lemmas": ["dugDa", "duh"], "english": "Milk", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "दधि", "iast": "dadhi", "lemmas": ["daDi"], "english": "Yogurt/Curd", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "घृतम्", "iast": "ghṛtam", "lemmas": ["Gfta"], "english": "Ghee", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "ओदनम्", "iast": "odanam", "lemmas": ["odana"], "english": "Cooked Rice", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "रोटिका", "iast": "roṭikā", "lemmas": ["rowikA"], "english": "Bread (Roti)", "tag": "F", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "फलम्", "iast": "phalam", "lemmas": ["Pala"], "english": "Fruit", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "शाकम्", "iast": "śākam", "lemmas": ["SAka"], "english": "Vegetable", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "लवणम्", "iast": "lavaṇam", "lemmas": ["lavaRa"], "english": "Salt", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "शर्करा", "iast": "śarkarā", "lemmas": ["SarkarA", "Sarkara"], "english": "Sugar", "tag": "F", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "मधुरम्", "iast": "madhuram", "lemmas": ["maDura"], "english": "Sweet (dish)", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "चायम्", "iast": "cāyam", "lemmas": ["cApi", "cAy", "cAyi", "cay", "ci"], "english": "Tea", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "काफी", "iast": "kāphī", "lemmas": [], "english": "Coffee", "tag": "F", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala", "forms": ["काफि", "काफीः", "काफीनाम्", "काफीभिः", "काफीभ्यः", "काफीभ्याम्", "काफीम्", "काफीषु", "काफ्यः", "काफ्या", "काफ्याः", "काफ्याम्", "काफ्यै", "काफ्योः", "काफ्यौ"]}
+{"devanagari": "आम्रम्", "iast": "āmram", "lemmas": ["Amra"], "english": "Mango", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "कदलीफलम्", "iast": "kadalīphalam", "lemmas": [], "english": "Banana", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala", "forms": ["कदलीफल", "कदलीफलम्", "कदलीफलयोः", "कदलीफलस्य", "कदलीफलात्", "कदलीफलाद्", "कदलीफलानाम्", "कदलीफलानि", "कदलीफलाभ्याम्", "कदलीफलाय", "कदलीफले", "कदलीफलेन", "कदलीफलेभ्यः", "कदलीफलेषु", "कदलीफलैः"]}
+{"devanagari": "सेवफलम्", "iast": "sevaphalam", "lemmas": [], "english": "Apple", "tag": "N", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala", "forms": ["सेवफल", "सेवफलम्", "सेवफलयोः", "सेवफलस्य", "सेवफलात्", "सेवफलाद्", "सेवफलानाम्", "सेवफलानि", "सेवफलाभ्याम्", "सेवफलाय", "सेवफले", "सेवफलेन", "सेवफलेभ्यः", "सेवफलेषु", "सेवफलैः"]}
+{"devanagari": "सूपः", "iast": "sūpaḥ", "lemmas": ["sUpa"], "english": "Soup/Dal", "tag": "M", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "बुभुक्षा", "iast": "bubhukṣā", "lemmas": ["buBukzA"], "english": "Hunger", "tag": "F", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "पिपासा", "iast": "pipāsā", "lemmas": ["pipAsA"], "english": "Thirst", "tag": "F", "section": "7. Food & Drink (भोजनम्)", "source": "openpathshala"}
+{"devanagari": "सूर्यः", "iast": "sūryaḥ", "lemmas": ["sUrI", "sUrya"], "english": "Sun", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "चन्द्रः", "iast": "candraḥ", "lemmas": ["candra"], "english": "Moon", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "आकाशः", "iast": "ākāśaḥ", "lemmas": ["AkASa"], "english": "Sky", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "पृथ्वी", "iast": "pṛthvī", "lemmas": ["pfTvI"], "english": "Earth", "tag": "F", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "वायुः", "iast": "vāyuḥ", "lemmas": ["vA", "vAyu"], "english": "Wind/Air", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "अग्निः", "iast": "agniḥ", "lemmas": ["agni"], "english": "Fire", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "नदी", "iast": "nadī", "lemmas": ["nadI", "nadi"], "english": "River", "tag": "F", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "वृक्षः", "iast": "vṛkṣaḥ", "lemmas": ["vfkza"], "english": "Tree", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "पुष्पम्", "iast": "puṣpam", "lemmas": ["puzpa"], "english": "Flower", "tag": "N", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "पर्णम्", "iast": "parṇam", "lemmas": ["parRa"], "english": "Leaf", "tag": "N", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "वनम्", "iast": "vanam", "lemmas": ["vana"], "english": "Forest", "tag": "N", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "पर्वतः", "iast": "parvataḥ", "lemmas": ["parv", "parvata"], "english": "Mountain", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "वर्षा", "iast": "varṣā", "lemmas": ["varzA", "varza", "varziman"], "english": "Rain", "tag": "F", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "मेघः", "iast": "meghaḥ", "lemmas": ["meGa"], "english": "Cloud", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "दिनम्", "iast": "dinam", "lemmas": ["dina"], "english": "Day", "tag": "N", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "रात्रिः", "iast": "rātriḥ", "lemmas": ["rAtri"], "english": "Night", "tag": "F", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "प्रातः", "iast": "prātaḥ", "lemmas": ["prA", "prAta"], "english": "Morning", "tag": "Ind", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "सायम्", "iast": "sāyam", "lemmas": ["sAya", "sAyam"], "english": "Evening", "tag": "Ind", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "अद्य", "iast": "adya", "lemmas": ["adya"], "english": "Today", "tag": "Ind", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "श्वः", "iast": "śvaḥ", "lemmas": ["Svas"], "english": "Tomorrow", "tag": "Ind", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "ह्यः", "iast": "hyaḥ", "lemmas": ["hyas"], "english": "Yesterday", "tag": "Ind", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "समयः", "iast": "samayaḥ", "lemmas": ["samaya"], "english": "Time", "tag": "M", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "घण्टा", "iast": "ghaṇṭā", "lemmas": ["GaRwA", "GaRwa"], "english": "Hour", "tag": "F", "section": "8. Nature & Time (प्रकृतिः समयः च)", "source": "openpathshala"}
+{"devanagari": "गजः", "iast": "gajaḥ", "lemmas": ["gaja"], "english": "Elephant", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "अश्वः", "iast": "aśvaḥ", "lemmas": ["Svi", "aSva"], "english": "Horse", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "सिंहः", "iast": "siṃhaḥ", "lemmas": ["siMha"], "english": "Lion", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "व्याघ्रः", "iast": "vyāghraḥ", "lemmas": ["vyAGra"], "english": "Tiger", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "कुक्कुरः", "iast": "kukkuraḥ", "lemmas": ["kukkura"], "english": "Dog", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "श्वानः", "iast": "śvānaḥ", "lemmas": ["SvAna", "Svan"], "english": "Dog", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "बिडालः", "iast": "biḍālaḥ", "lemmas": ["biqAla"], "english": "Cat", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "धेनुः", "iast": "dhenuḥ", "lemmas": ["Denu"], "english": "Cow", "tag": "F", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "गौः", "iast": "gauḥ", "lemmas": ["go"], "english": "Cow", "tag": "F", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "अजा", "iast": "ajā", "lemmas": ["ajA", "aja"], "english": "Goat", "tag": "F", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "वानरः", "iast": "vānaraḥ", "lemmas": ["vAnara"], "english": "Monkey", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "सर्पः", "iast": "sarpaḥ", "lemmas": ["sarpa"], "english": "Snake", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "मूषकः", "iast": "mūṣakaḥ", "lemmas": ["mUzaka"], "english": "Mouse", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "काकः", "iast": "kākaḥ", "lemmas": ["kAka"], "english": "Crow", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "मयूरः", "iast": "mayūraḥ", "lemmas": ["mayUra"], "english": "Peacock", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "शुकः", "iast": "śukaḥ", "lemmas": ["Suka"], "english": "Parrot", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "हंसः", "iast": "haṃsaḥ", "lemmas": ["haMsa"], "english": "Swan", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "मत्स्यः", "iast": "matsyaḥ", "lemmas": ["matsyI", "matsya"], "english": "Fish", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "मीनः", "iast": "mīnaḥ", "lemmas": ["mIna"], "english": "Fish", "tag": "M", "section": "9. Animals (पशवः)", "source": "openpathshala"}
+{"devanagari": "सुन्दरः", "iast": "sundaraḥ", "lemmas": ["sundara"], "english": "Beautiful", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "सुन्दरी", "iast": "sundarī", "lemmas": ["sundarI", "sundara"], "english": "Beautiful", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "उत्तमम्", "iast": "uttamam", "lemmas": ["uttama", "uttamam"], "english": "Good/Best", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "समीचीनम्", "iast": "samīcīnam", "lemmas": ["samIcIna"], "english": "Proper/Good/Right", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "दीर्घः", "iast": "dīrghaḥ", "lemmas": ["dIrGa"], "english": "Long/Tall", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "लघुः", "iast": "laghuḥ", "lemmas": ["laGu"], "english": "Small/Light", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "स्थूलः", "iast": "sthūlaḥ", "lemmas": ["sTUla"], "english": "Fat/Thick", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "कृशः", "iast": "kṛśaḥ", "lemmas": ["kfSa"], "english": "Thin", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "उष्णम्", "iast": "uṣṇam", "lemmas": ["uzRa", "uzRam"], "english": "Hot", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "शीतलम्", "iast": "śītalam", "lemmas": ["SItala"], "english": "Cold", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "नूतनम्", "iast": "nūtanam", "lemmas": ["nUtana"], "english": "New", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "पुरातनम्", "iast": "purātanam", "lemmas": ["purAtana"], "english": "Old", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "श्वेतः", "iast": "śvetaḥ", "lemmas": ["Sveta"], "english": "White", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "कृष्णः", "iast": "kṛṣṇaḥ", "lemmas": ["kfzRa"], "english": "Black", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "रक्तः", "iast": "raktaḥ", "lemmas": ["rakta"], "english": "Red", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "नीलः", "iast": "nīlaḥ", "lemmas": ["nIla"], "english": "Blue", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "पीतः", "iast": "pītaḥ", "lemmas": ["pIta"], "english": "Yellow", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "हरितः", "iast": "haritaḥ", "lemmas": ["harit", "harita"], "english": "Green", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "प्रसन्नः", "iast": "prasannaḥ", "lemmas": ["prasanna"], "english": "Happy", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "दुःखी", "iast": "duḥkhī", "lemmas": ["duHKi"], "english": "Sad", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "शीघ्रम्", "iast": "śīghram", "lemmas": ["SIGra"], "english": "Fast", "tag": "Ind (Adv)", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "शनैः", "iast": "śanaiḥ", "lemmas": [], "english": "Slowly", "tag": "Ind (Adv)", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala", "forms": ["शनैः"]}
+{"devanagari": "सरलम्", "iast": "saralam", "lemmas": ["sarala"], "english": "Easy/Simple", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "कठिनम्", "iast": "kaṭhinam", "lemmas": ["kaWina"], "english": "Hard/Difficult", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "बहु", "iast": "bahu", "lemmas": ["bahu"], "english": "Many/Much", "tag": "Adj", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "किञ्चित्", "iast": "kiñcit", "lemmas": ["kiMcid"], "english": "A little", "tag": "Ind", "section": "10. Adjectives/Qualities (विशेषणानि)", "source": "openpathshala"}
+{"devanagari": "एकम्", "iast": "ekam", "lemmas": ["eka"], "english": "One", "tag": "One", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "द्वे", "iast": "dve", "lemmas": ["dva", "dvi"], "english": "Two", "tag": "Two", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "त्रीणि", "iast": "trīṇi", "lemmas": ["tri"], "english": "Three", "tag": "Three", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "चत्वारि", "iast": "catvāri", "lemmas": ["catur"], "english": "Four", "tag": "Four", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "पञ्च", "iast": "pañca", "lemmas": ["paYc", "paYca"], "english": "Five", "tag": "Five", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "षट्", "iast": "ṣaṭ", "lemmas": ["zaw", "zaz"], "english": "Six", "tag": "Six", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "सप्त", "iast": "sapta", "lemmas": ["sapta", "saptan"], "english": "Seven", "tag": "Seven", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "अष्ट", "iast": "aṣṭa", "lemmas": ["azwan"], "english": "Eight", "tag": "Eight", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "नव", "iast": "nava", "lemmas": ["navA", "nava", "navan"], "english": "Nine", "tag": "Nine", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "दश", "iast": "daśa", "lemmas": ["daMS", "daSA", "daSa", "daSan"], "english": "Ten", "tag": "Ten", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "शून्यम्", "iast": "śūnyam", "lemmas": ["SUnya"], "english": "Zero", "tag": "Zero", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "शतम्", "iast": "śatam", "lemmas": ["Sata"], "english": "Hundred", "tag": "Hundred", "section": "11. Numbers (सङ्ख्या)", "source": "openpathshala"}
+{"devanagari": "वैद्यः", "iast": "vaidyaḥ", "lemmas": ["vEdI", "vEdyI", "vEdya"], "english": "Doctor", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "पाचकः", "iast": "pācakaḥ", "lemmas": ["pAcaka"], "english": "Cook/Chef", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "चालकः", "iast": "cālakaḥ", "lemmas": ["cAlaka"], "english": "Driver", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "आरक्षकः", "iast": "ārakṣakaḥ", "lemmas": ["Arakzaka"], "english": "Police Officer", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "कृषकः", "iast": "kṛṣakaḥ", "lemmas": ["kfzaka"], "english": "Farmer", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "आपणिकः", "iast": "āpaṇikaḥ", "lemmas": ["ApaRika"], "english": "Shopkeeper", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "लेखकः", "iast": "lekhakaḥ", "lemmas": ["leKaka"], "english": "Writer", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "गायकः", "iast": "gāyakaḥ", "lemmas": ["gAyaka"], "english": "Singer", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "नर्तकः", "iast": "nartakaḥ", "lemmas": ["nartaka"], "english": "Dancer", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "चित्रकारः", "iast": "citrakāraḥ", "lemmas": ["citrakAra"], "english": "Painter/Artist", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "सैनिकः", "iast": "sainikaḥ", "lemmas": ["sEnika"], "english": "Soldier", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "प्रबन्धकः", "iast": "prabandhakaḥ", "lemmas": ["prabanD", "prabanDi"], "english": "Manager", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "अभियन्ता", "iast": "abhiyantā", "lemmas": [], "english": "Engineer", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala", "forms": ["अभियन्ता", "अभियन्ताः", "अभियन्तान्", "अभियन्ताभिः", "अभियन्ताभ्यः", "अभियन्ताभ्याम्", "अभियन्ताम्", "अभियन्तासु", "अभियन्ते", "अभियन्तै", "अभियन्तौ", "अभियन्तौः"]}
+{"devanagari": "अधिवक्ता", "iast": "adhivaktā", "lemmas": ["aDibrU", "aDivac", "aDivaktf"], "english": "Lawyer", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "स्वर्णकारः", "iast": "svarṇakāraḥ", "lemmas": ["svarRakAra"], "english": "Goldsmith", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "लोहकारः", "iast": "lohakāraḥ", "lemmas": ["lohakAra"], "english": "Blacksmith", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "कुम्भकारः", "iast": "kumbhakāraḥ", "lemmas": ["kumBakAra"], "english": "Potter", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "तक्षकः", "iast": "takṣakaḥ", "lemmas": ["takzaka"], "english": "Carpenter", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "धीवरः", "iast": "dhīvaraḥ", "lemmas": ["DIvara"], "english": "Fisherman", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "सेवकः", "iast": "sevakaḥ", "lemmas": ["sevaka"], "english": "Servant/Helper", "tag": "M", "section": "12. Professions (वृत्तयः)", "source": "openpathshala"}
+{"devanagari": "नगरम्", "iast": "nagaram", "lemmas": ["nagara"], "english": "City", "tag": "N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "ग्रामः", "iast": "grāmaḥ", "lemmas": ["grAma"], "english": "Village", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "आपणः", "iast": "āpaṇaḥ", "lemmas": ["ApaRa"], "english": "Shop", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "विपणिः", "iast": "vipaṇiḥ", "lemmas": ["vipaRi"], "english": "Market", "tag": "F", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "मार्गः", "iast": "mārgaḥ", "lemmas": ["mArga"], "english": "Road/Way", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "राजमार्गः", "iast": "rājamārgaḥ", "lemmas": ["rAjamArga"], "english": "Highway", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "चिकित्सालयः", "iast": "cikitsālayaḥ", "lemmas": [], "english": "Hospital", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["चिकित्सालय", "चिकित्सालयः", "चिकित्सालयम्", "चिकित्सालययोः", "चिकित्सालयस्य", "चिकित्सालयाः", "चिकित्सालयात्", "चिकित्सालयाद्", "चिकित्सालयानाम्", "चिकित्सालयान्", "चिकित्सालयाभ्याम्", "चिकित्सालयाय", "चिकित्सालये", "चिकित्सालयेन", "चिकित्सालयेभ्यः", "चिकित्सालयेषु", "चिकित्सालयैः", "चिकित्सालयौ"]}
+{"devanagari": "देवालयः", "iast": "devālayaḥ", "lemmas": ["devAlaya"], "english": "Temple", "tag": "M/N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "मन्दिरम्", "iast": "mandiram", "lemmas": ["mandira"], "english": "Temple", "tag": "M/N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "ग्रन्थालयः", "iast": "granthālayaḥ", "lemmas": [], "english": "Library", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["ग्रन्थालय", "ग्रन्थालयः", "ग्रन्थालयम्", "ग्रन्थालययोः", "ग्रन्थालयस्य", "ग्रन्थालयाः", "ग्रन्थालयात्", "ग्रन्थालयाद्", "ग्रन्थालयानाम्", "ग्रन्थालयान्", "ग्रन्थालयाभ्याम्", "ग्रन्थालयाय", "ग्रन्थालये", "ग्रन्थालयेन", "ग्रन्थालयेभ्यः", "ग्रन्थालयेषु", "ग्रन्थालयैः", "ग्रन्थालयौ"]}
+{"devanagari": "उद्यानम्", "iast": "udyānam", "lemmas": ["udyAna"], "english": "Garden/Park", "tag": "N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "कार्यालयः", "iast": "kāryālayaḥ", "lemmas": [], "english": "Office", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["कार्यालय", "कार्यालयः", "कार्यालयम्", "कार्यालययोः", "कार्यालयस्य", "कार्यालयाः", "कार्यालयात्", "कार्यालयाद्", "कार्यालयानाम्", "कार्यालयान्", "कार्यालयाभ्याम्", "कार्यालयाय", "कार्यालये", "कार्यालयेन", "कार्यालयेभ्यः", "कार्यालयेषु", "कार्यालयैः", "कार्यालयौ"]}
+{"devanagari": "कोशः", "iast": "kośaḥ", "lemmas": ["koSa"], "english": "Bank", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "वित्तकोषः", "iast": "vittakoṣaḥ", "lemmas": [], "english": "Bank", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["वित्तकोष", "वित्तकोषः", "वित्तकोषम्", "वित्तकोषयोः", "वित्तकोषस्य", "वित्तकोषाः", "वित्तकोषाणाम्", "वित्तकोषात्", "वित्तकोषाद्", "वित्तकोषान्", "वित्तकोषाभ्याम्", "वित्तकोषाय", "वित्तकोषे", "वित्तकोषेण", "वित्तकोषेभ्यः", "वित्तकोषेषु", "वित्तकोषैः", "वित्तकोषौ"]}
+{"devanagari": "रेलस्थानकम्", "iast": "relasthānakam", "lemmas": [], "english": "Railway Station", "tag": "N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["रेलस्थानक", "रेलस्थानकम्", "रेलस्थानकयोः", "रेलस्थानकस्य", "रेलस्थानकात्", "रेलस्थानकाद्", "रेलस्थानकानाम्", "रेलस्थानकानि", "रेलस्थानकाभ्याम्", "रेलस्थानकाय", "रेलस्थानके", "रेलस्थानकेन", "रेलस्थानकेभ्यः", "रेलस्थानकेषु", "रेलस्थानकैः"]}
+{"devanagari": "विमानस्थानकम्", "iast": "vimānasthānakam", "lemmas": [], "english": "Airport", "tag": "N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["विमानस्थानक", "विमानस्थानकम्", "विमानस्थानकयोः", "विमानस्थानकस्य", "विमानस्थानकात्", "विमानस्थानकाद्", "विमानस्थानकानाम्", "विमानस्थानकानि", "विमानस्थानकाभ्याम्", "विमानस्थानकाय", "विमानस्थानके", "विमानस्थानकेन", "विमानस्थानकेभ्यः", "विमानस्थानकेषु", "विमानस्थानकैः"]}
+{"devanagari": "लोकयानम्", "iast": "lokayānam", "lemmas": [], "english": "Bus", "tag": "N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["लोकयान", "लोकयानम्", "लोकयानयोः", "लोकयानस्य", "लोकयानात्", "लोकयानाद्", "लोकयानानाम्", "लोकयानानि", "लोकयानाभ्याम्", "लोकयानाय", "लोकयाने", "लोकयानेन", "लोकयानेभ्यः", "लोकयानेषु", "लोकयानैः"]}
+{"devanagari": "कारयानम्", "iast": "kārayānam", "lemmas": [], "english": "Car", "tag": "N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["कारयाणे", "कारयाणेन", "कारयाणैः", "कारयान", "कारयानम्", "कारयानयोः", "कारयानस्य", "कारयानात्", "कारयानाद्", "कारयानानाम्", "कारयानानि", "कारयानाभ्याम्", "कारयानाय", "कारयानेभ्यः", "कारयानेषु"]}
+{"devanagari": "द्विचक्रिका", "iast": "dvicakrikā", "lemmas": [], "english": "Bicycle", "tag": "F", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala", "forms": ["द्विचक्रिका", "द्विचक्रिकाः", "द्विचक्रिकाभिः", "द्विचक्रिकाभ्यः", "द्विचक्रिकाभ्याम्", "द्विचक्रिकाम्", "द्विचक्रिकासु", "द्विचक्रिके", "द्विचक्रिकै", "द्विचक्रिकौ", "द्विचक्रिकौः"]}
+{"devanagari": "भवनम्", "iast": "bhavanam", "lemmas": ["Bavana"], "english": "Building", "tag": "N", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "प्रासादः", "iast": "prāsādaḥ", "lemmas": ["prAsAda"], "english": "Palace", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "सेतुः", "iast": "setuḥ", "lemmas": ["setu"], "english": "Bridge", "tag": "M", "section": "13. City & Places (नगरं स्थानानि च)", "source": "openpathshala"}
+{"devanagari": "आलुकम्", "iast": "ālukam", "lemmas": ["Aluka"], "english": "Potato", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "पलाण्डुः", "iast": "palāṇḍuḥ", "lemmas": ["palARqu"], "english": "Onion", "tag": "M", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "लशुनम्", "iast": "laśunam", "lemmas": ["laSuna"], "english": "Garlic", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "गृञ्जनम्", "iast": "gṛñjanam", "lemmas": ["gfYjana"], "english": "Carrot", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "मूलकम्", "iast": "mūlakam", "lemmas": ["mUlaka"], "english": "Radish", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "वृन्ताकम्", "iast": "vṛntākam", "lemmas": ["vfntAka"], "english": "Eggplant/Brinjal", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "भेण्डी", "iast": "bheṇḍī", "lemmas": ["BeRqI"], "english": "Okra (Lady finger)", "tag": "F", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "हरितकम्", "iast": "haritakam", "lemmas": ["haritaka"], "english": "Cabbage", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "मरिचम्", "iast": "maricam", "lemmas": ["marica"], "english": "Chili/Pepper", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "आद्रकम्", "iast": "ādrakam", "lemmas": [], "english": "Ginger", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala", "forms": ["आद्रक", "आद्रकम्", "आद्रकयोः", "आद्रकस्य", "आद्रकाणाम्", "आद्रकाणि", "आद्रकात्", "आद्रकाद्", "आद्रकाभ्याम्", "आद्रकाय", "आद्रके", "आद्रकेण", "आद्रकेभ्यः", "आद्रकेषु", "आद्रकैः"]}
+{"devanagari": "जम्बीरम्", "iast": "jambīram", "lemmas": ["jambIra"], "english": "Lemon", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "नारिकेलम्", "iast": "nārikelam", "lemmas": ["nArikela"], "english": "Coconut", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "द्राक्षा", "iast": "drākṣā", "lemmas": ["drAkzA", "drAkza"], "english": "Grapes", "tag": "F", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "दाडिमम्", "iast": "dāḍimam", "lemmas": ["dAqima"], "english": "Pomegranate", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "मधु", "iast": "madhu", "lemmas": ["maDu"], "english": "Honey", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "तैलम्", "iast": "tailam", "lemmas": ["tEla"], "english": "Oil", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "जीरकम्", "iast": "jīrakam", "lemmas": ["jIraka"], "english": "Cumin", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "हर्दिः", "iast": "hardiḥ", "lemmas": [], "english": "Turmeric", "tag": "F", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala", "forms": ["हर्दयः", "हर्दये", "हर्दिः", "हर्दिभिः", "हर्दिभ्यः", "हर्दिभ्याम्", "हर्दिम्", "हर्दिषु", "हर्दी", "हर्दीः", "हर्दीनाम्", "हर्दे", "हर्देः", "हर्दौ", "हर्द्या", "हर्द्याः", "हर्द्याम्", "हर्द्यै", "हर्द्योः"]}
+{"devanagari": "हरिद्रा", "iast": "haridrā", "lemmas": ["haridrA", "haridra"], "english": "Turmeric", "tag": "F", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "धान्यम्", "iast": "dhānyam", "lemmas": ["DAnya"], "english": "Grain/Coriander", "tag": "N", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "चणकः", "iast": "caṇakaḥ", "lemmas": ["caRaka"], "english": "Chickpea", "tag": "M", "section": "14. Vegetables, Fruits & Spices (शाकानि फलानि च)", "source": "openpathshala"}
+{"devanagari": "पात्रम्", "iast": "pātram", "lemmas": ["pAtra"], "english": "Vessel/Pot/Container", "tag": "N", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "स्थाली", "iast": "sthālī", "lemmas": ["sTAlI"], "english": "Plate/Thali", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "चषकः", "iast": "caṣakaḥ", "lemmas": ["cazaka"], "english": "Cup/Glass", "tag": "M", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "चमसः", "iast": "camasaḥ", "lemmas": ["camasa"], "english": "Spoon", "tag": "M", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "छुरिका", "iast": "churikā", "lemmas": ["CurikA"], "english": "Knife", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "द्रोणी", "iast": "droṇī", "lemmas": ["droRI", "droRa", "droRi"], "english": "Bucket", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "सम्मार्जनी", "iast": "sammārjanī", "lemmas": ["saMmArji", "saMmfj"], "english": "Broom", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "कर्तरी", "iast": "kartarī", "lemmas": ["kartarI", "kartari"], "english": "Scissors", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "कूपी", "iast": "kūpī", "lemmas": ["kUpI"], "english": "Bottle", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "मञ्जूषा", "iast": "mañjūṣā", "lemmas": ["maYjUzA"], "english": "Box/Chest", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "कुञ्चिका", "iast": "kuñcikā", "lemmas": ["kuYcikA"], "english": "Key", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "तालः", "iast": "tālaḥ", "lemmas": ["tAla"], "english": "Lock", "tag": "M", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "कटः", "iast": "kaṭaḥ", "lemmas": ["kawa"], "english": "Mat", "tag": "M", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "शय्या", "iast": "śayyā", "lemmas": ["SayyA"], "english": "Bed", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "उपधानम्", "iast": "upadhānam", "lemmas": ["upaDAna"], "english": "Pillow", "tag": "N", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "आवरणम्", "iast": "āvaraṇam", "lemmas": ["AvaraRa"], "english": "Cover/Sheet", "tag": "N", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "कङ्कतम्", "iast": "kaṅkatam", "lemmas": ["kaNkata"], "english": "Comb", "tag": "N", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "फेनकम्", "iast": "phenakam", "lemmas": ["Penaka"], "english": "Soap", "tag": "N", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "छत्रम्", "iast": "chatram", "lemmas": [], "english": "Umbrella", "tag": "N", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala", "forms": ["छत्र", "छत्रम्", "छत्रयोः", "छत्रस्य", "छत्राणाम्", "छत्राणि", "छत्रात्", "छत्राद्", "छत्राभ्याम्", "छत्राय", "छत्रे", "छत्रेण", "छत्रेभ्यः", "छत्रेषु", "छत्रैः"]}
+{"devanagari": "पादरक्षा", "iast": "pādarakṣā", "lemmas": ["pAdarakza"], "english": "Shoes/Slippers", "tag": "F", "section": "15. Household Items (गृहवस्तूनि)", "source": "openpathshala"}
+{"devanagari": "क्रीणाति", "iast": "krīṇāti", "lemmas": ["krI"], "english": "buys", "tag": "krī", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "विक्रीणीते", "iast": "vikrīṇīte", "lemmas": ["vikrI"], "english": "sells", "tag": "vi+krī", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "नयति", "iast": "nayati", "lemmas": ["nI"], "english": "leads/takes", "tag": "nī", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "आनयति", "iast": "ānayati", "lemmas": ["AnI", "Ani"], "english": "brings", "tag": "ā+nī", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "स्थापयति", "iast": "sthāpayati", "lemmas": ["sTApi"], "english": "places/keeps", "tag": "sthā", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "प्रक्षालयति", "iast": "prakṣālayati", "lemmas": ["prakzAli"], "english": "washes/cleans", "tag": "kṣal", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "पचति", "iast": "pacati", "lemmas": ["pac"], "english": "cooks", "tag": "pac", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "पतति", "iast": "patati", "lemmas": ["pat", "pata", "patat"], "english": "falls", "tag": "pat", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "त्यजति", "iast": "tyajati", "lemmas": ["tyaj"], "english": "abandons/leaves", "tag": "tyaj", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "जयति", "iast": "jayati", "lemmas": ["jayati", "ji"], "english": "wins/conquers", "tag": "ji", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "चोरयति", "iast": "corayati", "lemmas": ["cori"], "english": "steals", "tag": "cur", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "कथयति", "iast": "kathayati", "lemmas": ["kaTi"], "english": "tells/narrates", "tag": "kath", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "गणयति", "iast": "gaṇayati", "lemmas": ["gaRi"], "english": "counts", "tag": "gaṇ", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "निन्दति", "iast": "nindati", "lemmas": ["nind"], "english": "blames/scolds", "tag": "nind", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "प्रशंसति", "iast": "praśaṃsati", "lemmas": ["praSaMs"], "english": "praises", "tag": "śaṃs", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "भ्रमति", "iast": "bhramati", "lemmas": ["Bram"], "english": "wanders/roams", "tag": "bhram", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "वसति", "iast": "vasati", "lemmas": ["vas", "vasatI", "vasati"], "english": "lives/resides", "tag": "vas", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "रक्षति", "iast": "rakṣati", "lemmas": ["rakz"], "english": "protects", "tag": "rakṣ", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "प्रविशति", "iast": "praviśati", "lemmas": ["praviS"], "english": "enters", "tag": "viś", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "निर्गच्छति", "iast": "nirgacchati", "lemmas": ["nirgam"], "english": "exits", "tag": "gam", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "उड्डयते", "iast": "uḍḍayate", "lemmas": ["uqqI"], "english": "flies", "tag": "ḍī", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "यच्छति", "iast": "yacchati", "lemmas": ["dA", "yam"], "english": "gives (alternative)", "tag": "dā", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "शक्नोति", "iast": "śaknoti", "lemmas": ["Sak"], "english": "is able/can", "tag": "śak", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "अर्हति", "iast": "arhati", "lemmas": ["arh", "arhat"], "english": "deserves", "tag": "arh", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "स्पृशति", "iast": "spṛśati", "lemmas": ["spfS"], "english": "touches", "tag": "spṛś", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "तिष्ठति", "iast": "tiṣṭhati", "lemmas": ["sTA"], "english": "stays/stands", "tag": "sthā", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "आह्वयति", "iast": "āhvayati", "lemmas": ["Ahve"], "english": "calls/invites", "tag": "hve", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "प्रेषयति", "iast": "preṣayati", "lemmas": ["prezi"], "english": "sends", "tag": "iṣ", "section": "16. More Actions (अधिक-क्रियापदानि)", "source": "openpathshala"}
+{"devanagari": "प्रेम", "iast": "prema", "lemmas": ["premA", "preman"], "english": "Love", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "क्रोधः", "iast": "krodhaḥ", "lemmas": ["kroDa"], "english": "Anger", "tag": "M", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "भयम्", "iast": "bhayam", "lemmas": ["Baya"], "english": "Fear", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "सुखम्", "iast": "sukham", "lemmas": ["suKa", "suKam"], "english": "Happiness/Comfort", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "दुःखम्", "iast": "duḥkham", "lemmas": ["duHKa", "duHKam"], "english": "Sorrow/Pain", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "शान्तिः", "iast": "śāntiḥ", "lemmas": ["SAnti"], "english": "Peace", "tag": "F", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "सत्यम्", "iast": "satyam", "lemmas": ["satya", "satyam"], "english": "Truth", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "असत्यम्", "iast": "asatyam", "lemmas": ["asatya"], "english": "Lie/Falsehood", "tag": "N/Ind", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "मिथ्या", "iast": "mithyā", "lemmas": ["miTi", "miTyA"], "english": "Lie/Falsehood", "tag": "N/Ind", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "धर्मः", "iast": "dharmaḥ", "lemmas": ["Darma"], "english": "Duty/Righteousness", "tag": "M", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "पापम्", "iast": "pāpam", "lemmas": ["pApa", "pApam"], "english": "Sin", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "पुण्यम्", "iast": "puṇyam", "lemmas": ["puRya"], "english": "Merit/Good Deed", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "आशा", "iast": "āśā", "lemmas": ["ASA", "ASa", "ASiman"], "english": "Hope", "tag": "F", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "निराशा", "iast": "nirāśā", "lemmas": ["nirASA"], "english": "Despair", "tag": "F", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "लज्जा", "iast": "lajjā", "lemmas": ["lajjA", "lajja"], "english": "Shame/Shyness", "tag": "F", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "धैर्यम्", "iast": "dhairyam", "lemmas": ["DErya"], "english": "Patience/Courage", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "आनन्दः", "iast": "ānandaḥ", "lemmas": ["Anand", "Ananda"], "english": "Bliss/Joy", "tag": "M", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "विचारः", "iast": "vicāraḥ", "lemmas": ["vicAra"], "english": "Thought/Idea", "tag": "M", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "समस्या", "iast": "samasyā", "lemmas": ["samasyA", "samasya"], "english": "Problem", "tag": "F", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "समाधानम्", "iast": "samādhānam", "lemmas": ["samADAna"], "english": "Solution", "tag": "N", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "जयः", "iast": "jayaḥ", "lemmas": ["jaya", "ji"], "english": "Victory", "tag": "M", "section": "17. Emotions & Abstract (भावः)", "source": "openpathshala"}
+{"devanagari": "भानुवासरः", "iast": "bhānuvāsaraḥ", "lemmas": [], "english": "Sunday", "tag": "Sunday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala", "forms": ["भानुवासरः"]}
+{"devanagari": "रविवासरः", "iast": "ravivāsaraḥ", "lemmas": ["ravivAsara"], "english": "Sunday", "tag": "Sunday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "सोमवासरः", "iast": "somavāsaraḥ", "lemmas": ["somavAsara"], "english": "Monday", "tag": "Monday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "मङ्गलवासरः", "iast": "maṅgalavāsaraḥ", "lemmas": ["maNgalavAsara"], "english": "Tuesday", "tag": "Tuesday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "बुधवासरः", "iast": "budhavāsaraḥ", "lemmas": [], "english": "Wednesday", "tag": "Wednesday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala", "forms": ["बुधवासरः"]}
+{"devanagari": "गुरुवासरः", "iast": "guruvāsaraḥ", "lemmas": [], "english": "Thursday", "tag": "Thursday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala", "forms": ["गुरुवासरः"]}
+{"devanagari": "शुक्रवासरः", "iast": "śukravāsaraḥ", "lemmas": ["SukravAsara"], "english": "Friday", "tag": "Friday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "शनिवासरः", "iast": "śanivāsaraḥ", "lemmas": ["SanivAsara"], "english": "Saturday", "tag": "Saturday", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "सप्ताहः", "iast": "saptāhaḥ", "lemmas": ["saptAha"], "english": "Week", "tag": "Week", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "मासः", "iast": "māsaḥ", "lemmas": ["mAs", "mAsa"], "english": "Month", "tag": "Month", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "वर्षम्", "iast": "varṣam", "lemmas": ["varza"], "english": "Year", "tag": "Year", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "अधुना", "iast": "adhunā", "lemmas": ["aDunA"], "english": "Now", "tag": "Now", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "तदा", "iast": "tadā", "lemmas": ["tadA"], "english": "Then", "tag": "Then", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "कदा", "iast": "kadā", "lemmas": ["kadA", "kada"], "english": "When?", "tag": "When?", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "यदा", "iast": "yadā", "lemmas": ["yadA"], "english": "When (relative)", "tag": "When (relative)", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "सदा", "iast": "sadā", "lemmas": ["sadA", "sada"], "english": "Always", "tag": "Always", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "सर्वदा", "iast": "sarvadā", "lemmas": ["sarvadA", "sarvada"], "english": "Always", "tag": "Always", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "कदापि न", "iast": "kadāpi na", "lemmas": [], "english": "Never", "tag": "Never", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala", "forms": ["कदापि न"]}
+{"devanagari": "पुनः", "iast": "punaḥ", "lemmas": ["pu", "puna"], "english": "Again", "tag": "Again", "section": "18. Days of Week & Time (वासराः समयः च)", "source": "openpathshala"}
+{"devanagari": "उष्ट्रः", "iast": "uṣṭraḥ", "lemmas": ["uzwra"], "english": "Camel", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "गर्दभः", "iast": "gardabhaḥ", "lemmas": ["gardaB", "gardaBa"], "english": "Donkey", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "शृगालः", "iast": "śṛgālaḥ", "lemmas": ["SfgAla"], "english": "Jackal/Fox", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "वृकः", "iast": "vṛkaḥ", "lemmas": ["vfka"], "english": "Wolf", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "कूर्मः", "iast": "kūrmaḥ", "lemmas": ["kUrma"], "english": "Turtle/Tortoise", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "मण्डूकः", "iast": "maṇḍūkaḥ", "lemmas": ["maRqUka"], "english": "Frog", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "मक्षिका", "iast": "makṣikā", "lemmas": ["makzikA"], "english": "Fly", "tag": "F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "पिपीलिका", "iast": "pipīlikā", "lemmas": ["pipIlikA", "pipIlika"], "english": "Ant", "tag": "F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "भ्रमरः", "iast": "bhramaraḥ", "lemmas": ["Bramara"], "english": "Bee", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "जालकारः", "iast": "jālakāraḥ", "lemmas": ["jAlakAra"], "english": "Spider", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "नक्षत्रम्", "iast": "nakṣatram", "lemmas": ["nakzatra"], "english": "Star", "tag": "N/F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "तारा", "iast": "tārā", "lemmas": ["tArA", "tAra"], "english": "Star", "tag": "N/F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "पाषाणः", "iast": "pāṣāṇaḥ", "lemmas": ["pAzARa"], "english": "Stone", "tag": "M/F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "शिला", "iast": "śilā", "lemmas": ["SilA", "Sila"], "english": "Stone", "tag": "M/F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "मृत्तिका", "iast": "mṛttikā", "lemmas": ["mfttikA"], "english": "Mud/Soil", "tag": "F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "धूलिः", "iast": "dhūliḥ", "lemmas": ["DUli"], "english": "Dust", "tag": "F", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "हिमम्", "iast": "himam", "lemmas": ["hima"], "english": "Snow/Ice", "tag": "N", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "समुद्रः", "iast": "samudraḥ", "lemmas": ["samudra"], "english": "Ocean/Sea", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "द्वीपः", "iast": "dvīpaḥ", "lemmas": ["dvIpa"], "english": "Island", "tag": "M", "section": "19. More Animals & Nature (अधिक-पशवः प्रकृतिः च)", "source": "openpathshala"}
+{"devanagari": "च", "iast": "ca", "lemmas": ["ca"], "english": "and (comes after word)", "tag": "and (comes after word)", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "अपि", "iast": "api", "lemmas": ["ap", "api"], "english": "also/even", "tag": "also/even", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "वा", "iast": "vā", "lemmas": ["U", "u", "vA", "va", "veman"], "english": "or (comes after word)", "tag": "or (comes after word)", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "अथवा", "iast": "athavā", "lemmas": ["aTavA"], "english": "or", "tag": "or", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "परन्तु", "iast": "parantu", "lemmas": ["pF"], "english": "but", "tag": "but", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "किन्तु", "iast": "kintu", "lemmas": [], "english": "but", "tag": "but", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala", "forms": ["किन्तु"]}
+{"devanagari": "यदि", "iast": "yadi", "lemmas": ["yadi"], "english": "if", "tag": "if", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "तर्हि", "iast": "tarhi", "lemmas": ["tarhi"], "english": "then (consequence)", "tag": "then (consequence)", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "यतः", "iast": "yataḥ", "lemmas": ["yata", "yatas"], "english": "because", "tag": "because", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "ततः", "iast": "tataḥ", "lemmas": ["tata", "tatas"], "english": "therefore/then", "tag": "therefore/then", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "अतः", "iast": "ataḥ", "lemmas": ["atas"], "english": "so/therefore", "tag": "so/therefore", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "एव", "iast": "eva", "lemmas": ["eva"], "english": "only/emphatic", "tag": "only/emphatic", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "विना", "iast": "vinā", "lemmas": ["vI", "ve", "vi"], "english": "without", "tag": "without", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "सह", "iast": "saha", "lemmas": ["sah", "sahA", "saha"], "english": "with", "tag": "with", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "प्रति", "iast": "prati", "lemmas": ["prati"], "english": "towards", "tag": "towards", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "पुरतः", "iast": "purataḥ", "lemmas": ["pur", "puratas"], "english": "in front of", "tag": "in front of", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "पृष्ठतः", "iast": "pṛṣṭhataḥ", "lemmas": ["pfzWatas"], "english": "behind", "tag": "behind", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "वामतः", "iast": "vāmataḥ", "lemmas": ["vAmatas"], "english": "on the left", "tag": "on the left", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "दक्षिणतः", "iast": "dakṣiṇataḥ", "lemmas": ["dakziRatas"], "english": "on the right", "tag": "on the right", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "उपरि", "iast": "upari", "lemmas": ["upari"], "english": "above/on top", "tag": "above/on top", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "अधः", "iast": "adhaḥ", "lemmas": ["aDas"], "english": "below/under", "tag": "below/under", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "अन्तः", "iast": "antaḥ", "lemmas": ["anta"], "english": "inside", "tag": "inside", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "बहिः", "iast": "bahiḥ", "lemmas": ["bahis"], "english": "outside", "tag": "outside", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "कृपया", "iast": "kṛpayā", "lemmas": ["kfpA", "kfpa"], "english": "please", "tag": "please", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "धन्यवादः", "iast": "dhanyavādaḥ", "lemmas": ["DanyavAda"], "english": "thank you", "tag": "thank you", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "स्वागतम्", "iast": "svāgatam", "lemmas": ["svAgata"], "english": "welcome", "tag": "welcome", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "क्षम्यताम्", "iast": "kṣamyatām", "lemmas": ["kzAmi", "kzam"], "english": "forgive me/sorry", "tag": "forgive me/sorry", "section": "20. Connecting Words (अव्ययपदानि)", "source": "openpathshala"}
+{"devanagari": "वसन्तऋतुः", "iast": "vasanta-ṛtuḥ", "lemmas": [], "english": "Spring", "tag": "Spring", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala", "forms": ["वसन्तऋतुः"]}
+{"devanagari": "ग्रीष्मऋतुः", "iast": "grīṣma-ṛtuḥ", "lemmas": [], "english": "Summer", "tag": "Summer", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala", "forms": ["ग्रीष्मऋतुः"]}
+{"devanagari": "वर्षृतुः", "iast": "varṣā-ṛtuḥ", "lemmas": [], "english": "Monsoon/Rainy", "tag": "Monsoon/Rainy", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala", "forms": ["वर्षर्तवः", "वर्षर्तवे", "वर्षर्तुः", "वर्षर्तुना", "वर्षर्तुभिः", "वर्षर्तुभ्यः", "वर्षर्तुभ्याम्", "वर्षर्तुम्", "वर्षर्तुषु", "वर्षर्तू", "वर्षर्तूनाम्", "वर्षर्तून्", "वर्षर्तो", "वर्षर्तोः", "वर्षर्तौ", "वर्षर्त्वोः"], "source_spelling": "वर्षाऋतुः"}
+{"devanagari": "शरदृतुः", "iast": "śarad-ṛtuḥ", "lemmas": [], "english": "Autumn", "tag": "Autumn", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala", "forms": ["शरदृतुः"], "source_spelling": "शरद्ऋतुः"}
+{"devanagari": "हेमन्तऋतुः", "iast": "hemanta-ṛtuḥ", "lemmas": [], "english": "Pre-Winter", "tag": "Pre-Winter", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala", "forms": ["हेमन्तऋतुः"]}
+{"devanagari": "शिशिरऋतुः", "iast": "śiśira-ṛtuḥ", "lemmas": [], "english": "Winter", "tag": "Winter", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala", "forms": ["शिशिरऋतुः"]}
+{"devanagari": "ऋतुः", "iast": "ṛtuḥ", "lemmas": ["ftu"], "english": "Season", "tag": "Season", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala"}
+{"devanagari": "जलवायुः", "iast": "jalavāyuḥ", "lemmas": [], "english": "Climate", "tag": "Climate", "section": "21. The 6 Seasons (ऋतवः - Ṛtavaḥ)", "source": "openpathshala", "forms": ["जलवायुः"]}
+{"devanagari": "पूर्व", "iast": "pūrva", "lemmas": ["pUrv", "pUrvA", "pUrva"], "english": "East", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala"}
+{"devanagari": "पश्चिम", "iast": "paścima", "lemmas": ["paScima"], "english": "West", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala"}
+{"devanagari": "उत्तर", "iast": "uttara", "lemmas": ["uttF", "uttarA", "uttara"], "english": "North", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala"}
+{"devanagari": "दक्षिण", "iast": "dakṣiṇa", "lemmas": ["dakziRA", "dakziRa"], "english": "South", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala"}
+{"devanagari": "ईशान", "iast": "īśāna", "lemmas": ["ISAnA", "ISAna"], "english": "North-East", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala"}
+{"devanagari": "आग्नेय", "iast": "āgneya", "lemmas": ["Agneya"], "english": "South-East", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala"}
+{"devanagari": "नृत्य", "iast": "naiṛtya", "lemmas": ["nft", "nftya"], "english": "South-West", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala", "source_spelling": "नैऋत्य"}
+{"devanagari": "वायव्य", "iast": "vāyavya", "lemmas": ["vAyavya"], "english": "North-West", "tag": "F", "section": "22. Directions (दिशः - Diśaḥ)", "source": "openpathshala"}
+{"devanagari": "पितृव्यः", "iast": "pitṛvyaḥ", "lemmas": ["pitfvya"], "english": "Paternal Uncle (Chacha)", "tag": "M", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "पितृव्या", "iast": "pitṛvyā", "lemmas": ["pitfvya"], "english": "Paternal Aunt (Chachi)", "tag": "F", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "मातुलः", "iast": "mātulaḥ", "lemmas": ["mAtula"], "english": "Maternal Uncle (Mama)", "tag": "M", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "मातुलानी", "iast": "mātulānī", "lemmas": ["mAtulAnI", "mAtula"], "english": "Maternal Aunt (Mami)", "tag": "F", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala", "source_spelling": "मातुलाानी"}
+{"devanagari": "भागिनेयः", "iast": "bhāgineyaḥ", "lemmas": ["BAgineya"], "english": "Nephew (Sister's son)", "tag": "M", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "भागिनेयी", "iast": "bhāgineyī", "lemmas": ["BAgineyI"], "english": "Niece (Sister's daughter)", "tag": "F", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "भ्रातृजः", "iast": "bhrātṛjaḥ", "lemmas": ["BrAtfja"], "english": "Nephew (Brother's son)", "tag": "M", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "भ्रातृजा", "iast": "bhrātṛjā", "lemmas": ["BrAtfjA", "BrAtfja"], "english": "Niece (Brother's daughter)", "tag": "F", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "श्वशुरः", "iast": "śvaśuraḥ", "lemmas": ["SvaSura"], "english": "Father-in-law", "tag": "M", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "श्वश्रूः", "iast": "śvaśrūḥ", "lemmas": ["SvaSrU", "SvaSura"], "english": "Mother-in-law", "tag": "F", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "जामातृ", "iast": "jāmātṛ", "lemmas": ["jAmAtf"], "english": "Son-in-law", "tag": "M", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "स्नुषा", "iast": "snuṣā", "lemmas": ["snuzA"], "english": "Daughter-in-law", "tag": "F", "section": "23. Extended Family (सम्बन्धिनः - Sambandhinaḥ)", "source": "openpathshala"}
+{"devanagari": "सुवर्णम्", "iast": "suvarṇam", "lemmas": ["suvarRa"], "english": "Gold", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "काञ्चनम्", "iast": "kāñcanam", "lemmas": ["kAYcana"], "english": "Gold", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "रजतम्", "iast": "rajatam", "lemmas": ["raYj", "rajata"], "english": "Silver", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "ताम्रम्", "iast": "tāmram", "lemmas": ["tAmra"], "english": "Copper", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "लोहः", "iast": "lohaḥ", "lemmas": ["loha"], "english": "Iron", "tag": "M", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "हीरकम्", "iast": "hīrakam", "lemmas": ["hIraka"], "english": "Diamond", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "मौक्तिकम्", "iast": "mauktikam", "lemmas": ["mOktika"], "english": "Pearl", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "आभूषणम्", "iast": "ābhūṣaṇam", "lemmas": [], "english": "Jewelry/Ornament", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala", "forms": ["आभूषण", "आभूषणम्", "आभूषणयोः", "आभूषणस्य", "आभूषणात्", "आभूषणाद्", "आभूषणानाम्", "आभूषणानि", "आभूषणाभ्याम्", "आभूषणाय", "आभूषणे", "आभूषणेन", "आभूषणेभ्यः", "आभूषणेषु", "आभूषणैः"]}
+{"devanagari": "हारः", "iast": "hāraḥ", "lemmas": ["hAra"], "english": "Necklace", "tag": "M", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "अङ्गुलीयकम्", "iast": "aṅgulīyakam", "lemmas": ["aNgulIyaka"], "english": "Ring", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "कङ्कणम्", "iast": "kaṅkaṇam", "lemmas": ["kaNkaRa"], "english": "Bangle/Bracelet", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "कुण्डलम्", "iast": "kuṇḍalam", "lemmas": ["kuRqala"], "english": "Earring", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "नूपुरम्", "iast": "nūpuram", "lemmas": ["nUpura"], "english": "Anklet", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "साटिका", "iast": "sāṭikā", "lemmas": [], "english": "Sari", "tag": "F", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala", "forms": ["साटिका", "साटिकाः", "साटिकाभिः", "साटिकाभ्यः", "साटिकाभ्याम्", "साटिकाम्", "साटिकासु", "साटिके", "साटिकै", "साटिकौ", "साटिकौः"]}
+{"devanagari": "धौतवस्त्रम्", "iast": "dhautavastram", "lemmas": [], "english": "Dhoti", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala", "forms": ["धौतवस्त्र", "धौतवस्त्रम्", "धौतवस्त्रयोः", "धौतवस्त्रस्य", "धौतवस्त्राणाम्", "धौतवस्त्राणि", "धौतवस्त्रात्", "धौतवस्त्राद्", "धौतवस्त्राभ्याम्", "धौतवस्त्राय", "धौतवस्त्रे", "धौतवस्त्रेण", "धौतवस्त्रेभ्यः", "धौतवस्त्रेषु", "धौतवस्त्रैः"]}
+{"devanagari": "उत्तरीयम्", "iast": "uttarīyam", "lemmas": ["uttarIya"], "english": "Upper Garment/Scarf", "tag": "N", "section": "24. Metals & Ornaments (धातुः आभरणानि च)", "source": "openpathshala"}
+{"devanagari": "पाटलः", "iast": "pāṭalaḥ", "lemmas": ["pAwala"], "english": "Pink", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "नारङ्गवर्णः", "iast": "nāraṅgavarṇaḥ", "lemmas": [], "english": "Orange", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala", "forms": ["नारङ्गवर्ण", "नारङ्गवर्णः", "नारङ्गवर्णम्", "नारङ्गवर्णयोः", "नारङ्गवर्णस्य", "नारङ्गवर्णाः", "नारङ्गवर्णात्", "नारङ्गवर्णाद्", "नारङ्गवर्णानाम्", "नारङ्गवर्णान्", "नारङ्गवर्णाभ्याम्", "नारङ्गवर्णाय", "नारङ्गवर्णे", "नारङ्गवर्णेन", "नारङ्गवर्णेभ्यः", "नारङ्गवर्णेषु", "नारङ्गवर्णैः", "नारङ्गवर्णौ"]}
+{"devanagari": "धूसरः", "iast": "dhūsaraḥ", "lemmas": ["DUsara"], "english": "Grey", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "पिङ्गलः", "iast": "piṅgalaḥ", "lemmas": ["piNgala"], "english": "Brown/Reddish-Brown", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "धूम्रवर्णः", "iast": "dhūmravarṇaḥ", "lemmas": ["DUmravarRa"], "english": "Purple/Smoky", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "सुवर्णवर्णः", "iast": "suvarṇavarṇaḥ", "lemmas": ["suvarRavarRa"], "english": "Golden", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "आकारः", "iast": "ākāraḥ", "lemmas": ["AkAra"], "english": "Shape/Form", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "वृत्तम्", "iast": "vṛttam", "lemmas": ["vftta"], "english": "Circle", "tag": "N", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "चतुरस्रम्", "iast": "caturasram", "lemmas": [], "english": "Square", "tag": "N", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala", "forms": ["चतुरस्र", "चतुरस्रम्", "चतुरस्रयोः", "चतुरस्रस्य", "चतुरस्राणाम्", "चतुरस्राणि", "चतुरस्रात्", "चतुरस्राद्", "चतुरस्राभ्याम्", "चतुरस्राय", "चतुरस्रे", "चतुरस्रेण", "चतुरस्रेभ्यः", "चतुरस्रेषु", "चतुरस्रैः"]}
+{"devanagari": "त्रिकोणम्", "iast": "trikoṇam", "lemmas": ["trikoRa"], "english": "Triangle", "tag": "N", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "बिन्दुः", "iast": "binduḥ", "lemmas": ["bindu"], "english": "Dot/Point", "tag": "M", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "रेखा", "iast": "rekhā", "lemmas": ["reKA", "reKa"], "english": "Line", "tag": "F", "section": "25. Colors & Shapes (वर्णाः आकाराः च)", "source": "openpathshala"}
+{"devanagari": "रविः", "iast": "raviḥ", "lemmas": ["ravi"], "english": "Sun", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "सोमः", "iast": "somaḥ", "lemmas": ["soma"], "english": "Moon", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "मङ्गलः", "iast": "maṅgalaḥ", "lemmas": ["maNgala"], "english": "Mars", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "बुधः", "iast": "budhaḥ", "lemmas": ["buDa"], "english": "Mercury", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "गुरुः", "iast": "guruḥ", "lemmas": ["guru"], "english": "Jupiter", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "बृहस्पतिः", "iast": "bṛhaspatiḥ", "lemmas": ["bfhaspati"], "english": "Jupiter", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "शुक्रः", "iast": "śukraḥ", "lemmas": ["Sukra"], "english": "Venus", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "शनिः", "iast": "śaniḥ", "lemmas": ["Sani"], "english": "Saturn", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "राहुः", "iast": "rāhuḥ", "lemmas": ["rAhu"], "english": "North Node", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "केतुः", "iast": "ketuḥ", "lemmas": ["ketu"], "english": "South Node", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "ग्रहः", "iast": "grahaḥ", "lemmas": ["graha"], "english": "Planet", "tag": "M", "section": "26. Planets (ग्रहाः - Grahāḥ)", "source": "openpathshala"}
+{"devanagari": "सङ्गीतम्", "iast": "saṅgītam", "lemmas": ["saMgIta"], "english": "Music", "tag": "N", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "गीतम्", "iast": "gītam", "lemmas": ["gIta"], "english": "Song", "tag": "N", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "नृत्यम्", "iast": "nṛtyam", "lemmas": ["nftya"], "english": "Dance", "tag": "N", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "वाद्यम्", "iast": "vādyam", "lemmas": ["vAdya"], "english": "Instrument", "tag": "N", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "वीणा", "iast": "vīṇā", "lemmas": ["vIRA"], "english": "Lute (Veena)", "tag": "F", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "वंशः", "iast": "vaṃśaḥ", "lemmas": ["vaMSa"], "english": "Flute", "tag": "M", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "वेणुः", "iast": "veṇuḥ", "lemmas": ["veRu"], "english": "Flute", "tag": "M", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "मृदङ्गः", "iast": "mṛdaṅgaḥ", "lemmas": ["mfdaMga"], "english": "Drum", "tag": "M", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "स्वरः", "iast": "svaraḥ", "lemmas": ["svara"], "english": "Note/Tone", "tag": "M", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "कला", "iast": "kalā", "lemmas": ["kalA", "kala"], "english": "Art", "tag": "F", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "नाटकम्", "iast": "nāṭakam", "lemmas": ["nAwaka"], "english": "Drama/Play", "tag": "N", "section": "27. Music & Arts (सङ्गीत-कला)", "source": "openpathshala"}
+{"devanagari": "शब्दः", "iast": "śabdaḥ", "lemmas": ["Sabda"], "english": "शब्द", "tag": "Word", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "वाक्यम्", "iast": "vākyam", "lemmas": ["vAkya"], "english": "वाक्य", "tag": "Sentence", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "अर्थः", "iast": "arthaḥ", "lemmas": ["arTa"], "english": "अर्थ", "tag": "Meaning", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "नामपदम्", "iast": "nāmapadam", "lemmas": ["nAmapada"], "english": "संज्ञा", "tag": "Noun", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "क्रियापदम्", "iast": "kriyāpadam", "lemmas": ["kriyApada"], "english": "क्रिया", "tag": "Verb", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "सर्वनाम", "iast": "sarvanāma", "lemmas": ["sarvanAman"], "english": "सर्वनाम", "tag": "Pronoun", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "लिङ्गम्", "iast": "liṅgam", "lemmas": ["liNga"], "english": "लिंग", "tag": "Gender", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "वचनम्", "iast": "vacanam", "lemmas": ["vacana"], "english": "वचन", "tag": "Number", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "सन्धिः", "iast": "sandhiḥ", "lemmas": ["saMDi"], "english": "संधि", "tag": "Junction/Joining", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "श्लोकः", "iast": "ślokaḥ", "lemmas": ["Sloka"], "english": "श्लोक", "tag": "Verse", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "भाषा", "iast": "bhāṣā", "lemmas": ["BAzA"], "english": "भाषा", "tag": "Language", "section": "28. Grammar Terms (व्याकरण-शब्दाः)", "source": "openpathshala"}
+{"devanagari": "इदम्", "iast": "idam", "lemmas": ["idam"], "english": "this (ayam, iyam, asmin, asya…)", "tag": "Pron", "section": "core-pronoun", "source": "mitra"}
+{"devanagari": "अदः", "iast": "adaḥ", "lemmas": ["adas"], "english": "that (yonder)", "tag": "Pron", "section": "core-pronoun", "source": "mitra"}
+{"devanagari": "यत्", "iast": "yat", "lemmas": ["yad"], "english": "which (relative)", "tag": "Pron", "section": "core-pronoun", "source": "mitra"}
+{"devanagari": "कथम्", "iast": "katham", "lemmas": ["kaTam"], "english": "how?", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "कुतः", "iast": "kutaḥ", "lemmas": ["kutas"], "english": "from where?", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "किमर्थम्", "iast": "kimartham", "lemmas": ["kimarTam"], "english": "why? / for what?", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "इति", "iast": "iti", "lemmas": ["iti"], "english": "thus / end-quote", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "एवम्", "iast": "evam", "lemmas": ["eva", "evam"], "english": "thus / so", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "तथा", "iast": "tathā", "lemmas": ["taTA"], "english": "likewise", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "इदानीम्", "iast": "idānīm", "lemmas": ["idAnIm"], "english": "now", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "सम्यक्", "iast": "samyak", "lemmas": ["samyak"], "english": "properly / well", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "किल", "iast": "kila", "lemmas": ["kil", "kila"], "english": "indeed", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "खलु", "iast": "khalu", "lemmas": ["Kalu"], "english": "surely", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "नूनम्", "iast": "nūnam", "lemmas": ["nUnam"], "english": "certainly", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "भोः", "iast": "bhoḥ", "lemmas": ["Bos"], "english": "hey / vocative particle", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "मा", "iast": "mā", "lemmas": ["mA"], "english": "do not (prohibitive)", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "कति", "iast": "kati", "lemmas": ["kati"], "english": "how many?", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "सर्व", "iast": "sarva", "lemmas": ["sarv", "sarva"], "english": "all / every", "tag": "Adj", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "कृते", "iast": "kṛte", "lemmas": ["kfte"], "english": "for the sake of", "tag": "Ind", "section": "core-indeclinable", "source": "mitra"}
+{"devanagari": "नमः", "iast": "namaḥ", "lemmas": ["namas"], "english": "salutation (namaste)", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "नाम", "iast": "nāma", "lemmas": ["nAman"], "english": "name", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "प्रिय", "iast": "priya", "lemmas": ["priyA", "priya"], "english": "dear / favourite", "tag": "Adj", "section": "persona", "source": "mitra"}
+{"devanagari": "कुशली", "iast": "kuśalī", "lemmas": ["kuSalin"], "english": "well / in good health", "tag": "Adj", "section": "persona", "source": "mitra"}
+{"devanagari": "रोचते", "iast": "rocate", "lemmas": ["ruc"], "english": "is pleasing (mahyaṃ … rocate)", "tag": "ruc", "section": "persona", "source": "mitra"}
+{"devanagari": "भाति", "iast": "bhāti", "lemmas": ["BA"], "english": "shines", "tag": "bhā", "section": "persona", "source": "mitra"}
+{"devanagari": "अवगच्छति", "iast": "avagacchati", "lemmas": ["avagam"], "english": "understands", "tag": "ava+gam", "section": "persona", "source": "mitra"}
+{"devanagari": "दर्शयति", "iast": "darśayati", "lemmas": ["darSi"], "english": "shows", "tag": "dṛś", "section": "persona", "source": "mitra"}
+{"devanagari": "गणितम्", "iast": "gaṇitam", "lemmas": ["gaRita"], "english": "mathematics", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "संस्कृतम्", "iast": "saṃskṛtam", "lemmas": ["saMskfta"], "english": "Sanskrit (the language)", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "विज्ञानम्", "iast": "vijñānam", "lemmas": ["vijYAna"], "english": "science", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "नवनीतम्", "iast": "navanītam", "lemmas": ["navanIta"], "english": "butter", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "चित्रम्", "iast": "citram", "lemmas": ["citra", "citram"], "english": "picture", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "विद्या", "iast": "vidyā", "lemmas": ["vidyA", "vidya"], "english": "learning / knowledge", "tag": "N", "section": "persona", "source": "mitra"}
+{"devanagari": "क्रीडा", "iast": "krīḍā", "lemmas": ["krIqA", "krIqa"], "english": "play / a game", "tag": "N", "section": "persona", "source": "mitra"}

@@ -1,0 +1,32 @@
+{"query": "Bhavan Kim Karoti.", "gold": ["02-0022", "02-0023", "02-0024", "02-0025", "02-0034"], "note": "bhavan kim karoti - what do you do"}
+{"query": "Bhavan Kim Karoti", "gold": ["02-0022", "02-0023", "02-0024", "02-0025", "02-0034"], "note": "same, no final stop"}
+{"query": "Bhavan keem karoti.", "gold": ["02-0022", "02-0023", "02-0024", "02-0025", "02-0034"], "note": "whisper spelling variant"}
+{"query": "Bhavatah Namakim.", "gold": ["02-0016", "02-0017", "02-0018"], "note": "bhavatah nama kim - what is your name"}
+{"query": "Bhabhatah naam kim.", "gold": ["02-0016", "02-0017", "02-0018"], "note": "whisper spelling variant"}
+{"query": "Bhafatah naamakim.", "gold": ["02-0016", "02-0017", "02-0018"], "note": "whisper spelling variant"}
+{"query": "Bhabhatah naamateen.", "gold": ["02-0016", "02-0017", "02-0018"], "note": "heavily mangled variant"}
+{"query": "Mama Nama Taufiq Asti", "gold": ["02-0016", "02-0017", "02-0018"], "note": "user states their name"}
+{"query": "Sarvam kushalam", "gold": ["02-0046", "02-0047", "02-0050"], "note": "all is well - user speaks corpus row 02-0049 verbatim, so that row is an echo, not reference; the reply follows it"}
+{"query": "Sarfam kushalam", "gold": ["02-0046", "02-0047", "02-0050"], "note": "all is well - user speaks corpus row 02-0049 verbatim, so that row is an echo, not reference; the reply follows it"}
+{"query": "Servan kushalan", "gold": ["02-0046", "02-0047", "02-0050"], "note": "all is well - user speaks corpus row 02-0049 verbatim, so that row is an echo, not reference; the reply follows it"}
+{"query": "kushlamva", "gold": ["02-0046", "02-0047", "02-0049"], "note": "kushalam va - are you well"}
+{"query": "Namaste. Katamasi.", "gold": ["01-0004", "02-0046", "02-0047", "02-0049"], "note": "namaste + katham asi"}
+{"query": "Namaste. Kathangasi.", "gold": ["01-0004", "02-0046", "02-0047", "02-0049"], "note": "whisper spelling variant"}
+{"query": "Namaste.", "gold": ["01-0002", "01-0003", "01-0004"], "note": "plain greeting"}
+{"query": "Aham api kushalaha asmi.", "gold": ["02-0046", "02-0047", "02-0049"], "note": "i too am well"}
+{"query": "Bhavan Kutra Vasate", "gold": ["02-0044", "02-0045", "05-0272", "05-0280", "05-0281"], "note": "where do you live"}
+{"query": "Bhavan Kutra Vasati.", "gold": ["02-0044", "02-0045", "05-0272", "05-0280", "05-0281"], "note": "whisper spelling variant"}
+{"query": "Where do you live?", "gold": ["02-0044", "02-0045", "05-0272", "05-0280", "05-0281"], "note": "english form of the same"}
+{"query": "Bhavan keem padhati.", "gold": ["02-0041", "02-0042", "02-0043", "08-0411"], "note": "bhavan kim pathati - what do you study"}
+{"query": "Bhavan keem patati.", "gold": ["02-0041", "02-0042", "02-0043", "08-0411"], "note": "whisper spelling variant"}
+{"query": "What are you reading?", "gold": ["08-0418", "08-0420", "08-0435", "11-0519", "22-0817"], "note": "reading"}
+{"query": "Bhavan Kriyada Karoti Va", "gold": ["08-0434"], "note": "bhavan kridati va - do you play"}
+{"query": "Do you play?", "gold": ["08-0434"], "note": "english form of the same"}
+{"query": "Will you be my friend?", "gold": ["02-0019", "02-0021"], "note": "friend rows are the only relevant register"}
+{"query": "What is your name?", "gold": ["02-0016", "02-0017", "02-0018"], "note": "english form"}
+{"query": "How are you?", "gold": ["02-0046", "02-0047", "02-0049"], "note": "english form"}
+{"query": "What will you do today?", "gold": ["04-0117", "02-0022", "02-0023"], "note": "today's plans"}
+{"query": "What's your favorite food?", "gold": [], "note": "NEGATIVE: corpus has no favourite-food row; attaching anything is noise"}
+{"query": "Do you listen to music?", "gold": [], "note": "NEGATIVE: corpus has no music row at all"}
+{"query": "What's your favorite subject?", "gold": [], "note": "NEGATIVE: no favourite-subject row"}
+{"query": "face this", "gold": [], "note": "NEGATIVE: ASR garbage, nothing should match"}
