@@ -1,0 +1,53 @@
+# Dispatch the Claude Code agent workflow (claude-agent-issue.yml) when an
+# `agent-*` issue moves to In Progress on
+# https://github.com/orgs/kaushalavardhanam/projects/1
+#
+# Required repo secret:
+#   GH_PROJECT_TOKEN   Fine-grained PAT: org kaushalavardhanam Projects: Read, plus
+#                      repository access. GITHUB_TOKEN cannot read Projects v2.
+# claude-agent-issue.yml authenticates to Bedrock via an OIDC IAM role, so no
+# credential secret is needed there.
+#
+# Base branch: defaults to `main`, or per-issue via a `base:<branch>` label on
+# the issue. Set base_branch on a manual workflow_dispatch run to force one.
+name: Claude agent on In Progress
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to start immediately (optional)"
+        required: false
+      base_branch:
+        description: "Force a base branch for this run (optional, overrides the base: label and default)"
+        required: false
+  issues:
+    types: [labeled]
+
+permissions:
+  actions: write
+  issues: write
+  contents: read
+
+jobs:
+  kickoff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dispatch Claude Code agent
+        env:
+          GH_PROJECT_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          CLAUDE_WORKFLOW_FILE: claude-agent-issue.yml
+          CLAUDE_BASE_REF: main
+          CLAUDE_BASE_REF_OVERRIDE: ${{ github.event.inputs.base_branch }}
+          PROJECT_OWNER: kaushalavardhanam
+          PROJECT_OWNER_TYPE: organization
+          PROJECT_NUMBER: "1"
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          LABEL_NAME: ${{ github.event.label.name }}
+        run: python3 .github/scripts/kick_claude_agent.py

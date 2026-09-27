@@ -9,15 +9,31 @@
 #                      Update this token if it was issued only for user skopp002/projects/2.
 #
 # The AgentCore worker session must already be HealthyBusy or the job waits in the pool.
+#
+# NOTE (2026-09-26): Cursor's API returns 403 feature_unavailable — "Private
+# workers are not enabled for your account" — because CURSOR_POOL_NAME
+# requests a self-hosted pool that this Cursor plan doesn't have enabled. The
+# claude-agent-in-progress.yml workflow now handles the same trigger via
+# Claude Code / Bedrock instead. The `schedule` trigger below is disabled so
+# this doesn't keep failing every 5 minutes; `workflow_dispatch` and the
+# `issues: labeled` trigger are left in place so you can retrigger a specific
+# issue manually. Once private workers are enabled on the Cursor account (or
+# you drop the pool requirement), uncomment the `schedule:` block to resume
+# automatic polling.
+# Base branch: defaults to `main`, or per-issue via a `base:<branch>` label on
+# the issue. Set base_branch on a manual workflow_dispatch run to force one.
 name: Cursor agent on In Progress
 
 on:
-  schedule:
-    - cron: "*/5 * * * *"
+  # schedule:
+  #   - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       issue_number:
         description: "Issue number to start immediately (optional)"
+        required: false
+      base_branch:
+        description: "Force a base branch for this run (optional, overrides the base: label and default)"
         required: false
   issues:
     types: [labeled]
@@ -39,6 +55,8 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           CURSOR_POOL_NAME: agentcore-platform-agents
+          CURSOR_BASE_REF: main
+          CURSOR_BASE_REF_OVERRIDE: ${{ github.event.inputs.base_branch }}
           PROJECT_OWNER: kaushalavardhanam
           PROJECT_OWNER_TYPE: organization
           PROJECT_NUMBER: "1"

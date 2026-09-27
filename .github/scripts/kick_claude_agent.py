@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Start a Cursor Cloud Agent on the AgentCore self-hosted pool.
+"""Dispatch the Claude Code agent workflow when an `agent-*` issue moves to
+In Progress on https://github.com/orgs/kaushalavardhanam/projects/1
 
 Triggers:
   - GitHub Project (orgs/kaushalavardhanam/projects/1) Status set to In Progress
@@ -7,9 +8,9 @@ Triggers:
   - Issue labeled 'in-progress'
   - workflow_dispatch with an issue number
 
-After tests, Cursor opens a PR against the base branch (autoCreatePR). Base
-branch defaults to `main`, overridable via a `base:<branch>` issue label or
-the CURSOR_BASE_REF_OVERRIDE env var.
+This script only enqueues the run: it fires a workflow_dispatch event against
+claude-agent-issue.yml, which runs anthropics/claude-code-action and opens the
+PR against main.
 """
 
 from __future__ import annotations
@@ -23,8 +24,7 @@ import urllib.request
 
 GITHUB_API = "https://api.github.com"
 GITHUB_GRAPHQL = "https://api.github.com/graphql"
-CURSOR_API = "https://api.cursor.com/v1/agents"
-KICKOFF_MARKER = "<!-- cursor-cloud-agent-kickoff -->"
+KICKOFF_MARKER = "<!-- claude-code-agent-kickoff -->"
 TITLE_PREFIX = "agent-"
 BASE_BRANCH_LABEL_PREFIX = "base:"
 
@@ -56,7 +56,7 @@ def github_request(url: str, token: str, payload: dict | None = None, method: st
         "Accept": "application/vnd.github+json",
         "Authorization": f"Bearer {token}",
         "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "kaushalavardhanam-cursor-agent-kickoff",
+        "User-Agent": "kaushalavardhanam-claude-agent-kickoff",
     }
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
@@ -78,24 +78,14 @@ def graphql(token: str, query: str, variables: dict) -> dict:
     return body["data"]
 
 
-def cursor_create(api_key: str, payload: dict) -> dict:
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        CURSOR_API,
-        data=data,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        },
-        method="POST",
+def dispatch_agent_workflow(
+    repo: str, token: str, workflow_file: str, ref: str, issue_number: int, base_branch: str
+) -> None:
+    github_request(
+        f"{GITHUB_API}/repos/{repo}/actions/workflows/{workflow_file}/dispatches",
+        token,
+        {"ref": ref, "inputs": {"issue_number": str(issue_number), "base_branch": base_branch}},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            return json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Cursor API {exc.code}: {detail}") from exc
 
 
 def already_started(repo: str, issue_number: int, token: str) -> bool:
@@ -113,7 +103,7 @@ def fetch_issue(repo: str, number: int, token: str) -> dict:
 
 
 def start_agent(
-    issue: dict, repo: str, comment_token: str, cursor_key: str, pool: str, default_ref: str, base_override: str = ""
+    issue: dict, repo: str, comment_token: str, workflow_file: str, default_ref: str, base_override: str = ""
 ) -> None:
     number = issue["number"]
     title = issue.get("title") or ""
@@ -128,47 +118,22 @@ def start_agent(
         return
 
     base_branch = resolve_base_branch(issue, default_ref, base_override)
-    html_url = issue["html_url"]
-    body = issue.get("body") or "(no description)"
-    branch = f"cursor/{title[:80]}"
-    prompt = f"""Implement GitHub issue #{number}: {title}
-Issue: {html_url}
+    print(f"dispatching {workflow_file} for #{number} against base branch {base_branch!r}")
+    dispatch_agent_workflow(repo, comment_token, workflow_file, base_branch, number, base_branch)
 
-{body}
-
-Operating constraints:
-- Start from origin/{base_branch}. Work on a feature branch (suggested name: {branch}). Never commit to {base_branch}.
-- Stay inside this repository. Run the tests that apply to your changes.
-- Do not open a pull request until those tests pass, or explain in the PR why they could not be run.
-- Open a pull request targeting {base_branch} when the work is complete.
-- Do not commit secrets, credentials, or private recordings.
-"""
-
-    repo_url = f"https://github.com/{repo}.git"
-    payload = {
-        "prompt": {"text": prompt},
-        "name": title[:100],
-        "env": {"type": "pool", "name": pool},
-        "repos": [{"url": repo_url, "startingRef": base_branch}],
-        "autoCreatePR": True,
-    }
-    print(f"starting Cursor agent for #{number} on pool {pool} against base branch {base_branch!r}")
-    result = cursor_create(cursor_key, payload)
-    agent = result.get("agent") or {}
-    agent_id = agent.get("id") or "unknown"
-    agent_url = agent.get("url") or f"https://cursor.com/agents/{agent_id}"
+    actions_url = f"https://github.com/{repo}/actions/workflows/{workflow_file}"
     comment = (
         f"{KICKOFF_MARKER}\n"
-        f"Started self-hosted Cursor Cloud Agent **{agent_id}** on pool `{pool}`.\n\n"
-        f"- Watch the run: {agent_url}\n"
-        f"- It will open a PR against `{base_branch}` when tests finish.\n"
+        f"Dispatched the Claude Code agent workflow for this issue against `{base_branch}`.\n\n"
+        f"- Watch the run: {actions_url}\n"
+        f"- It will open a PR against `{base_branch}` when the work is complete.\n"
     )
     github_request(
         f"{GITHUB_API}/repos/{repo}/issues/{number}/comments",
         comment_token,
         {"body": comment},
     )
-    print(f"started {agent_id} -> {agent_url}")
+    print(f"dispatched workflow for #{number}")
 
 
 def scan_project(
@@ -177,10 +142,9 @@ def scan_project(
     repo: str,
     project_token: str,
     comment_token: str,
-    cursor_key: str,
-    pool: str,
+    workflow_file: str,
+    base_ref: str,
     owner_type: str,
-    default_ref: str,
     base_override: str = "",
 ) -> int:
     root = "organization" if owner_type == "organization" else "user"
@@ -240,7 +204,7 @@ def scan_project(
                 continue
             issue = fetch_issue(repo, content["number"], comment_token)
             before = already_started(repo, content["number"], comment_token)
-            start_agent(issue, repo, comment_token, cursor_key, pool, default_ref, base_override)
+            start_agent(issue, repo, comment_token, workflow_file, base_ref, base_override)
             if not before and already_started(repo, content["number"], comment_token):
                 started += 1
         if not items["pageInfo"]["hasNextPage"]:
@@ -251,12 +215,11 @@ def scan_project(
 
 def main() -> int:
     repo = env("GITHUB_REPOSITORY")
-    cursor_key = env("CURSOR_API_KEY")
     comment_token = env("GITHUB_TOKEN")
     project_token = env("GH_PROJECT_TOKEN") or comment_token
-    pool = env("CURSOR_POOL_NAME", "agentcore-platform-agents")
-    base_ref = env("CURSOR_BASE_REF", "main")
-    base_override = env("CURSOR_BASE_REF_OVERRIDE")
+    workflow_file = env("CLAUDE_WORKFLOW_FILE", "claude-agent-issue.yml")
+    base_ref = env("CLAUDE_BASE_REF", "main")
+    base_override = env("CLAUDE_BASE_REF_OVERRIDE")
     project_owner = env("PROJECT_OWNER", "kaushalavardhanam")
     project_number = int(env("PROJECT_NUMBER", "1") or "1")
     owner_type = env("PROJECT_OWNER_TYPE", "organization").lower()
@@ -265,8 +228,8 @@ def main() -> int:
         return 1
     event = env("GITHUB_EVENT_NAME") or env("EVENT_NAME")
 
-    if not repo or not cursor_key or not comment_token:
-        print("CURSOR_API_KEY, GITHUB_TOKEN, and GITHUB_REPOSITORY are required", file=sys.stderr)
+    if not repo or not comment_token:
+        print("GITHUB_TOKEN and GITHUB_REPOSITORY are required", file=sys.stderr)
         return 1
 
     if event == "issues":
@@ -276,12 +239,12 @@ def main() -> int:
             print(f"ignore label {label!r}")
             return 0
         issue = fetch_issue(repo, int(issue_number), comment_token)
-        start_agent(issue, repo, comment_token, cursor_key, pool, base_ref, base_override)
+        start_agent(issue, repo, comment_token, workflow_file, base_ref, base_override)
         return 0
 
     if event == "workflow_dispatch" and env("ISSUE_NUMBER"):
         issue = fetch_issue(repo, int(env("ISSUE_NUMBER")), comment_token)
-        start_agent(issue, repo, comment_token, cursor_key, pool, base_ref, base_override)
+        start_agent(issue, repo, comment_token, workflow_file, base_ref, base_override)
         return 0
 
     print(
@@ -294,10 +257,9 @@ def main() -> int:
         repo,
         project_token,
         comment_token,
-        cursor_key,
-        pool,
-        owner_type,
+        workflow_file,
         base_ref,
+        owner_type,
         base_override,
     )
     print(f"started {started} agent(s)")

@@ -1,0 +1,86 @@
+# Implements a single GitHub issue with Claude Code and opens a PR.
+# Dispatched by claude-agent-in-progress.yml when an `agent-*` issue moves to
+# In Progress on https://github.com/orgs/kaushalavardhanam/projects/1
+#
+# Billed through Amazon Bedrock via a GitHub OIDC-federated IAM role — no
+# static AWS or Anthropic credential is stored in GitHub at all.
+#
+# One-time AWS setup already done in account 146666888814 (us-east-1):
+#   - OIDC provider: token.actions.githubusercontent.com
+#   - IAM role: arn:aws:iam::146666888814:role/github-actions-claude-bedrock
+#     (trust policy scoped to repo:kaushalavardhanam/kaushalavardhanam:*)
+#   - Inline policy BedrockInvokeClaude, three statements required for global
+#     CRIS (Cross-Region Inference Service):
+#       1. bedrock:InvokeModel[WithResponseStream] on the regional
+#          inference-profile resource (us-east-1)
+#       2. ...on the regional anthropic.* foundation-model resource
+#       3. ...on the *global* anthropic.* foundation-model resource (no region
+#          in the ARN), gated by aws:RequestedRegion = "unspecified" — this is
+#          what global CRIS needs on top of geographic (us./eu.) profiles.
+# No repo secrets are required by this workflow.
+#
+# Model: pinned to a global cross-Region inference profile so requests can
+# route to any commercial region, not just us-east-1. Change via claude_args
+# if you'd rather pin a geographic (us.anthropic.*) or single-region model —
+# make sure the IAM policy above still covers whatever ARN you pick.
+#
+# Base branch: defaults to `main`. Override per-issue by adding a `base:<branch>`
+# label to the issue, or pass base_branch explicitly via workflow_dispatch.
+#
+# If you hit a model-access error, grant your account access to the model in
+# the Bedrock console (Model access) for us-east-1.
+name: Claude Code agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to implement"
+        required: true
+      base_branch:
+        description: "Branch to check out from and open the PR against"
+        required: false
+        default: "main"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.base_branch }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::146666888814:role/github-actions-claude-bedrock
+          aws-region: us-east-1
+
+      - name: Run Claude Code
+        uses: anthropics/claude-code-action@v1
+        with:
+          use_bedrock: "true"
+          base_branch: ${{ github.event.inputs.base_branch }}
+          claude_args: "--model global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+          prompt: |
+            Implement GitHub issue #${{ github.event.inputs.issue_number }} in this
+            repository. Use the GitHub tools available to you to read the issue's
+            full title, description, and any acceptance criteria before starting.
+
+            Operating constraints:
+            - Start from origin/${{ github.event.inputs.base_branch }}. Work on a
+              feature branch. Never commit directly to
+              ${{ github.event.inputs.base_branch }}.
+            - Stay inside this repository. Run the tests that apply to your changes.
+            - Do not open a pull request until those tests pass, or explain in the
+              PR why they could not be run.
+            - Open a pull request targeting ${{ github.event.inputs.base_branch }}
+              when the work is complete, and include
+              "Closes #${{ github.event.inputs.issue_number }}" in the PR description.
+            - Do not commit secrets, credentials, or private recordings.
