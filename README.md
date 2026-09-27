@@ -21,6 +21,8 @@ Two agent systems are wired up:
 - Title the issue `agent-<short description>` for it to be picked up.
 - By default the agent branches off and opens its PR against `main`. To target a different branch, add a `base:<branch-name>` label to the issue (e.g. `base:release-1.2`), or pass `base_branch` explicitly on a manual `workflow_dispatch` run.
 
+**Security note:** this repo is public, so anyone can open an issue — including one titled `agent-*` with a crafted body. That alone doesn't trigger anything; it still takes someone with repo write/triage access adding the label, or someone with project-board access moving it to In Progress. Because doing either hands the issue's full title and body to an agent with `contents: write`/`pull-requests: write` and cloud-billing access, **read the issue body before labeling it or moving it to In Progress** — don't triage on title alone.
+
 ## code_with_q_cli
 This has a langgraph based multiagent orchestration application to enable code generation based on prompts
 
