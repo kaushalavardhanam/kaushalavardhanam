@@ -5,9 +5,13 @@
 # Billed through Amazon Bedrock via a GitHub OIDC-federated IAM role — no
 # static AWS or Anthropic credential is stored in GitHub at all.
 #
-# One-time AWS setup already done in account 146666888814 (us-east-1):
+# One-time AWS setup already done in the AWS account this repo deploys to
+# (us-east-1). Account ID lives in the repo variable AWS_ACCOUNT_ID (Settings
+# → Secrets and variables → Actions → Variables) rather than hardcoded here —
+# not because it's a secret (AWS account IDs aren't considered sensitive),
+# just to avoid needlessly publishing it since this repo is public:
 #   - OIDC provider: token.actions.githubusercontent.com
-#   - IAM role: arn:aws:iam::146666888814:role/github-actions-claude-bedrock
+#   - IAM role: github-actions-claude-bedrock
 #     (trust policy scoped to repo:kaushalavardhanam/kaushalavardhanam:*)
 #   - Inline policy BedrockInvokeClaude, three statements required for global
 #     CRIS (Cross-Region Inference Service):
@@ -59,8 +63,13 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::146666888814:role/github-actions-claude-bedrock
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/github-actions-claude-bedrock
           aws-region: us-east-1
+          # v4 tags the session by default (repo/workflow/actor/sha/branch),
+          # which requires the trust policy to also allow sts:TagSession. We
+          # don't use session tags for anything, so skip tagging instead of
+          # widening the trust policy for a permission we don't need.
+          role-skip-session-tagging: true
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
