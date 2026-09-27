@@ -61,6 +61,11 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::146666888814:role/github-actions-claude-bedrock
           aws-region: us-east-1
+          # v4 tags the session by default (repo/workflow/actor/sha/branch),
+          # which requires the trust policy to also allow sts:TagSession. We
+          # don't use session tags for anything, so skip tagging instead of
+          # widening the trust policy for a permission we don't need.
+          role-skip-session-tagging: true
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
