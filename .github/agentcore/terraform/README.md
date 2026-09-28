@@ -75,6 +75,20 @@ terraform init -backend=false && terraform validate
 > `TMPDIR` to an allowed directory first (e.g. `export TMPDIR=/tmp/tf && mkdir -p "$TMPDIR"`).
 > This is an environment quirk, not a config issue.
 
+## One-shot deploy (`deploy.sh`)
+
+The full 3-stage go-live sequence — create the ECR repo if it doesn't exist,
+build & push the agent image via CodeBuild, then `terraform apply` pinned to the
+just-pushed image digest — can be run with a single command:
+
+```bash
+cd .github/agentcore/terraform
+../deploy.sh <aws-account-id> [region]   # region defaults to us-east-1
+```
+
+The only runtime inputs are the account id and (optionally) the region;
+everything else — image URI, digest pin, resource names — is derived.
+
 ## Manual step: Bedrock model access
 
 Terraform grants the IAM permissions to invoke the model, but **model access
