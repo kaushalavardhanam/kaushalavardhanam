@@ -152,6 +152,39 @@ resource "aws_iam_role_policy" "agentcore_runtime_secret" {
   })
 }
 
+# ECR pull permissions for the runtime's execution role. AgentCore validates at
+# CreateAgentRuntime time that this role can pull the container image from ECR;
+# without it CreateAgentRuntime fails with "Access denied while validating ECR
+# URI". GetAuthorizationToken is registry-wide (no resource scoping possible);
+# the layer/image read actions are scoped to the agentcore-decomposer repo ARN
+# (local.ecr_repository_arn, defined alongside the CodeBuild push policy).
+resource "aws_iam_role_policy" "agentcore_runtime_ecr" {
+  name = "EcrPull"
+  role = aws_iam_role.agentcore_runtime.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid      = "EcrAuth"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
+        Resource = "*"
+      },
+      {
+        Sid    = "EcrPull"
+        Effect = "Allow"
+        Action = [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage"
+        ]
+        Resource = local.ecr_repository_arn
+      }
+    ]
+  })
+}
+
 resource "aws_bedrockagentcore_agent_runtime" "decomposer" {
   agent_runtime_name = replace("${var.name_prefix}_runtime", "-", "_")
   description        = "Decomposes agent-* GitHub issues into sub-tasks and implements them via Bedrock, then opens a PR."
