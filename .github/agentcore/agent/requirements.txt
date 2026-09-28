@@ -1,0 +1,22 @@
+# AgentCore decomposer agent runtime dependencies.
+# Pinned to compatible ranges; the langgraph decomposer pattern is reused from
+# the repo's coding-agent/graph_workflow.py.
+
+# LangGraph multi-agent workflow (decompose -> implement state machine).
+langgraph>=0.2.0,<0.3.0
+
+# AWS SDK for Bedrock runtime + Secrets Manager.
+boto3>=1.34.0
+botocore>=1.34.0
+
+# GitHub App JWT (RS256) minting.
+PyJWT>=2.8.0
+cryptography>=42.0.0
+
+# GitHub REST API + installation-token exchange.
+requests>=2.31.0
+
+# Bedrock AgentCore Runtime SDK (serves /invocations + /ping on :8080).
+# The agent has a stdlib HTTP fallback if this is unavailable, but the image
+# ships it as the canonical entrypoint.
+bedrock-agentcore>=0.1.0
