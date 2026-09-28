@@ -75,8 +75,12 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
+          # Surface what the agent actually did: post its summary back to the
+          # issue, and emit full tool-call / reasoning detail into the run log.
+          display_report: "true"
+          show_full_output: "true"
           base_branch: ${{ github.event.inputs.base_branch }}
-          claude_args: "--model global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+          claude_args: "--model global.anthropic.claude-sonnet-4-5-20250929-v1:0 --verbose"
           prompt: |
             Implement GitHub issue #${{ github.event.inputs.issue_number }} in this
             repository. Use the GitHub tools available to you to read the issue's
