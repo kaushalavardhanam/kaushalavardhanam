@@ -1,0 +1,41 @@
+version: 0.2
+
+# Builds the AgentCore decomposer agent container image and pushes it to ECR.
+#
+# Runs on a CodeBuild ARM_CONTAINER environment (see codebuild.tf), so the
+# arm64 Dockerfile at .github/agentcore/agent/Dockerfile builds NATIVELY — a
+# plain `docker build` is enough, no buildx / QEMU cross-build. privileged_mode
+# on the project provides the Docker daemon.
+#
+# Environment variables injected by the CodeBuild project:
+#   AWS_ACCOUNT_ID, AWS_DEFAULT_REGION, ECR_REPOSITORY_NAME, IMAGE_TAG
+
+env:
+  variables:
+    DOCKER_BUILDKIT: "1"
+
+phases:
+  pre_build:
+    commands:
+      - echo "Resolving image coordinates..."
+      - REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+      - REPO_URI="${REGISTRY}/${ECR_REPOSITORY_NAME}"
+      # Prefer the resolved git SHA; fall back to CodeBuild's if unavailable.
+      - COMMIT_SHA="${CODEBUILD_RESOLVED_SOURCE_VERSION}"
+      - if [ -z "${COMMIT_SHA}" ]; then COMMIT_SHA="unknown"; fi
+      - SHORT_SHA="$(echo "${COMMIT_SHA}" | cut -c1-12)"
+      - echo "Registry=${REGISTRY} Repo=${REPO_URI} Tag=${IMAGE_TAG} Sha=${SHORT_SHA}"
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${REGISTRY}"
+  build:
+    commands:
+      - echo "Building arm64 image from .github/agentcore/agent/Dockerfile..."
+      # Build context is the agent dir so requirements.txt + sources resolve.
+      - docker build -t "${REPO_URI}:${IMAGE_TAG}" -f .github/agentcore/agent/Dockerfile .github/agentcore/agent
+      - docker tag "${REPO_URI}:${IMAGE_TAG}" "${REPO_URI}:${SHORT_SHA}"
+  post_build:
+    commands:
+      - echo "Pushing image to ECR..."
+      - docker push "${REPO_URI}:${IMAGE_TAG}"
+      - docker push "${REPO_URI}:${SHORT_SHA}"
+      - echo "Pushed ${REPO_URI}:${IMAGE_TAG} and ${REPO_URI}:${SHORT_SHA}"

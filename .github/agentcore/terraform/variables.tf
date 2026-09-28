@@ -59,3 +59,15 @@ variable "tags" {
     Backend = "aws-bedrock-agentcore"
   }
 }
+
+variable "image_tag" {
+  description = "Tag applied to the agent container image the CodeBuild project pushes to ECR (in addition to the commit SHA). Re-apply with agent_container_image_uri=<registry>/<repo>:<this> once the build has run."
+  type        = string
+  default     = "latest"
+}
+
+variable "image_build_source_version" {
+  description = "The git ref (branch name or commit SHA) CodeBuild clones and builds the image from. Defaults to the branch carrying the agent source + Dockerfile. Override per build with `aws codebuild start-build --source-version <ref>`."
+  type        = string
+  default     = "agentcore-backend"
+}
