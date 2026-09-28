@@ -29,7 +29,7 @@ variable "github_repo" {
 variable "bedrock_model_id" {
   description = "Bedrock model / inference-profile id the agent invokes. Matches the Claude backend's pinned global CRIS profile."
   type        = string
-  default     = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+  default     = "global.anthropic.claude-opus-5"
 }
 
 variable "agent_container_image_uri" {
