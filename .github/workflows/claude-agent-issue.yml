@@ -75,6 +75,34 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           use_bedrock: "true"
+          # Authorize Claude's GitHub tools (create branch / commit / open PR).
+          #
+          # Root cause of the "runs succeed but no PR appears" failure: with no
+          # github_token supplied, the action falls back to minting a token from
+          # the workflow's OIDC identity ("Using GITHUB_TOKEN from OIDC" in the
+          # run log, github_token: "" in the tool config). That token is NOT the
+          # job's GITHUB_TOKEN and is not scoped to the job's contents/PR write
+          # permissions, so the internal GitHub MCP server rejects Claude's
+          # create_pull_request / create-branch calls with
+          # "subtype": "permission_denied" — even though the job below already
+          # grants contents: write and pull-requests: write.
+          #
+          # Passing the job's GITHUB_TOKEN explicitly hands the action's GitHub
+          # MCP server a token that inherits the job's permissions block, which
+          # is what authorizes the branch/commit/PR tools. This is the correct
+          # wiring for the Bedrock path, where the official Claude GitHub App is
+          # not installed (App auth is the only case where github_token is meant
+          # to be omitted).
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # KNOWN LIMITATION (GitHub platform, not a bug in this workflow): a PR
+          # opened using the default GITHUB_TOKEN does NOT trigger other
+          # workflows (e.g. CI on pull_request) — GitHub suppresses recursive
+          # workflow runs from the automatic token by design. The PR is created
+          # and is fully functional; it just won't kick off downstream Actions
+          # on its own. If you need the agent's PR to trigger CI, replace this
+          # with a token from a GitHub App (actions/create-github-app-token) or
+          # a fine-grained PAT with contents + pull-requests write, stored as a
+          # secret, and reference that here instead.
           # Surface what the agent actually did: post its summary back to the
           # issue, and emit full tool-call / reasoning detail into the run log.
           display_report: "true"
