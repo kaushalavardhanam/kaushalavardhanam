@@ -10,6 +10,8 @@ Two engines behind one ``process(chunk) -> bool`` interface:
   hallucinate repeated words on short clips (a known Whisper failure mode);
   small was the smallest size that reliably caught it. Costs a bit more
   latency/CPU than a trained wake-word model, in exchange for zero training.
+  Two ASR backends, matching src/audio/asr.py: ``mlx`` (Apple Silicon) and
+  ``transformers`` (everywhere else, incl. Linux).
 - ``WakeWordDetector``: openWakeWord, the production target once the custom
   "mitra" onnx model is trained (Phase 1: synthetic speaker/accent/noise
   variants, FR-1.4 accuracy targets).
@@ -70,14 +72,21 @@ class TranscriptWakeDetector:
 
     def __init__(self, phrase: str = "mitra",
                  asr_model: str = "mlx-community/whisper-small-mlx",
+                 backend: str = "mlx",
+                 device: str = "cpu",
                  energy_threshold: float | None = None,  # None = adaptive gate
                  min_speech_s: float = 0.3,
                  hangover_s: float = 0.5, max_window_s: float = 3.0,
                  transcribe_fn=None):
+        if backend not in ("mlx", "transformers"):
+            raise ValueError(f"unsupported wake ASR backend: {backend!r}")
         base = phrase.strip().lower()
         self._variants = {base, base.replace("t", "th"), "मित्र"}
         self._asr_model = asr_model
-        self._transcribe = transcribe_fn or self._mlx_transcribe
+        self._device = device
+        self._pipeline = None  # lazy: transformers backend
+        default_fn = self._mlx_transcribe if backend == "mlx" else self._hf_transcribe
+        self._transcribe = transcribe_fn or default_fn
         self._segmenter = EnergySegmenter(
             threshold=energy_threshold, min_speech_s=min_speech_s,
             min_silence_s=hangover_s, max_utterance_s=max_window_s,
@@ -92,6 +101,28 @@ class TranscriptWakeDetector:
         return mlx_whisper.transcribe(
             audio, path_or_hf_repo=self._asr_model
         ).get("text", "")
+
+    def _hf_transcribe(self, audio: np.ndarray) -> str:
+        # Lazy for the same reason as the mlx path: warmup() is called after
+        # main.py logs "warming up wake ASR", so the download happens visibly.
+        # Keep this on CPU — it runs on every gated speech window, forever, and
+        # would otherwise sit resident in VRAM competing with the LLM.
+        if self._pipeline is None:
+            from transformers import pipeline
+
+            self._pipeline = pipeline(
+                "automatic-speech-recognition",
+                model=self._asr_model,
+                device=self._device,
+            )
+        peak = float(np.abs(audio).max())
+        if peak > 0:  # normalize: Whisper mis-hears quiet capture badly
+            audio = (audio / peak * 0.9).astype(np.float32)
+        out = self._pipeline(
+            {"array": np.asarray(audio, dtype=np.float32), "sampling_rate": 16000},
+            generate_kwargs={"language": "en", "task": "transcribe"},
+        )
+        return out.get("text", "")
 
     def process(self, chunk_16k_mono: np.ndarray) -> bool:
         utterance = self._segmenter.process(chunk_16k_mono)
@@ -121,6 +152,8 @@ def make_wake_detector(engine: str = "asr", **cfg):
         return TranscriptWakeDetector(
             phrase=cfg.get("phrase", "mitra"),
             asr_model=cfg.get("asr_model", "mlx-community/whisper-tiny"),
+            backend=cfg.get("backend", "mlx"),
+            device=cfg.get("device", "cpu"),
         )
     if engine == "openwakeword":
         return WakeWordDetector(model=cfg.get("model", "models/mitra.onnx"),

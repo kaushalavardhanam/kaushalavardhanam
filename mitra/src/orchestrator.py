@@ -7,8 +7,9 @@ loop's thread. Two daemon helpers — the audio pump and the playback watcher �
 communicate with the core only by putting events on the queue (DESIGN §3).
 Tests drive ``handle_event`` directly with fakes; ``run()`` adds the threads.
 
-The agent may call tools itself, but two paths stay deterministic regardless
-of model quality (DESIGN §1.4): ``nod`` fires here on wake, and every reply
+The agent may call tools itself, but three paths stay deterministic regardless
+of model quality (DESIGN §1.4): ``nod`` fires here on wake, unintelligible
+transcripts are refused here before the model ever sees them, and every reply
 passes the validator and is spoken here.
 """
 
@@ -20,6 +21,7 @@ import queue
 import re
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 
@@ -36,6 +38,40 @@ from mitra.audio import TARGET_SAMPLERATE, resample
 _EXPLAIN_IN_ENGLISH_RE = re.compile(
     r"in\s+english|english\s*,?\s*please|(explain|meaning|translate|repeat)"
     r"[\w\s,]{0,30}english", re.IGNORECASE)
+
+# Whisper emits these on silence or near-silence regardless of what was said —
+# they are training-data artifacts (YouTube captions), not transcriptions.
+# Reaching the model with one produces a confident answer to a question the
+# user never asked, which is worse than asking them to repeat.
+_ASR_HALLUCINATIONS = {
+    "thank you", "thank you.", "thanks for watching", "thank you very much",
+    "thank you for watching", "thank you for watching!", "you", "bye",
+    "please subscribe", "subtitles by the amara.org community",
+}
+
+# Below this many characters a transcript carries too little signal to answer.
+_MIN_TRANSCRIPT_CHARS = 3
+
+# Sentence terminators, Devanagari and Latin. Used to hold the reply to
+# ``max_sentences`` (DESIGN §1.4: the model is asked for one sentence, and this
+# enforces it whether or not it complies).
+_SENTENCE_END = re.compile(r"[।॥?!]")
+
+# Wrapper around retrieved phrasing. The wording is load-bearing: labelled only
+# as "reference phrasing", an 8B model pastes the nearest line back verbatim —
+# we watched it answer "Sarvam kushalam" with "सर्वं कुशलम्।", which is the
+# corpus row, not a reply. Naming what to do beats naming what not to do.
+#
+# Retrieval now resolves a question to its ANSWER rows, so what arrives here is
+# reply-shaped and correctly inflected — the one thing an 8B model is worst at
+# inventing. The instruction therefore says adapt, not avoid: copying the
+# grammar is the point, copying the content is not. Rows carry "fill" where the
+# book left a blank, which must never be spoken.
+_REFERENCE_HEADER = (
+    "\n[Example Sanskrit replies of the right register. Follow their grammar "
+    "and style, but write your OWN sentence about what the user actually said "
+    "— never repeat one word-for-word, and never say the word \"fill\"]\n"
+)
 
 
 class State(str, Enum):
@@ -54,12 +90,15 @@ class Event:
 
 class Orchestrator:
     def __init__(self, *, robot, agent, tts, lexicon,
-                 wake=None, segmenter=None, asr=None,
-                 turn_logger=None, logger: logging.Logger | None = None,
+                 wake=None, segmenter=None, asr=None, phrasebook=None,
+                 turn_logger=None, glosser=None, grammar_checker=None,
+                 logger: logging.Logger | None = None,
                  silence_timeout_s: float = 30.0,
                  max_reply_chars: int = validator.MAX_REPLY_CHARS,
                  fallback_agent_factory=None, gestures: bool = True,
                  llm_meta: dict | None = None):
+                 max_sentences: int = 1,
+                 fallback_agent_factory=None, gestures: bool = True):
         self.robot = robot
         self.agent = agent
         self.tts = tts
@@ -67,11 +106,32 @@ class Orchestrator:
         self.wake = wake
         self.segmenter = segmenter
         self.asr = asr
+        # Optional: retrieval over the everyday-phrase corpus. Without it the
+        # model has only the few-shot examples to fall back on, and an 8B with
+        # weak Sanskrit priors answers an unclear turn by reciting one of them
+        # verbatim — which is what makes three exchanges read as one.
+        self.phrasebook = phrasebook
         self.turn_logger = turn_logger
+        # Optional (debug runs only): translates every spoken line back into
+        # English for the log, so an operator who does not read Devanagari can
+        # see what Mitra actually said (FR-7.2).
+        self.glosser = glosser
+        # Optional: morphology-backed checks over the generated reply
+        # (mitra.sanskrit.grammar). The Devanagari ratio in validator.py is
+        # blind to Hindi written in Devanagari and to invented verb forms;
+        # this is what sees them. Absent, the pipeline behaves exactly as it
+        # did before — the checks add rejections, they never add replies.
+        self.grammar_checker = grammar_checker
         self.logger = logger or logging.getLogger("mitra")
         self.gestures = gestures
         self.silence_timeout_s = silence_timeout_s
         self.max_reply_chars = max_reply_chars
+        # Every logged reply appended a stock "and you?" — and that trailing
+        # question, not the answer, carried most of the grammatical errors
+        # (कथं भवतः?, genitive where nominative is needed). The prompt asks for
+        # one sentence; this is what makes it true. Set to 2 to allow a
+        # follow-up question back.
+        self.max_sentences = max_sentences
         self._fallback_agent_factory = fallback_agent_factory
         self._fallback_agent = None
         self.llm_meta = dict(llm_meta or {})
@@ -87,6 +147,7 @@ class Orchestrator:
         self._stop = threading.Event()
         self._sleep_after_speaking = False
         self._last_activity = time.monotonic()
+        self._consecutive_retries = 0
 
     # ------------------------------------------------------------------ run
 
@@ -153,6 +214,7 @@ class Orchestrator:
         self.logger.info("wake word detected")
         self.robot.nod()                      # deterministic (DESIGN §1.4)
         self._emotion("welcoming1")
+        self._consecutive_retries = 0
         self._speak(prompts.GREETING)         # → playback_done → LISTENING
 
     def _to_listening(self) -> None:
@@ -173,12 +235,69 @@ class Orchestrator:
         self._pose("asleep")                  # head droops: session over
         self._emotion("mini-deep-sleep")
         self._sleep_after_speaking = False
+        self._consecutive_retries = 0
         self.agent.reset()                    # context is per-session (FR-3.3)
         if self.wake:
             self.wake.reset()
         if self.segmenter:
             self.segmenter.reset()
         self.logger.info("asleep")
+
+    # ------------------------------------------------------ turn processing
+
+    def _is_unintelligible(self, transcript: str, lang: str) -> str | None:
+        """Return a reason string if this transcript must not reach the model.
+
+        Whisper always returns *something*: on silence it emits a stock caption
+        phrase, and on speech in a language it wasn't expecting it transliterates
+        into whatever script it guessed (we have seen Korean, Japanese, Arabic
+        and Tamil renderings of spoken Sanskrit). Both look like valid input to
+        the agent, which then answers confidently — or, worse, echoes the noise
+        back as if it were Sanskrit. Refusing here is the only place the
+        pipeline can tell the difference.
+        """
+        cleaned = transcript.strip()
+        if len(cleaned) < _MIN_TRANSCRIPT_CHARS:
+            return "too short"
+        if cleaned.lower().strip(" .!?") in _ASR_HALLUCINATIONS:
+            return "known ASR hallucination"
+        if lang == "unknown":
+            # Script matched none of en/kn/sa: the words may well be right but
+            # they are in an alphabet the model has no reason to connect to
+            # this conversation.
+            return "unrecognized script"
+        return None
+
+    def _retrieve_examples(self, transcript: str) -> list:
+        """Nearest everyday phrases for this turn, or [] if unavailable."""
+        if self.phrasebook is None:
+            return []
+        try:
+            return self.phrasebook.similar(transcript, k=3)
+        except Exception:
+            self.logger.exception("phrasebook lookup failed; continuing ungrounded")
+            return []
+
+    def _build_message(self, transcript: str, lang: str, explain_en: bool) -> str:
+        """Assemble the turn message: tags, transcript, retrieved phrasing.
+
+        The examples go after the transcript so the user's turn stays the most
+        recent thing in the message — context that follows a question tends to
+        get answered instead of the question.
+        """
+        header = f"[lang={lang}]"
+        if explain_en:
+            header += " [explain_in_english]"
+        message = f"{header} {transcript}"
+
+        examples = self._retrieve_examples(transcript)
+        if examples:
+            lines = "\n".join(
+                f"  {row.get('english', '')} → {row.get('sanskrit', '')}"
+                for row in examples
+            )
+            message += _REFERENCE_HEADER + lines
+        return message
 
     def _on_utterance(self, payload) -> None:
         self.state = State.THINKING
@@ -198,12 +317,28 @@ class Orchestrator:
                 tl.set("llm_empty", False)
                 tl.set("asr_empty", True)
             self._finish_turn(prompts.APOLOGY_RETRY, turn_t0=turn_t0)
+        lang = language_detector.detect(transcript, hint) if transcript.strip() else "unknown"
+
+        if tl:
+            tl.set("lang", lang)
+            tl.set("transcript", transcript)
+
+        reason = self._is_unintelligible(transcript, lang)
+        if reason:
+            # Do NOT call the model. "Sorry, say that again" is a coherent
+            # conversational move; answering noise is not.
+            self._consecutive_retries += 1
+            self.logger.info("transcript rejected (%s): %r", reason, transcript)
+            if tl:
+                tl.set("rejected", reason)
+                tl.set("explain_in_english", False)
+            self._emotion("confused1")
+            self._finish_turn(prompts.APOLOGY_RETRY)
             return
 
-        lang = language_detector.detect(transcript, hint)
+        self._consecutive_retries = 0
         explain_en = bool(_EXPLAIN_IN_ENGLISH_RE.search(transcript))
-        message = (f"[lang={lang}] [explain_in_english] {transcript}"
-                   if explain_en else f"[lang={lang}] {transcript}")
+        message = self._build_message(transcript, lang, explain_en)
         if tl:
             tl.set("lang", lang)
             tl.set("transcript", transcript)
@@ -261,9 +396,11 @@ class Orchestrator:
             tl.set("ttfa_s", round(time.monotonic() - tts_t0, 3))
             if turn_t0 is not None:
                 tl.set("e2e_s", round(time.monotonic() - turn_t0, 3))
+        english = self._speak(reply)          # times the tts stage itself
+        if tl:
+            if english:
+                tl.set("reply_en", english)
             tl.emit()
-        else:
-            self._speak(reply)
         self.state = State.SPEAKING
 
     def _transcribe(self, payload) -> tuple[str, str | None]:
@@ -318,6 +455,8 @@ class Orchestrator:
             tl.set("validation_ok", ok)
             tl.set("validation_reason", reason)
             tl.set("lexicon_applied", reply != raw)
+        reply = _limit_sentences(self._apply_lexicon(raw), self.max_sentences)
+        ok, reason, suffix = self._check(reply)
         if ok:
             return reply, False
 
@@ -331,6 +470,11 @@ class Orchestrator:
         if tl:
             tl.set("validation_ok", ok)
             tl.set("validation_reason", reason)
+        reply = _limit_sentences(
+            self._apply_lexicon(generate(message + "\n" + suffix)),
+            self.max_sentences,
+        )
+        ok, reason, _ = self._check(reply)
         if ok:
             return reply, False
 
@@ -338,14 +482,46 @@ class Orchestrator:
         cloud = self._try_cloud_fallback(message)
         return (cloud if cloud is not None else prompts.SAFE_FALLBACK), False
 
+    def _check(self, reply: str) -> tuple[bool, str, str]:
+        """Validate a candidate reply. Returns (ok, reason, retry suffix).
+
+        Two layers, deliberately separate: ``validator`` is the cheap, always-on
+        gate (length, Devanagari, known Hindi markers), and the grammar checker
+        is the one that needs the morphology data. The retry suffix differs by
+        layer — naming the specific words that failed is what turns a retry
+        into a correction rather than a re-roll (DESIGN §5).
+        """
+        ok, reason = validator.validate(reply, self.max_reply_chars)
+        if not ok:
+            # Name the words when we know them, here too: a reply rejected for
+            # Hindi comes back unchanged from a generic "answer in Sanskrit".
+            hindi = validator.hindi_markers(reply)
+            return False, reason, _correction_suffix(hindi)
+        if self.grammar_checker is None:
+            return True, "", ""
+        try:
+            findings = self.grammar_checker(reply)
+        except Exception:
+            # A checker fault must not cost the child an answer: the reply has
+            # already passed the deterministic gate (FR-6.4).
+            self.logger.exception("grammar check failed; accepting the reply")
+            return True, "", ""
+        if not findings:
+            return True, "", ""
+        words = self.grammar_checker.offending_words(findings)
+        return (False, self.grammar_checker.reason(findings),
+                _correction_suffix(words))
+
     def _try_cloud_fallback(self, message: str) -> str | None:
         if self._fallback_agent_factory is None:
             return None
         try:
             if self._fallback_agent is None:
                 self._fallback_agent = self._fallback_agent_factory()
-            reply = self._apply_lexicon(self._fallback_agent.converse(message))
-            ok, _ = validator.validate(reply, self.max_reply_chars)
+            reply = _limit_sentences(
+                self._apply_lexicon(self._fallback_agent.converse(message)),
+                self.max_sentences)
+            ok, _, _ = self._check(reply)
             return reply if ok else None
         except Exception:
             self.logger.exception("cloud fallback failed (FR-6.3)")
@@ -381,18 +557,52 @@ class Orchestrator:
 
     # ------------------------------------------------------------- speaking
 
-    def _speak(self, text: str) -> None:
+    def _speak(self, text: str) -> str | None:
         """Deterministic speech path (DESIGN §1.4): synthesize, play without
-        blocking (for barge-in), post playback_done when the speaker frees up."""
+        blocking (for barge-in), post playback_done when the speaker frees up.
+
+        Returns the English gloss of ``text`` when glossing is on, else None.
+        """
         self.logger.info("speak: %s", text)
         try:
-            wav, samplerate = self.tts.synthesize(text)
+            with self._tts_stage():
+                wav, samplerate = self.tts.synthesize(text)
             self.robot.speaker_play(wav, samplerate, block=False)
         except Exception:
             self.logger.exception("TTS/playback failure (FR-6.4)")
             self.events.put(Event("playback_done"))
+        else:
+            threading.Thread(target=self._watch_playback, daemon=True).start()
+        # Glossed only now, with the audio already playing: the translation is
+        # a second model call, and it must not sit between a finished reply
+        # and the speaker.
+        return self._log_gloss(text)
+
+    @contextmanager
+    def _tts_stage(self):
+        """Time synthesis into the turn log, when there is a turn to log."""
+        if self.turn_logger is None or self.state != State.THINKING:
+            yield
             return
-        threading.Thread(target=self._watch_playback, daemon=True).start()
+        with self.turn_logger.stage("tts"):
+            yield
+
+    def _log_gloss(self, text: str) -> str | None:
+        """Mirror the spoken line in English on the console (FR-7.2).
+
+        A log convenience: it is never allowed to end a turn that already has
+        its reply and its audio (FR-6.4).
+        """
+        if self.glosser is None:
+            return None
+        try:
+            english = self.glosser.gloss(text)
+        except Exception:
+            self.logger.exception("English gloss failed; continuing")
+            return None
+        if english:
+            self.logger.info("speak (en): %s", english)
+        return english
 
     def _watch_playback(self) -> None:
         time.sleep(0.05)
@@ -430,6 +640,27 @@ class Orchestrator:
                 utterance = self.segmenter.process(chunk)
                 if utterance is not None:
                     self.events.put(Event("utterance", utterance))
+
+
+def _correction_suffix(words: list[str]) -> str:
+    """Retry instruction: name the offending words when there are any."""
+    if not words:
+        return prompts.CORRECTIVE_SUFFIX
+    return prompts.WORD_CORRECTION_SUFFIX.format(words=", ".join(words))
+
+
+def _limit_sentences(text: str, limit: int) -> str:
+    """Keep at most ``limit`` sentences, terminator included.
+
+    A reply with no terminator at all is left alone: truncating mid-clause
+    would produce worse Sanskrit than the model wrote.
+    """
+    if limit <= 0:
+        return text.strip()
+    ends = [m.end() for m in _SENTENCE_END.finditer(text)]
+    if len(ends) <= limit:
+        return text.strip()
+    return text[:ends[limit - 1]].strip()
 
 
 def _extract_json(text: str) -> dict | None:

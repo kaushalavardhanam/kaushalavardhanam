@@ -10,6 +10,9 @@ Triggers:
 After tests, Cursor opens a PR against main (autoCreatePR) only if the
 AgentCore worker already has write git credentials. Self-hosted workers do
 not inherit this workflow's GITHUB_TOKEN. See .github/WORKER_GIT.md.
+After tests, Cursor opens a PR against the base branch (autoCreatePR). Base
+branch defaults to `main`, overridable via a `base:<branch>` issue label or
+the CURSOR_BASE_REF_OVERRIDE env var.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ GITHUB_GRAPHQL = "https://api.github.com/graphql"
 CURSOR_API = "https://api.cursor.com/v1/agents"
 KICKOFF_MARKER = "<!-- cursor-cloud-agent-kickoff -->"
 TITLE_PREFIX = "agent-"
+BASE_BRANCH_LABEL_PREFIX = "base:"
 
 
 def env(name: str, default: str = "") -> str:
@@ -34,6 +38,19 @@ def env(name: str, default: str = "") -> str:
 
 def normalize(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.lower())
+
+
+def resolve_base_branch(issue: dict, default_ref: str, override: str = "") -> str:
+    """Base branch precedence: explicit override > `base:<branch>` issue label > default."""
+    if override:
+        return override
+    for label in issue.get("labels") or []:
+        name = label.get("name") or ""
+        if name.lower().startswith(BASE_BRANCH_LABEL_PREFIX):
+            branch = name[len(BASE_BRANCH_LABEL_PREFIX):].strip()
+            if branch:
+                return branch
+    return default_ref
 
 
 def github_request(url: str, token: str, payload: dict | None = None, method: str | None = None) -> dict | list:
@@ -98,7 +115,9 @@ def fetch_issue(repo: str, number: int, token: str) -> dict:
     return github_request(f"{GITHUB_API}/repos/{repo}/issues/{number}", token)  # type: ignore[return-value]
 
 
-def start_agent(issue: dict, repo: str, comment_token: str, cursor_key: str, pool: str) -> None:
+def start_agent(
+    issue: dict, repo: str, comment_token: str, cursor_key: str, pool: str, default_ref: str, base_override: str = ""
+) -> None:
     number = issue["number"]
     title = issue.get("title") or ""
     if not title.lower().startswith(TITLE_PREFIX):
@@ -111,6 +130,7 @@ def start_agent(issue: dict, repo: str, comment_token: str, cursor_key: str, poo
         print(f"skip #{number}: already kicked off")
         return
 
+    base_branch = resolve_base_branch(issue, default_ref, base_override)
     html_url = issue["html_url"]
     body = issue.get("body") or "(no description)"
     branch = f"cursor/{title[:80]}"
@@ -120,10 +140,10 @@ Issue: {html_url}
 {body}
 
 Operating constraints:
-- Start from origin/main. Work on a feature branch (suggested name: {branch}). Never commit to main.
+- Start from origin/{base_branch}. Work on a feature branch (suggested name: {branch}). Never commit to {base_branch}.
 - Stay inside this repository. Run the tests that apply to your changes.
 - Do not open a pull request until those tests pass, or explain in the PR why they could not be run.
-- Open a pull request targeting main when the work is complete.
+- Open a pull request targeting {base_branch} when the work is complete.
 - Do not commit secrets, credentials, or private recordings.
 """
 
@@ -132,10 +152,10 @@ Operating constraints:
         "prompt": {"text": prompt},
         "name": title[:100],
         "env": {"type": "pool", "name": pool},
-        "repos": [{"url": repo_url, "startingRef": "main"}],
+        "repos": [{"url": repo_url, "startingRef": base_branch}],
         "autoCreatePR": True,
     }
-    print(f"starting Cursor agent for #{number} on pool {pool}")
+    print(f"starting Cursor agent for #{number} on pool {pool} against base branch {base_branch!r}")
     result = cursor_create(cursor_key, payload)
     agent = result.get("agent") or {}
     agent_id = agent.get("id") or "unknown"
@@ -144,7 +164,7 @@ Operating constraints:
         f"{KICKOFF_MARKER}\n"
         f"Started self-hosted Cursor Cloud Agent **{agent_id}** on pool `{pool}`.\n\n"
         f"- Watch the run: {agent_url}\n"
-        f"- It will open a PR against `main` when tests finish.\n"
+        f"- It will open a PR against `{base_branch}` when tests finish.\n"
     )
     github_request(
         f"{GITHUB_API}/repos/{repo}/issues/{number}/comments",
@@ -163,6 +183,8 @@ def scan_project(
     cursor_key: str,
     pool: str,
     owner_type: str,
+    default_ref: str,
+    base_override: str = "",
 ) -> int:
     root = "organization" if owner_type == "organization" else "user"
     query = f"""
@@ -221,7 +243,7 @@ def scan_project(
                 continue
             issue = fetch_issue(repo, content["number"], comment_token)
             before = already_started(repo, content["number"], comment_token)
-            start_agent(issue, repo, comment_token, cursor_key, pool)
+            start_agent(issue, repo, comment_token, cursor_key, pool, default_ref, base_override)
             if not before and already_started(repo, content["number"], comment_token):
                 started += 1
         if not items["pageInfo"]["hasNextPage"]:
@@ -236,6 +258,8 @@ def main() -> int:
     comment_token = env("GITHUB_TOKEN")
     project_token = env("GH_PROJECT_TOKEN") or comment_token
     pool = env("CURSOR_POOL_NAME", "agentcore-platform-agents")
+    base_ref = env("CURSOR_BASE_REF", "main")
+    base_override = env("CURSOR_BASE_REF_OVERRIDE")
     project_owner = env("PROJECT_OWNER", "kaushalavardhanam")
     project_number = int(env("PROJECT_NUMBER", "1") or "1")
     owner_type = env("PROJECT_OWNER_TYPE", "organization").lower()
@@ -255,12 +279,12 @@ def main() -> int:
             print(f"ignore label {label!r}")
             return 0
         issue = fetch_issue(repo, int(issue_number), comment_token)
-        start_agent(issue, repo, comment_token, cursor_key, pool)
+        start_agent(issue, repo, comment_token, cursor_key, pool, base_ref, base_override)
         return 0
 
     if event == "workflow_dispatch" and env("ISSUE_NUMBER"):
         issue = fetch_issue(repo, int(env("ISSUE_NUMBER")), comment_token)
-        start_agent(issue, repo, comment_token, cursor_key, pool)
+        start_agent(issue, repo, comment_token, cursor_key, pool, base_ref, base_override)
         return 0
 
     print(
@@ -276,6 +300,8 @@ def main() -> int:
         cursor_key,
         pool,
         owner_type,
+        base_ref,
+        base_override,
     )
     print(f"started {started} agent(s)")
     return 0

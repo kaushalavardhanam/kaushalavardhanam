@@ -1,17 +1,25 @@
-"""Sanskrit TTS (FR-4.3): AI4Bharat Indic Parler-TTS on MPS, with an
-automatic VITS fallback.
+"""Sanskrit TTS (FR-4.3): AI4Bharat Indic Parler-TTS, with a VITS path.
 
-Indic Parler-TTS is a **gated** HuggingFace repo with auto-approval: open
-https://huggingface.co/ai4bharat/indic-parler-tts while logged in, accept the
-conditions, and (with `hf auth login` done) the model downloads normally. It
-also needs the parler-tts package, which is not on PyPI:
+Two engines, selected by ``models.tts.engine`` in config.yaml:
 
-    pip install git+https://github.com/huggingface/parler-tts.git
+- ``indic-parler-tts`` (mac / v1 target): the real Sanskrit voice, steered by
+  a written ``voice_description`` rather than a named voice preset. A **gated**
+  HuggingFace repo with auto-approval: open
+  https://huggingface.co/ai4bharat/indic-parler-tts while logged in, accept the
+  conditions, and (with `hf auth login` done) the model downloads normally. It
+  also needs the parler-tts package, which is not on PyPI:
 
-Until both are in place, synthesize() falls back to facebook/mms-tts-hin — an
-ungated Hindi VITS voice that reads Devanagari. Its Sanskrit pronunciation is
-approximate (visarga, vocalic ṛ), acceptable as a stopgap only (REQUIREMENTS
-R3; the design's quality fallback remains AI4Bharat Indic-TTS VITS).
+      pip install git+https://github.com/huggingface/parler-tts.git
+
+  If either is missing, synthesize() falls back to VITS automatically.
+
+- ``vits``: skips parler entirely. Required on Linux, where parler-tts pins
+  transformers<=4.46.1 and so cannot be co-installed with reachy-mini (which
+  needs huggingface-hub>=1.17). Uses facebook/mms-tts-hin, an ungated Hindi
+  voice that reads Devanagari. Its Sanskrit pronunciation is approximate
+  (visarga, vocalic ṛ), acceptable as a stopgap only (REQUIREMENTS R3; the
+  design's quality fallback remains AI4Bharat Indic-TTS VITS). VITS has no
+  voice-description steering, so ``voice_description`` is ignored here.
 """
 
 from __future__ import annotations
@@ -32,11 +40,17 @@ FALLBACK_MODEL = "facebook/mms-tts-hin"
 class SanskritTTS:
     def __init__(self, model: str = "ai4bharat/indic-parler-tts",
                  device: str = "mps", voice_description: str = DEFAULT_VOICE,
-                 fallback_model: str = FALLBACK_MODEL):
+                 fallback_model: str = FALLBACK_MODEL,
+                 engine: str = "indic-parler-tts"):
+        if engine not in ("indic-parler-tts", "vits"):
+            raise ValueError(f"unknown TTS engine: {engine!r}")
+        self._engine = engine
         self._model_id = model
         self._device = device
         self._voice = voice_description
-        self._fallback_model = fallback_model
+        # engine: vits means models.tts.model IS the VITS voice, so honour it
+        # over the fallback key (which exists for the parler-failure path).
+        self._fallback_model = model if engine == "vits" else fallback_model
         self._parler = None   # ~2 GB — loaded on first synthesize()
         self._vits = None
 
@@ -44,6 +58,10 @@ class SanskritTTS:
 
     def _ensure_loaded(self) -> None:
         if self._parler is not None or self._vits is not None:
+            return
+        if self._engine == "vits":
+            self._load_vits()
+            logger.info("TTS: VITS loaded (%s)", self._fallback_model)
             return
         try:
             self._load_parler()
@@ -84,7 +102,7 @@ class SanskritTTS:
         try:
             self._vits = VitsModel.from_pretrained(self._fallback_model).to(self._device)
             self._vits_device = self._device
-        except Exception:  # MPS quirks → CPU is fine for a small VITS
+        except Exception:  # MPS quirks / no CUDA → CPU is fine for a small VITS
             self._vits = VitsModel.from_pretrained(self._fallback_model)
             self._vits_device = "cpu"
         self._vits_tokenizer = AutoTokenizer.from_pretrained(self._fallback_model)

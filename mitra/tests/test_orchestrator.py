@@ -1,5 +1,6 @@
 """Table-driven state machine tests (DESIGN §3, §9): FakeReachy + canned agent."""
 
+import json
 import time
 
 from mitra.agent import prompts
@@ -213,3 +214,150 @@ def test_emotions_disabled_alongside_gestures(make_orchestrator, fake_robot):
     orch.handle_event(Event("playback_done"))
     orch.handle_event(Event("utterance", "hello"))
     assert fake_robot.emotions == []
+
+
+def test_reply_truncated_to_one_sentence(make_orchestrator, fake_tts):
+    """The stock trailing question carried most of the observed grammar
+    errors (कथं भवतः?), so the answer is spoken without it."""
+    orch, _ = make_orchestrator(replies=["अहं क्रीडामि। कथं भवतः?"])
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "Do you play?"))
+    assert fake_tts.spoken == ["अहं क्रीडामि।"]
+
+
+def test_max_sentences_is_configurable(make_orchestrator, fake_tts):
+    orch, _ = make_orchestrator(replies=["अहं क्रीडामि। अहं पठामि। अहं वदामि।"],
+                                max_sentences=2)
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "Do you play?"))
+    assert fake_tts.spoken == ["अहं क्रीडामि। अहं पठामि।"]
+
+
+def test_single_sentence_reply_is_untouched(make_orchestrator, fake_tts):
+    orch, _ = make_orchestrator(replies=["अहं पुस्तकं पठामि।"])
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "What are you reading?"))
+    assert fake_tts.spoken == ["अहं पुस्तकं पठामि।"]
+
+
+def test_hindi_reply_is_retried_then_falls_back(make_orchestrator, fake_tts):
+    """Pure-Devanagari Hindi passes the script check, so only the marker
+    check can catch it; a failing retry must reach the safe fallback."""
+    orch, agent = make_orchestrator(
+        replies=["अहं आज पठामि।", "अहं आज पठामि।"])
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "What will you do today?"))
+    assert len(agent.calls) == 2                      # one corrective retry
+    assert fake_tts.spoken == [prompts.SAFE_FALLBACK]
+
+
+def test_hindi_retry_that_recovers_is_spoken(make_orchestrator, fake_tts):
+    orch, _ = make_orchestrator(replies=["अहं आज पठामि।", "अद्य अहं पठामि।"])
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "What will you do today?"))
+    assert fake_tts.spoken == ["अद्य अहं पठामि।"]
+
+
+class RecordingGlosser:
+    """Stands in for mitra.gloss.Glosser: returns a fixed English line."""
+
+    def __init__(self, english="My name is Mitra."):
+        self.english = english
+        self.seen: list[str] = []
+
+    def gloss(self, text: str) -> str:
+        self.seen.append(text)
+        return self.english
+
+
+def test_gloss_logs_english_and_lands_in_the_turn_log(make_orchestrator, tmp_path):
+    from mitra.logging_subsystem import TurnLogger
+
+    glosser = RecordingGlosser()
+    orch, _ = make_orchestrator(replies=[SA_REPLY], glosser=glosser,
+                                turn_logger=TurnLogger(tmp_path))
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "What is your name?"))
+    assert glosser.seen == [SA_REPLY]
+    record = json.loads((tmp_path / "turns.jsonl").read_text(encoding="utf-8"))
+    assert record["reply"] == SA_REPLY
+    assert record["reply_en"] == "My name is Mitra."
+    assert "tts" in record["stages"]            # gloss did not replace the timing
+
+
+def test_gloss_failure_never_breaks_a_turn(make_orchestrator, fake_tts):
+    class BrokenGlosser:
+        def gloss(self, text):
+            raise RuntimeError("translator exploded")
+
+    orch, _ = make_orchestrator(replies=[SA_REPLY], glosser=BrokenGlosser())
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "What is your name?"))
+    assert fake_tts.spoken == [SA_REPLY]
+    assert orch.state == State.SPEAKING
+
+
+class WordChecker:
+    """Stands in for mitra.sanskrit.grammar.Checker: rejects listed words."""
+
+    def __init__(self, *bad):
+        self.bad = set(bad)
+
+    def __call__(self, text):
+        from mitra.sanskrit.grammar import Finding
+
+        hits = [w for w in self.bad if w in text]
+        return [Finding("vocabulary", "outside Mitra's vocabulary: "
+                        + ", ".join(hits), hits)] if hits else []
+
+    @staticmethod
+    def reason(findings):
+        return "; ".join(f.detail for f in findings)
+
+    @staticmethod
+    def offending_words(findings):
+        return [w for f in findings for w in f.words]
+
+
+def test_grammar_rejection_retries_with_the_word_named(make_orchestrator, fake_tts):
+    """घरे is 100% Devanagari and is not on any Hindi stoplist — only the
+    morphology checks see it. The retry must name it, or the model re-rolls
+    the same sentence."""
+    orch, agent = make_orchestrator(
+        replies=["अहं घरे अस्मि।", "अहं गृहे वसामि।"],
+        grammar_checker=WordChecker("घरे"))
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "Where do you live?"))
+    assert len(agent.calls) == 2
+    assert "घरे" in agent.calls[1]                   # the retry names it
+    assert fake_tts.spoken == ["अहं गृहे वसामि।"]
+
+
+def test_hindi_marker_rejection_also_names_the_word(make_orchestrator):
+    """The stoplist path gained the same treatment: खेलानि is caught by
+    validator._HINDI_STEMS, and that retry now says which word to drop."""
+    orch, agent = make_orchestrator(replies=["अहं खेलानि करोमि।", SA_REPLY])
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "Do you play?"))
+    assert "खेलानि" in agent.calls[1]
+
+
+def test_grammar_failure_twice_falls_back(make_orchestrator, fake_tts):
+    orch, _ = make_orchestrator(
+        replies=["अहं घरे अस्मि।", "अहं घरे वसामि।"],
+        grammar_checker=WordChecker("घरे"))
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "Where do you live?"))
+    assert fake_tts.spoken == [prompts.SAFE_FALLBACK]
+
+
+def test_a_broken_checker_never_costs_the_child_an_answer(make_orchestrator,
+                                                          fake_tts):
+    class BrokenChecker:
+        def __call__(self, text):
+            raise RuntimeError("kosha exploded")
+
+    orch, _ = make_orchestrator(replies=[SA_REPLY], grammar_checker=BrokenChecker())
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "What is your name?"))
+    assert fake_tts.spoken == [SA_REPLY]

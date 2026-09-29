@@ -10,6 +10,19 @@ The purpose of the projects for various cohorts in this repo are meant to provid
 - Cohort 2 - [speaking_buddy]([speaking_buddy](https://github.com/skopp002/kaushalavardhanam/blob/main/speaking_buddy/README.md)/) - A Streamlit-based Luxembourgish pronunciation learning tool with Praat-based phonetic analysis
 - Cohort 3 - [mitra](mitra/) - A multilingual conversational robot with vision and audio capabilities for Sanskrit and Kannada
 
+## Cloud coding agents on the project board
+Issues titled `agent-*` on the [kaushalavardhanam org project board](https://github.com/orgs/kaushalavardhanam/projects/1) get picked up automatically when moved to **In Progress**: an agent implements the issue and opens a PR.
+
+Two agent systems are wired up:
+- **Claude Code agent** (active) — runs via `anthropics/claude-code-action`, billed through Amazon Bedrock using global CRIS (Cross-Region Inference), authenticated with a GitHub OIDC-federated IAM role (no static AWS/Anthropic secret in this repo). Workflows: `.github/workflows/claude-agent-in-progress.yml` (polls the board every 5 minutes, also runs on `issues: labeled`) dispatches `.github/workflows/claude-agent-issue.yml` (implements the issue via `.github/scripts/kick_claude_agent.py`).
+- **Cursor Cloud Agent** (dormant) — same trigger convention, but its scheduled polling is disabled because the configured self-hosted worker pool isn't enabled on the current Cursor plan. Workflow: `.github/workflows/cursor-agent-in-progress.yml` via `.github/scripts/kick_cursor_agent.py`. Retrigger manually via `workflow_dispatch` (with an issue number) once a working key/pool is in place, or re-enable the `schedule` trigger in that file.
+
+**Conventions:**
+- Title the issue `agent-<short description>` for it to be picked up.
+- By default the agent branches off and opens its PR against `main`. To target a different branch, add a `base:<branch-name>` label to the issue (e.g. `base:release-1.2`), or pass `base_branch` explicitly on a manual `workflow_dispatch` run.
+
+**Security note:** this repo is public, so anyone can open an issue — including one titled `agent-*` with a crafted body. That alone doesn't trigger anything; it still takes someone with repo write/triage access adding the label, or someone with project-board access moving it to In Progress. Because doing either hands the issue's full title and body to an agent with `contents: write`/`pull-requests: write` and cloud-billing access, **read the issue body before labeling it or moving it to In Progress** — don't triage on title alone.
+
 ## code_with_q_cli
 This has a langgraph based multiagent orchestration application to enable code generation based on prompts
 
