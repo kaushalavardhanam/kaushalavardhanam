@@ -70,11 +70,90 @@ class DecomposeState(TypedDict, total=False):
 
 _JSON_FENCE = re.compile(r"```(?:json)?\s*(.*?)```", re.DOTALL)
 
+# Literal control characters (U+0000–U+001F) are legal NOWHERE in strict JSON
+# but routinely appear INSIDE model-generated string values — e.g. a file's full
+# content returned as {"files": {"x.md": "line1\nline2"}} with a real newline
+# instead of an escaped \n. json.loads(strict=True) rejects them ("Invalid
+# control character", "Unterminated string"); _loads_tolerant below recovers by
+# permitting them (strict=False) and, as a last resort, re-escaping the control
+# chars that fall inside a JSON string span.
+
 
 def _strip_fences(text: str) -> str:
     """Return the content of the first ```...``` fence, or the text unchanged."""
     match = _JSON_FENCE.search(text)
     return match.group(1).strip() if match else text.strip()
+
+
+def _escape_control_chars_in_strings(payload: str) -> str:
+    """Escape literal control characters that appear inside JSON string values.
+
+    Walks the text tracking whether we are inside a (double-quoted) JSON string,
+    honouring backslash escapes, and replaces any raw control character found
+    inside a string with its JSON escape sequence (``\\n``, ``\\t``, or the
+    ``\\uXXXX`` form). Control characters outside strings (structural whitespace)
+    are left untouched. This is the last-resort repair for model output whose
+    string values contain unescaped newlines/tabs/control bytes.
+    """
+    out: List[str] = []
+    in_string = False
+    escaped = False
+    for ch in payload:
+        if in_string:
+            if escaped:
+                out.append(ch)
+                escaped = False
+                continue
+            if ch == "\\":
+                out.append(ch)
+                escaped = True
+                continue
+            if ch == '"':
+                out.append(ch)
+                in_string = False
+                continue
+            if ord(ch) < 0x20:
+                if ch == "\n":
+                    out.append("\\n")
+                elif ch == "\t":
+                    out.append("\\t")
+                elif ch == "\r":
+                    out.append("\\r")
+                else:
+                    out.append("\\u%04x" % ord(ch))
+                continue
+            out.append(ch)
+        else:
+            if ch == '"':
+                in_string = True
+            out.append(ch)
+    return "".join(out)
+
+
+def _loads_tolerant(payload: str):
+    """Parse a JSON document, tolerating control characters in string values.
+
+    Tiered so well-formed responses are unaffected:
+      1. strict parse (fast path, unchanged behaviour for valid JSON);
+      2. ``strict=False`` — permits raw control chars inside strings, which is
+         the common Bedrock/Sonnet case (file content with real newlines);
+      3. re-escape control chars found inside string spans, then parse.
+    Raises the *last* ``JSONDecodeError`` (from the tolerant attempt) if all
+    tiers fail, so the caller surfaces the most informative error.
+    """
+    try:
+        return json.loads(payload)
+    except json.JSONDecodeError:
+        pass
+    try:
+        # strict=False allows literal \t and \n (and other control chars) to
+        # appear unescaped within JSON strings.
+        return json.loads(payload, strict=False)
+    except json.JSONDecodeError:
+        pass
+    # Last resort: explicitly re-escape control chars inside strings. This also
+    # rescues chars strict=False still rejects when they break token scanning.
+    return json.loads(_escape_control_chars_in_strings(payload), strict=False)
 
 
 def _extract_json_array(text: str) -> list:
@@ -83,7 +162,7 @@ def _extract_json_array(text: str) -> list:
     start, end = cleaned.find("["), cleaned.rfind("]")
     if start == -1 or end == -1 or end < start:
         raise ValueError(f"No JSON array found in model response: {text[:300]}")
-    return json.loads(cleaned[start : end + 1])
+    return _loads_tolerant(cleaned[start : end + 1])
 
 
 def _extract_json_object(text: str) -> dict:
@@ -92,7 +171,7 @@ def _extract_json_object(text: str) -> dict:
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start == -1 or end == -1 or end < start:
         raise ValueError(f"No JSON object found in model response: {text[:300]}")
-    return json.loads(cleaned[start : end + 1])
+    return _loads_tolerant(cleaned[start : end + 1])
 
 
 # --------------------------------------------------------------------------- #
@@ -199,6 +278,8 @@ Return ONLY a JSON object (no prose, no markdown fences) shaped exactly:
 Rules:
 - Keys are repo-relative POSIX paths. Do NOT use absolute paths or '..'.
 - Values are the COMPLETE new content of each file, not a diff.
+- The response MUST be a single valid JSON object. Escape every newline inside a \
+file's content as \\n, tabs as \\t, and quotes as \\" so the JSON parses.
 - Only include files this sub-task actually creates or changes."""
 
             raw = bedrock.invoke(prompt, system=IMPLEMENT_SYSTEM, temperature=0.2)
