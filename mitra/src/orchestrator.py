@@ -95,10 +95,9 @@ class Orchestrator:
                  logger: logging.Logger | None = None,
                  silence_timeout_s: float = 30.0,
                  max_reply_chars: int = validator.MAX_REPLY_CHARS,
+                 max_sentences: int = 1,
                  fallback_agent_factory=None, gestures: bool = True,
                  llm_meta: dict | None = None):
-                 max_sentences: int = 1,
-                 fallback_agent_factory=None, gestures: bool = True):
         self.robot = robot
         self.agent = agent
         self.tts = tts

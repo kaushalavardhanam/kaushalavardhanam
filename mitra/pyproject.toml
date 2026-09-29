@@ -33,7 +33,6 @@ speech = ["transformers>=4.46", "torch>=2.3", "soundfile>=0.12"]
 # fetched separately by scripts/fetch_sanskrit_data.py.
 sanskrit = ["vidyut>=0.4"]
 dev = ["pytest>=8.0"]
-all = ["mitra[robot,agent,wake,vad,asr,speech]"]
 cloud = ["mitra[agent,bedrock]"]
 all = ["mitra[robot,agent,wake,vad,asr,speech,sanskrit]"]
 

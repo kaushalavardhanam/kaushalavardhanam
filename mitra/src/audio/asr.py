@@ -54,14 +54,10 @@ class Transcriber:
                 f"unsupported ASR backend: {backend!r} "
                 "(mlx | auto | openai-whisper)"
             )
-                 device: str = "mps"):
-        if backend not in ("mlx", "transformers"):
-            raise ValueError(f"unsupported ASR backend: {backend!r}")
         self._backend = backend
         self._default_model = default_model
         self._sanskrit_model = sanskrit_model
         self._device = device
-        self._backend = backend
         self._cpu_model = cpu_model
         self._resolved_backend: str | None = None
         self._openai_model = None
