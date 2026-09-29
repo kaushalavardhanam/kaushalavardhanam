@@ -83,6 +83,21 @@ class TestRobustJsonExtraction(unittest.TestCase):
         result = _extract_json_object(raw)
         self.assertEqual(result["files"]["a"], "b\nc")
 
+    def test_object_whose_value_contains_a_code_fence(self):
+        """Valid JSON whose file content embeds a ``` fence must NOT be mangled.
+
+        This is the issue #13 failure after the truncation fix: the model
+        returned a complete, valid JSON object, but one file's content was a
+        markdown doc containing a ```bash ... ``` block. Stripping fences first
+        grabbed that inner fence and discarded the envelope. Parse-first fixes it.
+        """
+        doc = "# Setup\n\nRun:\n```bash\necho hi\n```\nDone.\n"
+        payload = {"files": {"docs/setup.md": doc}, "note": "added setup doc"}
+        raw = json.dumps(payload)  # valid JSON; inner ``` lives inside a string
+        result = _extract_json_object(raw)
+        self.assertEqual(result["files"]["docs/setup.md"], doc)
+        self.assertEqual(result["note"], "added setup doc")
+
     def test_array_with_leading_prose(self):
         raw = 'Sure:\n[{"id": 1, "title": "x", "description": "y"}]'
         result = _extract_json_array(raw)

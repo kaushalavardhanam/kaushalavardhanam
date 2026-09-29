@@ -157,7 +157,21 @@ def _loads_tolerant(payload: str):
 
 
 def _extract_json_array(text: str) -> list:
-    """Parse a JSON array from a model response, tolerating prose/fences."""
+    """Parse a JSON array from a model response, tolerating prose/fences.
+
+    Parse-first: the model is asked to return ONLY JSON, so try the raw text
+    (tolerant of control chars) before touching fences. This matters because a
+    file's content inside the JSON may itself contain a ``` code fence; stripping
+    fences first would grab that inner fence and discard the real envelope. Only
+    if the raw text is not itself JSON do we fall back to unwrapping an outer
+    fence and slicing between the outer [ and ].
+    """
+    try:
+        result = _loads_tolerant(text.strip())
+        if isinstance(result, list):
+            return result
+    except (ValueError, json.JSONDecodeError):
+        pass
     cleaned = _strip_fences(text)
     start, end = cleaned.find("["), cleaned.rfind("]")
     if start == -1 or end == -1 or end < start:
@@ -166,7 +180,19 @@ def _extract_json_array(text: str) -> list:
 
 
 def _extract_json_object(text: str) -> dict:
-    """Parse a JSON object from a model response, tolerating prose/fences."""
+    """Parse a JSON object from a model response, tolerating prose/fences.
+
+    Parse-first (see ``_extract_json_array``): try the raw text before fence
+    stripping so a ``` code fence *inside* a returned file's content cannot cause
+    the whole JSON envelope to be thrown away. Fall back to outer-fence unwrap +
+    slicing between the outer { and } only when the raw text is not itself JSON.
+    """
+    try:
+        result = _loads_tolerant(text.strip())
+        if isinstance(result, dict):
+            return result
+    except (ValueError, json.JSONDecodeError):
+        pass
     cleaned = _strip_fences(text)
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start == -1 or end == -1 or end < start:
