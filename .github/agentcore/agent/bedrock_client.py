@@ -196,9 +196,14 @@ class BedrockClient:
         body: dict = {
             "anthropic_version": ANTHROPIC_VERSION,
             "max_tokens": max_tokens,
-            "temperature": temperature,
             "messages": [{"role": "user", "content": prompt}],
         }
+        # Bedrock's newer Anthropic models (e.g. Claude Sonnet 5.5) reject a
+        # non-default temperature with "`temperature` is deprecated for this
+        # model"; they accept the default (1) or its omission. Send temperature
+        # only when it is that default, and omit it otherwise.
+        if abs(temperature - BedrockClient._DEFAULT_TEMPERATURE) < 1e-9:
+            body["temperature"] = BedrockClient._DEFAULT_TEMPERATURE
         if system:
             body["system"] = system
         return body
@@ -217,10 +222,10 @@ class BedrockClient:
     # OpenAI chat-completions API
     # --------------------------------------------------------------------- #
 
-    # Bedrock's OpenAI models currently only accept the default temperature (1);
-    # any other value returns a ValidationException. We send temperature ONLY
-    # when it equals this default, and otherwise omit it.
-    _OPENAI_DEFAULT_TEMPERATURE = 1.0
+    # Both providers on Bedrock currently accept only the default temperature
+    # (1); a non-default value returns a ValidationException. Send temperature
+    # ONLY when it equals this default, and otherwise omit it.
+    _DEFAULT_TEMPERATURE = 1.0
 
     @classmethod
     def _openai_body(
@@ -241,8 +246,8 @@ class BedrockClient:
             "max_completion_tokens": max_tokens,
         }
         # Only forward temperature when it is the sole value these models accept.
-        if abs(temperature - cls._OPENAI_DEFAULT_TEMPERATURE) < 1e-9:
-            body["temperature"] = cls._OPENAI_DEFAULT_TEMPERATURE
+        if abs(temperature - cls._DEFAULT_TEMPERATURE) < 1e-9:
+            body["temperature"] = cls._DEFAULT_TEMPERATURE
         return body
 
     @staticmethod

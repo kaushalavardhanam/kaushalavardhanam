@@ -82,9 +82,25 @@ class AnthropicPathTests(unittest.TestCase):
         self.assertEqual(out, "hello world")
         body = json.loads(fake.last_kwargs["body"])
         self.assertEqual(body["anthropic_version"], bedrock_client.ANTHROPIC_VERSION)
-        self.assertEqual(body["temperature"], 0.2)
         self.assertEqual(body["system"], "be terse")
         self.assertEqual(body["messages"], [{"role": "user", "content": "hi"}])
+
+    def test_non_default_temperature_is_dropped(self):
+        # Bedrock's newer Anthropic models reject a non-default temperature
+        # ("`temperature` is deprecated for this model"); the client must omit
+        # it rather than send the decomposer's 0.2 default.
+        payload = {"content": [{"type": "text", "text": "x"}]}
+        client, fake = _make_client("global.anthropic.claude-sonnet-5-5", payload)
+        client.invoke("hi", temperature=0.2)
+        body = json.loads(fake.last_kwargs["body"])
+        self.assertNotIn("temperature", body)
+
+    def test_default_temperature_is_forwarded(self):
+        payload = {"content": [{"type": "text", "text": "x"}]}
+        client, fake = _make_client("global.anthropic.claude-sonnet-5-5", payload)
+        client.invoke("hi", temperature=1.0)
+        body = json.loads(fake.last_kwargs["body"])
+        self.assertEqual(body["temperature"], 1.0)
 
 
 class OpenAIPathTests(unittest.TestCase):

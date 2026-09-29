@@ -89,10 +89,11 @@ FM + inference-profile ARNs for all three (see
 `../terraform/main.tf` `local.bedrock_invoke_resources`), and defaults the
 runtime env `BEDROCK_MODEL_ID` to the Claude Sonnet 5.5 id above.
 
-> **OpenAI temperature:** Bedrock's OpenAI models currently accept only the
-> default temperature (1). The OpenAI path therefore forwards `temperature` only
-> when it equals 1 and omits it otherwise, so the decomposer's default of 0.2
-> does not trigger a `ValidationException`.
+> **Temperature:** Bedrock's newer models — both Claude Sonnet 5.5 and the
+> OpenAI models — accept only the default temperature (1); a non-default value
+> returns a `ValidationException` (`temperature is deprecated for this model`).
+> Both provider paths therefore forward `temperature` only when it equals 1 and
+> omit it otherwise, so the decomposer's default of 0.2 does not fail the call.
 
 ## Build & push to ECR
 
