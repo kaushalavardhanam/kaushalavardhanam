@@ -253,5 +253,26 @@ class InvokePartialTests(unittest.TestCase):
         self.assertTrue(truncated)
 
 
+class ClientTimeoutConfigTests(unittest.TestCase):
+    """The bedrock-runtime client must use a read timeout well above botocore's
+    60s default, or a large single-file generation trips ReadTimeoutError
+    mid-implement (observed once max_tokens was raised)."""
+
+    def test_read_timeout_is_well_above_default_60s(self):
+        self.assertGreaterEqual(bedrock_client.BEDROCK_READ_TIMEOUT_SECONDS, 300)
+
+    def test_client_config_applies_the_timeouts(self):
+        import os
+        os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+        client = bedrock_client.BedrockClient(
+            model_id="global.anthropic.claude-sonnet-5-5"
+        )
+        cfg = client._client.meta.config
+        self.assertEqual(cfg.read_timeout, bedrock_client.BEDROCK_READ_TIMEOUT_SECONDS)
+        self.assertEqual(
+            cfg.connect_timeout, bedrock_client.BEDROCK_CONNECT_TIMEOUT_SECONDS
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

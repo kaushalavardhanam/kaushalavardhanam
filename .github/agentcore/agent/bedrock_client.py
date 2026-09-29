@@ -60,6 +60,14 @@ ANTHROPIC_VERSION = "bedrock-2023-05-31"
 # window, so default high; callers may still override per-call.
 DEFAULT_MAX_TOKENS = 32768
 
+# botocore socket read/connect timeouts for the bedrock-runtime client. A single
+# implement call generating a large file can legitimately run well past the
+# botocore default read timeout of 60s (this is what surfaced as a mid-implement
+# ReadTimeoutError once max_tokens was raised). Give generation a generous
+# ceiling; the connect timeout stays short since connection setup is fast.
+BEDROCK_READ_TIMEOUT_SECONDS = 900
+BEDROCK_CONNECT_TIMEOUT_SECONDS = 15
+
 # The only model ids the runtime is permitted to invoke. These are the global
 # CRIS inference-profile ids the Terraform grants InvokeModel on; invoking via
 # the bare foundation-model id is intentionally NOT allowed. Keep this in sync
@@ -134,7 +142,11 @@ class BedrockClient:
         self._client = boto3.client(
             service_name="bedrock-runtime",
             region_name=self.region_name,
-            config=Config(retries={"max_attempts": 5, "mode": "adaptive"}),
+            config=Config(
+                retries={"max_attempts": 5, "mode": "adaptive"},
+                connect_timeout=BEDROCK_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=BEDROCK_READ_TIMEOUT_SECONDS,
+            ),
         )
         logger.info(
             "BedrockClient ready (model=%s provider=%s region=%s)",
