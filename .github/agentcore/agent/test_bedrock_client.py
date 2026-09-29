@@ -151,5 +151,66 @@ class OpenAIPathTests(unittest.TestCase):
         self.assertEqual(client.invoke("hi"), "ab")
 
 
+class TruncationGuardTests(unittest.TestCase):
+    """A response capped at max_tokens must fail loudly, not return a partial body.
+
+    This is the issue #13 failure: an incomplete JSON object came back and the
+    downstream json.loads died cryptically. The client now raises
+    TruncatedResponseError with the real cause instead.
+    """
+
+    def test_default_max_tokens_is_well_above_old_8192(self):
+        # Regression guard: the old 8192 default truncated large multi-file
+        # sub-tasks. Keep the default high.
+        self.assertGreaterEqual(bedrock_client.DEFAULT_MAX_TOKENS, 32768)
+
+    def test_anthropic_stop_reason_max_tokens_raises(self):
+        payload = {
+            "stop_reason": "max_tokens",
+            "content": [{"type": "text", "text": '{"files": {"a": "partial'}],
+        }
+        client, _ = _make_client("global.anthropic.claude-sonnet-5-5", payload)
+        with self.assertRaises(bedrock_client.TruncatedResponseError) as ctx:
+            client.invoke("hi", max_tokens=8192)
+        msg = str(ctx.exception)
+        self.assertIn("truncated", msg.lower())
+        self.assertIn("8192", msg)
+
+    def test_anthropic_end_turn_does_not_raise(self):
+        payload = {
+            "stop_reason": "end_turn",
+            "content": [{"type": "text", "text": "complete"}],
+        }
+        client, _ = _make_client("global.anthropic.claude-sonnet-5-5", payload)
+        self.assertEqual(client.invoke("hi"), "complete")
+
+    def test_anthropic_missing_stop_reason_does_not_raise(self):
+        # Older/fake payloads without stop_reason must still parse (the existing
+        # tests rely on this).
+        payload = {"content": [{"type": "text", "text": "ok"}]}
+        client, _ = _make_client("global.anthropic.claude-sonnet-5-5", payload)
+        self.assertEqual(client.invoke("hi"), "ok")
+
+    def test_openai_finish_reason_length_raises(self):
+        payload = {
+            "choices": [
+                {"finish_reason": "length", "message": {"content": '{"files": {"a": "part'}}
+            ]
+        }
+        client, _ = _make_client("global.openai.gpt-5.6-sol", payload)
+        with self.assertRaises(bedrock_client.TruncatedResponseError) as ctx:
+            client.invoke("hi", max_tokens=8192)
+        self.assertIn("truncated", str(ctx.exception).lower())
+
+    def test_openai_finish_reason_stop_does_not_raise(self):
+        payload = {
+            "choices": [
+                {"finish_reason": "stop", "message": {"content": "done"}}
+            ]
+        }
+        client, _ = _make_client("global.openai.gpt-5.6-sol", payload)
+        self.assertEqual(client.invoke("hi"), "done")
+
+
 if __name__ == "__main__":
     unittest.main()

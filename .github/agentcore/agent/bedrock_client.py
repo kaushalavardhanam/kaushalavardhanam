@@ -35,12 +35,30 @@ from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
 
+
+class TruncatedResponseError(RuntimeError):
+    """Raised when the model stopped because it hit the output-token cap.
+
+    A truncated response is an incomplete document (e.g. a JSON object cut off
+    mid-string), so surfacing it as a clear, actionable error is far better than
+    letting a downstream ``json.loads`` fail with a cryptic "Unterminated
+    string" / "No JSON object found". This is exactly how issue #13 failed when
+    max_tokens was 8192.
+    """
+
 # The default model is Claude Sonnet 5.5 via its global CRIS inference profile.
 # GPT models are opt-in by overriding BEDROCK_MODEL_ID with one of the other
 # allowed ids below.
 DEFAULT_MODEL_ID = "global.anthropic.claude-sonnet-5-5"
 DEFAULT_REGION = "us-east-1"
 ANTHROPIC_VERSION = "bedrock-2023-05-31"
+
+# Max output tokens per model call. The implement step returns whole file
+# contents as JSON string values, so a small cap truncates the JSON mid-string
+# and the downstream parser then fails on an incomplete object (this is what
+# broke issue #13 at 8192). Claude Sonnet 5.5 supports a far larger output
+# window, so default high; callers may still override per-call.
+DEFAULT_MAX_TOKENS = 32768
 
 # The only model ids the runtime is permitted to invoke. These are the global
 # CRIS inference-profile ids the Terraform grants InvokeModel on; invoking via
@@ -130,7 +148,7 @@ class BedrockClient:
         prompt: str,
         *,
         system: Optional[str] = None,
-        max_tokens: int = 8192,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = 0.2,
     ) -> str:
         """Invoke the configured model with a single user prompt.
@@ -178,7 +196,9 @@ class BedrockClient:
 
         payload = json.loads(response["body"].read())
         if self.provider == "anthropic":
+            self._raise_if_truncated_anthropic(payload, max_tokens)
             return self._extract_anthropic_text(payload)
+        self._raise_if_truncated_openai(payload, max_tokens)
         return self._extract_openai_text(payload)
 
     # --------------------------------------------------------------------- #
@@ -207,6 +227,21 @@ class BedrockClient:
         if system:
             body["system"] = system
         return body
+
+    @staticmethod
+    def _raise_if_truncated_anthropic(payload: dict, max_tokens: int) -> None:
+        """Fail loudly if the Claude response was cut off at the token cap.
+
+        The Anthropic Messages API reports ``stop_reason == "max_tokens"`` when
+        generation stopped because it reached ``max_tokens`` rather than a
+        natural end (``end_turn``/``stop_sequence``). In that case the returned
+        content is incomplete, so we raise instead of returning a partial body.
+        """
+        if payload.get("stop_reason") == "max_tokens":
+            raise TruncatedResponseError(
+                f"BedrockClient: response truncated at max_tokens ({max_tokens}) "
+                f"(stop_reason=max_tokens) — increase max_tokens or reduce sub-task size."
+            )
 
     @staticmethod
     def _extract_anthropic_text(payload: dict) -> str:
@@ -249,6 +284,22 @@ class BedrockClient:
         if abs(temperature - cls._DEFAULT_TEMPERATURE) < 1e-9:
             body["temperature"] = cls._DEFAULT_TEMPERATURE
         return body
+
+    @staticmethod
+    def _raise_if_truncated_openai(payload: dict, max_tokens: int) -> None:
+        """Fail loudly if the OpenAI response was cut off at the token cap.
+
+        OpenAI chat-completions reports ``choices[i].finish_reason == "length"``
+        when generation stopped at ``max_completion_tokens`` rather than a
+        natural ``stop``. The content is then incomplete, so we raise instead of
+        returning a partial body.
+        """
+        for choice in payload.get("choices") or []:
+            if choice.get("finish_reason") == "length":
+                raise TruncatedResponseError(
+                    f"BedrockClient: response truncated at max_tokens ({max_tokens}) "
+                    f"(finish_reason=length) — increase max_tokens or reduce sub-task size."
+                )
 
     @staticmethod
     def _extract_openai_text(payload: dict) -> str:
