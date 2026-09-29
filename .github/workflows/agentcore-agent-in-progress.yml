@@ -1,0 +1,77 @@
+# Kick the AgentCore decomposer backend when an `agent-*` issue moves to
+# In Progress on https://github.com/orgs/kaushalavardhanam/projects/1.
+#
+# Unlike the Cursor/Claude backends (which run the agent on hosted CI), this
+# backend runs on AWS: the job federates into AWS via OIDC (no static keys),
+# assuming the role the Terraform in .github/agentcore/terraform/ creates
+# (${name_prefix}-github-oidc), and invokes the dispatcher Lambda
+# (${name_prefix}-dispatcher). The Lambda then invokes the Bedrock AgentCore
+# Runtime agent, which decomposes the issue and opens a PR.
+#
+# Required repo secrets:
+#   GH_PROJECT_TOKEN   Fine-grained PAT: org kaushalavardhanam Projects: Read,
+#                      plus repository access. GITHUB_TOKEN cannot read
+#                      Projects v2.
+#
+# Required repo variables:
+#   AWS_ACCOUNT_ID     12-digit account id hosting the AgentCore backend. Used
+#                      to build the OIDC role ARN (matches the Claude backend's
+#                      convention of referencing vars.AWS_ACCOUNT_ID).
+# Optional repo variables (fall back to the Terraform defaults):
+#   AWS_REGION                 default us-east-1
+#   AGENTCORE_OIDC_ROLE_NAME   default agentcore-decomposer-github-oidc
+#   DISPATCHER_LAMBDA_NAME     default agentcore-decomposer-dispatcher
+name: AgentCore agent on In Progress
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to start immediately (optional)"
+        required: false
+      base_branch:
+        description: "Base branch override (optional; else base:<label> or main)"
+        required: false
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+  contents: read
+  id-token: write
+
+jobs:
+  kickoff:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AGENTCORE_OIDC_ROLE_NAME || 'agentcore-decomposer-github-oidc' }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Install boto3
+        run: python3 -m pip install --upgrade boto3
+
+      - name: Kick AgentCore decomposer
+        env:
+          GH_PROJECT_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+          DISPATCHER_LAMBDA_NAME: ${{ vars.DISPATCHER_LAMBDA_NAME || 'agentcore-decomposer-dispatcher' }}
+          PROJECT_OWNER: kaushalavardhanam
+          PROJECT_OWNER_TYPE: organization
+          PROJECT_NUMBER: "1"
+          DEFAULT_BASE_BRANCH: main
+          ISSUE_NUMBER: ${{ github.event.inputs.issue_number || github.event.issue.number }}
+          BASE_BRANCH_INPUT: ${{ github.event.inputs.base_branch }}
+          LABEL_NAME: ${{ github.event.label.name }}
+        run: python3 .github/scripts/kick_agentcore_agent.py
