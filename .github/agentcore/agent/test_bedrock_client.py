@@ -164,6 +164,12 @@ class TruncationGuardTests(unittest.TestCase):
         # sub-tasks. Keep the default high.
         self.assertGreaterEqual(bedrock_client.DEFAULT_MAX_TOKENS, 32768)
 
+    def test_read_timeout_is_well_above_botocore_default(self):
+        # Regression guard: raising max_tokens made single generations run for
+        # minutes; the botocore 60s default read timeout then aborted them mid
+        # generation. The client must configure a much larger read timeout.
+        self.assertGreaterEqual(bedrock_client.BEDROCK_READ_TIMEOUT_SECONDS, 600)
+
     def test_anthropic_stop_reason_max_tokens_raises(self):
         payload = {
             "stop_reason": "max_tokens",

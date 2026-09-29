@@ -60,6 +60,12 @@ ANTHROPIC_VERSION = "bedrock-2023-05-31"
 # window, so default high; callers may still override per-call.
 DEFAULT_MAX_TOKENS = 32768
 
+# botocore read timeout for a single invoke_model call. The default is 60s,
+# but a large generation (up to DEFAULT_MAX_TOKENS) can run for minutes, so a
+# 60s cap raised ReadTimeoutError mid-generation once max_tokens went up. Give
+# a generous ceiling; adaptive retries still handle genuine transient stalls.
+BEDROCK_READ_TIMEOUT_SECONDS = 900
+
 # The only model ids the runtime is permitted to invoke. These are the global
 # CRIS inference-profile ids the Terraform grants InvokeModel on; invoking via
 # the bare foundation-model id is intentionally NOT allowed. Keep this in sync
@@ -130,11 +136,18 @@ class BedrockClient:
         self.provider = _provider_of(self.model_id)
         self.region_name = region_name or get_region()
         # Retries help with transient Bedrock throttling during a multi
-        # sub-task run.
+        # sub-task run. read_timeout is raised well above botocore's 60s default
+        # because a single large-output generation (up to DEFAULT_MAX_TOKENS)
+        # can legitimately take several minutes; the default would raise
+        # ReadTimeoutError mid-generation once max_tokens was increased.
         self._client = boto3.client(
             service_name="bedrock-runtime",
             region_name=self.region_name,
-            config=Config(retries={"max_attempts": 5, "mode": "adaptive"}),
+            config=Config(
+                retries={"max_attempts": 5, "mode": "adaptive"},
+                connect_timeout=15,
+                read_timeout=BEDROCK_READ_TIMEOUT_SECONDS,
+            ),
         )
         logger.info(
             "BedrockClient ready (model=%s provider=%s region=%s)",
