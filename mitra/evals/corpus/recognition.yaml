@@ -1,0 +1,52 @@
+# Expected transcripts for recognition measurement (issue #7).
+# No user recordings are checked in. Point --audio-dir at consented WAVs
+# named {id}.wav or {id}-runN.wav when you have them.
+version: 1
+privacy: "Raw audio stays on the host. Do not commit private recordings."
+items:
+  - id: wake
+    expected: Mitra
+    language: en
+    role: wake
+  - id: doing
+    expected: What are you doing?
+    language: en
+  - id: live
+    expected: Where do you live?
+    language: en
+  - id: play
+    expected: Do you play?
+    language: en
+  - id: food
+    expected: What's your favorite food?
+    language: en
+    variants:
+      - What is your favorite food?
+  - id: subject
+    expected: What's your favorite subject?
+    language: en
+    variants:
+      - What is your favorite subject?
+  - id: reading
+    expected: What are you reading?
+    language: en
+  - id: music
+    expected: Do you listen to music?
+    language: en
+  - id: sports
+    expected: Do you play sports?
+    language: en
+  - id: today
+    expected: What will you do today?
+    language: en
+  - id: friend
+    expected: Will you be my friend?
+    language: en
+  - id: namaste
+    expected: नमस्ते
+    language: sa
+    notes: Sanskrit greeting; optional if no Devanagari recording is available.
+  - id: kim_etat
+    expected: किम् एतत्
+    language: sa
+    notes: Vision-prompt phrase; optional.

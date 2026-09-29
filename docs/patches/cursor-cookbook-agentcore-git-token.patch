@@ -1,0 +1,1112 @@
+From 68555cb4ee98a2eb5424c6f6131de7ff3e2af748 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <agent@cursor.local>
+Date: Tue, 8 Sep 2026 21:48:30 +0000
+Subject: [PATCH] Load a worker GitHub token at AgentCore boot for git push and
+ PRs.
+
+Self-hosted workers do not inherit Cursor GitHub App tokens. The adapter
+now fetches cursor-agentcore-worker-git-token, installs an HTTPS
+credential helper, and Terraform grants GetSecretValue plus
+CURSOR_GIT_TOKEN_SECRET_ID.
+---
+ .../agentcore/.env.example                    |  14 +-
+ self-hosted-cloud-agent/agentcore/Makefile    |  27 ++-
+ self-hosted-cloud-agent/agentcore/README.md   |  87 ++++++-
+ .../adapter/git-credential-github-env         |  29 +++
+ .../adapter/test_prepare_workspace.py         |  91 ++++++-
+ .../agentcore/adapter/worker_adapter.py       | 224 +++++++++++++++---
+ .../agentcore/docker/Dockerfile               |   3 +-
+ .../agentcore/github/WORKER_GIT.md            |  74 ++++++
+ .../github/cursor-agent-in-progress.yml       |   5 +
+ .../github/scripts/configure-worker-git.sh    |  18 ++
+ .../github/scripts/git-credential-github-env  |  41 ++++
+ .../github/scripts/load-worker-git-token.sh   |  36 +++
+ .../agentcore/terraform/README.md             |   7 +
+ .../agentcore/terraform/main.tf               |  39 ++-
+ .../agentcore/terraform/outputs.tf            |  10 +
+ .../agentcore/terraform/variables.tf          |  12 +
+ 16 files changed, 666 insertions(+), 51 deletions(-)
+ create mode 100755 self-hosted-cloud-agent/agentcore/adapter/git-credential-github-env
+ create mode 100644 self-hosted-cloud-agent/agentcore/github/WORKER_GIT.md
+ create mode 100755 self-hosted-cloud-agent/agentcore/github/scripts/configure-worker-git.sh
+ create mode 100755 self-hosted-cloud-agent/agentcore/github/scripts/git-credential-github-env
+ create mode 100755 self-hosted-cloud-agent/agentcore/github/scripts/load-worker-git-token.sh
+
+diff --git a/self-hosted-cloud-agent/agentcore/.env.example b/self-hosted-cloud-agent/agentcore/.env.example
+index bcce511..b1484d7 100644
+--- a/self-hosted-cloud-agent/agentcore/.env.example
++++ b/self-hosted-cloud-agent/agentcore/.env.example
+@@ -20,11 +20,19 @@ CURSOR_API_KEY=replace-with-service-account-api-key
+ CURSOR_WORKER_POOL_NAME=agentcore-platform-agents
+ CURSOR_WORKER_IDLE_RELEASE_TIMEOUT=600
+ 
+-# Secret container Terraform creates and the adapter reads at startup. AgentCore
+-# has no native secret injection, so the worker fetches the value itself using the
+-# runtime execution role.
++# Secret containers Terraform creates (or looks up) and the adapter reads at
++# startup. AgentCore has no native secret injection, so the worker fetches the
++# values itself using the runtime execution role.
+ CURSOR_API_KEY_SECRET_NAME=cursor-agentcore-worker-api-key
+ 
++# Fine-grained GitHub PAT (or App token) so the worker can git push and open PRs.
++# Used only by `make agentcore-put-git-token-secret`. Stored as JSON
++# {"CURSOR_GIT_TOKEN":"..."}. Never commit this value.
++# CURSOR_GIT_TOKEN=github_pat_replace_me
++CURSOR_GIT_TOKEN_SECRET_NAME=cursor-agentcore-worker-git-token
++# Set false when the secret already exists (created by hand).
++CREATE_CURSOR_GIT_TOKEN_SECRET=true
++
+ # Git remote the persistent workspace is initialized with. Cursor derives the repo
+ # label from this remote and worker startup fails without it. Required.
+ # Do not use this cookbook's origin. Use the application repo the agent should
+diff --git a/self-hosted-cloud-agent/agentcore/Makefile b/self-hosted-cloud-agent/agentcore/Makefile
+index 7670683..86a562c 100644
+--- a/self-hosted-cloud-agent/agentcore/Makefile
++++ b/self-hosted-cloud-agent/agentcore/Makefile
+@@ -8,6 +8,8 @@ export
+ CURSOR_WORKER_POOL_NAME ?= agentcore-platform-agents
+ CURSOR_WORKER_IDLE_RELEASE_TIMEOUT ?= 600
+ CURSOR_API_KEY_SECRET_NAME ?= cursor-agentcore-worker-api-key
++CURSOR_GIT_TOKEN_SECRET_NAME ?= cursor-agentcore-worker-git-token
++CREATE_CURSOR_GIT_TOKEN_SECRET ?= true
+ WORKER_REPOSITORY_URL ?= $(shell git config --get remote.origin.url 2>/dev/null)
+ 
+ AWS_PROFILE ?= default
+@@ -56,7 +58,9 @@ AGENTCORE_TERRAFORM_VARS := \
+ 	-var "worker_pool_name=$(CURSOR_WORKER_POOL_NAME)" \
+ 	-var "worker_idle_release_timeout=$(CURSOR_WORKER_IDLE_RELEASE_TIMEOUT)" \
+ 	-var "worker_repository_url=$(WORKER_REPOSITORY_URL)" \
+-	-var "cursor_api_key_secret_name=$(CURSOR_API_KEY_SECRET_NAME)"
++	-var "cursor_api_key_secret_name=$(CURSOR_API_KEY_SECRET_NAME)" \
++	-var "cursor_git_token_secret_name=$(CURSOR_GIT_TOKEN_SECRET_NAME)" \
++	-var "create_cursor_git_token_secret=$(CREATE_CURSOR_GIT_TOKEN_SECRET)"
+ 
+ # Omitted rather than passed as null when unset, so the Terraform defaults resolve the
+ # account default VPC.
+@@ -77,6 +81,7 @@ endef
+ 
+ .PHONY: help agentcore-adapter-test agentcore-docker-build agentcore-contract-test \
+ 	agentcore-ecr-login agentcore-ecr-build-push agentcore-put-api-key-secret \
++	agentcore-put-git-token-secret \
+ 	agentcore-terraform-init agentcore-terraform-fmt agentcore-terraform-validate \
+ 	agentcore-terraform-plan agentcore-terraform-apply agentcore-terraform-destroy \
+ 	agentcore-start-session agentcore-session-status agentcore-stop-session \
+@@ -91,6 +96,7 @@ help:
+ 	@echo "  agentcore-ecr-login            Authenticate $(CONTAINER_CLI) to ECR"
+ 	@echo "  agentcore-ecr-build-push       Build and push the worker image to ECR"
+ 	@echo "  agentcore-put-api-key-secret   Upload CURSOR_API_KEY to Secrets Manager"
++	@echo "  agentcore-put-git-token-secret Upload CURSOR_GIT_TOKEN (JSON) to Secrets Manager"
+ 	@echo "  agentcore-terraform-init       Initialize the Terraform working directory"
+ 	@echo "  agentcore-terraform-fmt        Format the Terraform files"
+ 	@echo "  agentcore-terraform-validate   Validate the Terraform configuration"
+@@ -154,6 +160,25 @@ agentcore-put-api-key-secret:
+ 		--secret-string "$${CURSOR_API_KEY}" >/dev/null
+ 	@echo "Updated Secrets Manager value for $(CURSOR_API_KEY_SECRET_NAME)."
+ 
++agentcore-put-git-token-secret:
++	@if [[ -z "$${CURSOR_GIT_TOKEN:-}" ]]; then echo "CURSOR_GIT_TOKEN must be set in .env or the shell."; exit 1; fi
++	@payload="$$(python3 -c 'import json,os; print(json.dumps({"CURSOR_GIT_TOKEN": os.environ["CURSOR_GIT_TOKEN"]}))')"; \
++	if aws secretsmanager put-secret-value \
++		--profile "$(AWS_PROFILE)" \
++		--region "$(AWS_REGION)" \
++		--secret-id "$(CURSOR_GIT_TOKEN_SECRET_NAME)" \
++		--secret-string "$$payload" >/dev/null 2>&1; then \
++		echo "Updated Secrets Manager value for $(CURSOR_GIT_TOKEN_SECRET_NAME)."; \
++	else \
++		aws secretsmanager create-secret \
++			--profile "$(AWS_PROFILE)" \
++			--region "$(AWS_REGION)" \
++			--name "$(CURSOR_GIT_TOKEN_SECRET_NAME)" \
++			--description "GitHub PAT or App token for AgentCore worker git push and PRs." \
++			--secret-string "$$payload" >/dev/null; \
++		echo "Created Secrets Manager secret $(CURSOR_GIT_TOKEN_SECRET_NAME)."; \
++	fi
++
+ agentcore-terraform-init:
+ 	terraform -chdir=terraform init
+ 
+diff --git a/self-hosted-cloud-agent/agentcore/README.md b/self-hosted-cloud-agent/agentcore/README.md
+index 62d373e..ae9f944 100644
+--- a/self-hosted-cloud-agent/agentcore/README.md
++++ b/self-hosted-cloud-agent/agentcore/README.md
+@@ -32,6 +32,9 @@ Run from `self-hosted-cloud-agent/agentcore`. The same `make agentcore-*` target
+ mkdir -p <app>/.github/workflows <app>/.github/scripts
+ cp github/cursor-agent-in-progress.yml <app>/.github/workflows/
+ cp github/kick_cursor_agent.py <app>/.github/scripts/
++cp github/WORKER_GIT.md <app>/.github/
++cp github/scripts/configure-worker-git.sh <app>/.github/scripts/
++cp github/scripts/git-credential-github-env <app>/.github/scripts/
+ ```
+ 
+ 2. Configure `.env`:
+@@ -40,14 +43,15 @@ cp github/kick_cursor_agent.py <app>/.github/scripts/
+ cp .env.example .env
+ ```
+ 
+-Fill in AWS credentials, a Cursor **service account** API key, the pool name, and `WORKER_REPOSITORY_URL` for that application repo.
++Fill in AWS credentials, a Cursor **service account** API key, the pool name, `WORKER_REPOSITORY_URL` for that application repo, and a GitHub write token (`CURSOR_GIT_TOKEN`) so the worker can push branches and open PRs.
+ 
+-3. Apply infrastructure, upload the key, push the image, and start a session:
++3. Apply infrastructure, upload the secrets, push the image, and start a session:
+ 
+ ```bash
+ make agentcore-terraform-init
+ make agentcore-terraform-apply
+ make agentcore-put-api-key-secret
++make agentcore-put-git-token-secret
+ make agentcore-ecr-build-push
+ make agentcore-start-session
+ ```
+@@ -72,6 +76,7 @@ Terraform creates:
+ - One AgentCore **agent runtime** pointing at the worker image, referencing the capacity provider, and mounting the workspace volume at `/mnt/workspace`.
+ - One ECR repository for the worker image.
+ - One Secrets Manager secret container for the Cursor service account key.
++- One Secrets Manager secret container for the worker GitHub write token (or a lookup of an existing `cursor-agentcore-worker-git-token` secret).
+ - Three IAM roles: the capacity provider operator role, the instance role and its instance profile, and the runtime execution role.
+ - One security group with no inbound rules and outbound HTTPS/DNS.
+ 
+@@ -93,9 +98,10 @@ Detailed runbook (how to `export` / `.env` each variable, where it lands, and th
+ 
+ 1. Starts the HTTP listener **before** the worker, so `/ping` answers immediately.
+ 2. Reads the Cursor service account key from Secrets Manager with the runtime execution role.
+-3. Initializes `/mnt/workspace` as a git repository with `origin` set to `WORKER_REPOSITORY_URL`, idempotently, because the volume persists across session restarts and will already be initialized on the second start. Fetch and checkout are attempted but not required: the image has no Git credentials, so a private HTTPS remote must not block worker startup.
+-4. Forks `agent worker --pool ... start`, with the options before the `start` subcommand.
+-5. Reports `HealthyBusy` while that child is alive, and restarts it with backoff if it exits unexpectedly.
++3. Reads the worker GitHub write token from Secrets Manager (`CURSOR_GIT_TOKEN_SECRET_ID`, default name `cursor-agentcore-worker-git-token`) and installs an HTTPS credential helper. A missing git token is logged and is not fatal.
++4. Initializes `/mnt/workspace` as a git repository with `origin` set to `WORKER_REPOSITORY_URL`, idempotently, because the volume persists across session restarts and will already be initialized on the second start. Fetch and checkout are attempted but not required: without a git token a private HTTPS remote must not block worker startup.
++5. Forks `agent worker --pool ... start`, with the options before the `start` subcommand. The child inherits `CURSOR_GIT_TOKEN` so `git push` and `autoCreatePR` work.
++6. Reports `HealthyBusy` while that child is alive, and restarts it with backoff if it exits unexpectedly.
+ 
+ Two documented footguns are handled deliberately:
+ 
+@@ -129,7 +135,7 @@ These are deliberate, and each one is forced by the platform.
+ - `metadataConfiguration` is **not** set, because it cannot be. The docs say the service has rejected invocations targeting runtimes without it since June 30, 2026, but the property is absent from the live CloudFormation Runtime schema and from `CreateAgentRuntime` — only `UpdateAgentRuntime` accepts it, where the CLI documents it as *microVM* Metadata Service configuration. The likeliest reading is that this applies to microVM runtimes and that Instances is governed by EC2 IMDSv2 on the managed instance. This is the second-largest first-run risk after the image architecture; see [OQ-10](REQUIREMENTS.md) and the troubleshooting entry below.
+ - Both the workspace volume and the root volume are encrypted. Encryption is fixed at volume creation.
+ - One worker per session. Instances allows up to 20 agents per session, but agents that share an instance share a filesystem and credentials — "any code running on the instance can read the credentials available to it" and "all agents that share an instance must be mutually trusted." Running one worker per session keeps one Cursor task from reading another's credentials or workspace.
+-- The runtime execution role can pull from the worker ECR repository, read only the configured Cursor API key secret, write runtime logs, publish traces, and publish metrics in the `bedrock-agentcore` namespace.
++- The runtime execution role can pull from the worker ECR repository, read only the configured Cursor API key secret and worker git-token secret, write runtime logs, publish traces, and publish metrics in the `bedrock-agentcore` namespace.
+ - The instance role exists only so AgentCore can collect instance system logs. It grants nothing to agent code.
+ 
+ For private subnets, make sure the subnet has NAT or equivalent egress to reach Cursor, ECR, and Secrets Manager.
+@@ -170,6 +176,60 @@ A project board does not fire a GitHub Actions event on drag, so the workflow po
+ 
+ The AgentCore session must already be `HealthyBusy` or the job sits in the pool until a worker registers.
+ 
++### Worker git push and pull requests
++
++This is **not** automated by widening the kickoff workflow `permissions:` or by installing the Cursor GitHub App. Self-hosted AgentCore workers do **not** receive Cursor’s GitHub App token and do **not** inherit Actions `GITHUB_TOKEN`. `autoCreatePR` uses whatever HTTPS credentials are already on the worker VM.
++
++A running session also does **not** pick up adapter or IAM changes. After you add the git-token secret, you must `make agentcore-ecr-build-push`, `terraform apply` so the runtime gets `CURSOR_GIT_TOKEN_SECRET_ID`, and start a **new** session.
++
++**1. Create a fine-grained GitHub PAT** (Settings → Developer settings → Fine-grained tokens) for the application repo (`WORKER_REPOSITORY_URL`), not this cookbook:
++
++| Permission | Access | Why |
++|---|---|---|
++| Metadata | Read | Automatic |
++| Contents | Read and write | `git fetch` / `git push` |
++| Pull requests | Read and write | Open and update agent PRs |
++| Workflows | Read and write | Required if the agent edits `.github/workflows/*.yml` |
++
++Resource owner and repository must match the app the worker clones. Do not put the token in git, Terraform variables, or `config.yaml`.
++
++**2. Store it in Secrets Manager** as JSON (plaintext also works):
++
++```json
++{"CURSOR_GIT_TOKEN":"github_pat_..."}
++```
++
++Default secret name: `cursor-agentcore-worker-git-token`.
++
++```bash
++export CURSOR_GIT_TOKEN=github_pat_...
++make agentcore-put-git-token-secret
++```
++
++If you already created that secret by hand, set `CREATE_CURSOR_GIT_TOKEN_SECRET=false` in `.env` so Terraform looks it up instead of trying to create it again.
++
++**3. Grant the runtime execution role `secretsmanager:GetSecretValue`** on that secret ARN and pass the ARN into the adapter:
++
++```text
++CURSOR_GIT_TOKEN_SECRET_ID=<secret ARN>
++```
++
++`make agentcore-terraform-apply` does both. The adapter also tries the default secret name when the env var is unset.
++
++**4. Publish a new worker image and start a new session.** The adapter fetches the token at boot, writes `/usr/local/bin/git-credential-github-env`, and exports `CURSOR_GIT_TOKEN` to `agent worker`. A missing or unreadable git secret is logged and is not fatal — the worker still registers — but `git push` and `autoCreatePR` will fail until the token is readable.
++
++**5. Verify on a claimed worker:**
++
++```bash
++# adapter logs should include: loaded worker git token from Secrets Manager
++git ls-remote --heads origin
++git push -u origin HEAD
++```
++
++`git ls-remote` can succeed on a public repo without write access. `git push` is the real check.
++
++Copy [`github/WORKER_GIT.md`](github/WORKER_GIT.md) into the application repo so agents have the same contract. The application-repo helpers (`.github/scripts/configure-worker-git.sh`) are a fallback for images that do not yet fetch the token at boot.
++
+ ## Validation
+ 
+ A healthy deployment has:
+@@ -180,6 +240,7 @@ A healthy deployment has:
+ - Runtime logs showing registration to the expected pool and repo.
+ - The self-hosted pool visible and selectable in Cursor Cloud Agents.
+ - Cursor GitHub App access granted to the target repository.
++- Runtime logs showing `loaded worker git token from Secrets Manager`, and a successful `git push` from the worker.
+ 
+ Check the contract locally before spending any AWS resources:
+ 
+@@ -314,7 +375,19 @@ Cursor derives the repo label from the worker directory's git remote, and startu
+ 
+ Because the volume persists, a session that once had the wrong remote keeps it. The adapter resets `origin` on every start so a stale remote converges.
+ 
+-A failed `git fetch` is not fatal. The image has no Git credentials, so a private `https://github.com/...` URL cannot be cloned at startup. Sibling EC2, ECS, and EKS targets only set the remote; this adapter matches that contract and still launches `agent worker`. Clone the repo with `--clone-git-repos` (and a minted GitHub token) if the agent needs a full checkout.
++A failed `git fetch` is not fatal. Without `CURSOR_GIT_TOKEN`, a private `https://github.com/...` URL cannot be cloned at startup. Sibling EC2, ECS, and EKS targets only set the remote; this adapter still launches `agent worker` in that case. Load the worker git token (see [Worker git push and pull requests](#worker-git-push-and-pull-requests)) so private remotes fetch and agents can `git push`.
++
++### Agent Cannot Push Or Open A PR
++
++Self-hosted workers have no Cursor GitHub App token. Confirm all of:
++
++- Secret `cursor-agentcore-worker-git-token` exists and holds `{"CURSOR_GIT_TOKEN":"github_pat_..."}`.
++- The runtime execution role can `GetSecretValue` on that ARN (DescribeSecret is not required).
++- Runtime env includes `CURSOR_GIT_TOKEN_SECRET_ID`.
++- The **image** includes the adapter that calls `resolve_git_token()` — a session started on an older image will not fetch the token even if the secret is present.
++- The PAT has Contents and Pull requests read/write on the application repo. Add Workflows write if the agent edits workflow YAML.
++
++Logs should say `loaded worker git token from Secrets Manager`. `could not load worker git token` means IAM or the secret id is wrong. The worker still starts; push fails later.
+ 
+ ### Cloud Agents Cannot Access The Repo
+ 
+diff --git a/self-hosted-cloud-agent/agentcore/adapter/git-credential-github-env b/self-hosted-cloud-agent/agentcore/adapter/git-credential-github-env
+new file mode 100755
+index 0000000..b97362d
+--- /dev/null
++++ b/self-hosted-cloud-agent/agentcore/adapter/git-credential-github-env
+@@ -0,0 +1,29 @@
++#!/bin/sh
++# Git credential helper for AgentCore / Cursor self-hosted workers.
++# Reads a PAT or GitHub App token from the environment. Never prints it.
++set -eu
++token="${CURSOR_GIT_TOKEN:-${GH_TOKEN:-${GH_WORKER_TOKEN:-${GITHUB_TOKEN:-}}}}"
++cmd="${1:-}"
++if [ "$cmd" != "get" ]; then
++  exit 0
++fi
++host=""
++protocol=""
++while IFS= read -r line; do
++  [ -z "$line" ] && break
++  case "$line" in
++    host=*) host="${line#host=}" ;;
++    protocol=*) protocol="${line#protocol=}" ;;
++  esac
++done
++case "$host" in
++  github.com|*.github.com) ;;
++  *) exit 0 ;;
++esac
++if [ -z "$token" ]; then
++  exit 0
++fi
++printf 'protocol=%s\n' "${protocol:-https}"
++printf 'host=%s\n' "$host"
++printf 'username=x-access-token\n'
++printf 'password=%s\n' "$token"
+diff --git a/self-hosted-cloud-agent/agentcore/adapter/test_prepare_workspace.py b/self-hosted-cloud-agent/agentcore/adapter/test_prepare_workspace.py
+index 26dee2c..cf9812e 100644
+--- a/self-hosted-cloud-agent/agentcore/adapter/test_prepare_workspace.py
++++ b/self-hosted-cloud-agent/agentcore/adapter/test_prepare_workspace.py
+@@ -1,8 +1,8 @@
+ #!/usr/bin/env python3
+ """Regression tests for prepare_workspace git-remote handling.
+ 
+-The worker image has no Git credentials. A private HTTPS GitHub URL cannot be
+-fetched, and that failure must not prevent the worker from launching.
++Without a worker git token, a private HTTPS GitHub URL cannot be fetched, and
++that failure must not prevent the worker from launching.
+ """
+ 
+ from __future__ import annotations
+@@ -229,6 +229,93 @@ class RepoRoutingLabelTests(unittest.TestCase):
+         self.assertEqual(env["GIT_CONFIG_VALUE_0"], "*")
+         self.assertEqual(env["CURSOR_API_KEY"], "test-service-account-key")
+         self.assertNotIn("GIT_DIR", env)
++        self.assertNotIn("CURSOR_GIT_TOKEN", env)
++
++
++class GitTokenTests(unittest.TestCase):
++    def setUp(self) -> None:
++        self.tmpdir = tempfile.mkdtemp(prefix="agentcore-git-")
++        self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
++        config = adapter.Config()
++        config.worker_dir = self.tmpdir
++        config.repository_url = (
++            "https://github.com/example-org/private-does-not-exist.git"
++        )
++        config.api_key = "test-service-account-key"
++        config.git_token = ""
++        config.git_token_secret_id = ""
++        config.git_credential_helper = os.path.join(self.tmpdir, "git-credential-github-env")
++        config.max_restarts = 0
++        self.supervisor = adapter.WorkerSupervisor(config, adapter.State())
++
++    def test_parse_secret_string_json_and_plaintext(self) -> None:
++        parse = adapter.WorkerSupervisor.parse_secret_string
++        keys = adapter.WorkerSupervisor.GIT_TOKEN_SECRET_KEYS
++        self.assertEqual(parse("github_pat_plain", keys), "github_pat_plain")
++        self.assertEqual(
++            parse('{"CURSOR_GIT_TOKEN":"github_pat_json","other":"x"}', keys),
++            "github_pat_json",
++        )
++        self.assertEqual(parse('{"GH_TOKEN":"ghp_from_alias"}', keys), "ghp_from_alias")
++        self.assertEqual(parse("{}", keys), "")
++
++    def test_env_token_skips_secrets_manager(self) -> None:
++        self.supervisor.config.git_token = "github_pat_from_env"
++        self.assertEqual(self.supervisor.resolve_git_token(), "github_pat_from_env")
++
++    def test_missing_git_secret_does_not_fail_startup(self) -> None:
++        launched = []
++
++        class FakeProcess:
++            pid = 4242
++
++            def wait(self, timeout=None):
++                return 0
++
++            def terminate(self):
++                return None
++
++            def kill(self):
++                return None
++
++        original_popen = adapter.subprocess.Popen
++        original_get = self.supervisor._get_secret_string
++
++        def boom(secret_id: str) -> str:
++            raise RuntimeError(f"denied {secret_id}")
++
++        def fake_popen(*args, **kwargs):
++            command = args[0] if args else kwargs.get("args")
++            if isinstance(command, (list, tuple)) and command and command[0] == "agent":
++                env = kwargs.get("env") or {}
++                launched.append(
++                    {
++                        "cwd": kwargs.get("cwd"),
++                        "has_git_token": "CURSOR_GIT_TOKEN" in env,
++                    }
++                )
++                return FakeProcess()
++            return original_popen(*args, **kwargs)
++
++        self.supervisor._get_secret_string = boom  # type: ignore[method-assign]
++        adapter.subprocess.Popen = fake_popen  # type: ignore[method-assign]
++        try:
++            self.supervisor.run()
++        finally:
++            adapter.subprocess.Popen = original_popen  # type: ignore[method-assign]
++            self.supervisor._get_secret_string = original_get  # type: ignore[method-assign]
++
++        self.assertEqual(len(launched), 1)
++        self.assertFalse(launched[0]["has_git_token"])
++        self.assertIsNone(self.supervisor.state.snapshot()["last_error"])
++
++    def test_worker_env_includes_credential_helper_when_token_present(self) -> None:
++        helper = self.supervisor.install_git_credentials("github_pat_test")
++        env = self.supervisor._worker_env("test-service-account-key")
++        self.assertEqual(env["CURSOR_GIT_TOKEN"], "github_pat_test")
++        self.assertEqual(env["GIT_CONFIG_VALUE_1"], helper)
++        self.assertTrue(os.path.isfile(helper))
++        self.assertEqual(env["GIT_CONFIG_KEY_1"], "credential.https://github.com.helper")
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/self-hosted-cloud-agent/agentcore/adapter/worker_adapter.py b/self-hosted-cloud-agent/agentcore/adapter/worker_adapter.py
+index b0c9ef8..cd8b1bc 100644
+--- a/self-hosted-cloud-agent/agentcore/adapter/worker_adapter.py
++++ b/self-hosted-cloud-agent/agentcore/adapter/worker_adapter.py
+@@ -92,6 +92,21 @@ class Config:
+         # the runtime execution role rather than delivered as a task secret.
+         self.api_key = os.environ.get("CURSOR_API_KEY", "")
+         self.api_key_secret_id = os.environ.get("CURSOR_API_KEY_SECRET_ID", "")
++        # Optional GitHub write token for git push / autoCreatePR. Self-hosted workers
++        # do not receive Cursor's GitHub App token or Actions GITHUB_TOKEN.
++        self.git_token = (
++            os.environ.get("CURSOR_GIT_TOKEN", "")
++            or os.environ.get("GH_TOKEN", "")
++            or os.environ.get("GH_WORKER_TOKEN", "")
++        )
++        self.git_token_secret_id = (
++            os.environ.get("CURSOR_GIT_TOKEN_SECRET_ID", "")
++            or os.environ.get("CURSOR_GIT_TOKEN_SECRET_NAME", "")
++        )
++        self.git_credential_helper = os.environ.get(
++            "CURSOR_GIT_CREDENTIAL_HELPER",
++            "/usr/local/bin/git-credential-github-env",
++        )
+         self.aws_region = (
+             os.environ.get("AWS_REGION")
+             or os.environ.get("AWS_DEFAULT_REGION")
+@@ -195,9 +210,96 @@ class WorkerSupervisor:
+         self._process_lock = threading.Lock()
+         self._stop = threading.Event()
+         self._restart_requested = threading.Event()
++        self._git_token = ""
+ 
+     # -- setup ------------------------------------------------------------------
+ 
++    DEFAULT_GIT_TOKEN_SECRET = "cursor-agentcore-worker-git-token"
++    GIT_TOKEN_SECRET_KEYS = (
++        "CURSOR_GIT_TOKEN",
++        "GH_TOKEN",
++        "GH_WORKER_TOKEN",
++        "GITHUB_TOKEN",
++        "token",
++    )
++    CREDENTIAL_HELPER_SCRIPT = """#!/bin/sh
++# Git credential helper for AgentCore / Cursor self-hosted workers.
++# Reads a PAT or GitHub App token from the environment. Never prints it.
++set -eu
++token="${CURSOR_GIT_TOKEN:-${GH_TOKEN:-${GH_WORKER_TOKEN:-${GITHUB_TOKEN:-}}}}"
++cmd="${1:-}"
++if [ "$cmd" != "get" ]; then
++  exit 0
++fi
++host=""
++protocol=""
++while IFS= read -r line; do
++  [ -z "$line" ] && break
++  case "$line" in
++    host=*) host="${line#host=}" ;;
++    protocol=*) protocol="${line#protocol=}" ;;
++  esac
++done
++case "$host" in
++  github.com|*.github.com) ;;
++  *) exit 0 ;;
++esac
++if [ -z "$token" ]; then
++  exit 0
++fi
++printf 'protocol=%s\\n' "${protocol:-https}"
++printf 'host=%s\\n' "$host"
++printf 'username=x-access-token\\n'
++printf 'password=%s\\n' "$token"
++"""
++
++    def _get_secret_string(self, secret_id: str) -> str:
++        """Return SecretString from Secrets Manager using the image AWS CLI."""
++        result = subprocess.run(
++            [
++                "aws", "secretsmanager", "get-secret-value",
++                "--region", self.config.aws_region,
++                "--secret-id", secret_id,
++                "--query", "SecretString",
++                "--output", "text",
++            ],
++            capture_output=True,
++            text=True,
++            timeout=60,
++        )
++        if result.returncode != 0:
++            raise RuntimeError(
++                f"could not read secret {secret_id}: {result.stderr.strip()}"
++            )
++        value = result.stdout.strip()
++        if not value or value == "None":
++            raise RuntimeError(
++                f"secret {secret_id} is empty. Upload the value first."
++            )
++        return value
++
++    @staticmethod
++    def parse_secret_string(raw: str, preferred_keys: tuple[str, ...] = ()) -> str:
++        """Accept a plaintext secret or a JSON object with a preferred key."""
++        value = (raw or "").strip()
++        if not value or value == "None":
++            return ""
++        if value.startswith("{"):
++            try:
++                parsed = json.loads(value)
++            except json.JSONDecodeError:
++                return value
++            if isinstance(parsed, dict):
++                for key in preferred_keys:
++                    candidate = parsed.get(key)
++                    if isinstance(candidate, str) and candidate.strip():
++                        return candidate.strip()
++                for candidate in parsed.values():
++                    if isinstance(candidate, str) and candidate.strip():
++                        return candidate.strip()
++                return ""
++        return value
++
+     def resolve_api_key(self) -> str:
+         """Return the Cursor API key, fetching it from Secrets Manager if needed.
+ 
+@@ -217,30 +319,83 @@ class WorkerSupervisor:
+             )
+ 
+         log(f"fetching the Cursor API key from Secrets Manager: {secret_id}")
+-        result = subprocess.run(
+-            [
+-                "aws", "secretsmanager", "get-secret-value",
+-                "--region", self.config.aws_region,
+-                "--secret-id", secret_id,
+-                "--query", "SecretString",
+-                "--output", "text",
+-            ],
+-            capture_output=True,
+-            text=True,
+-            timeout=60,
+-        )
+-        if result.returncode != 0:
+-            raise RuntimeError(
+-                f"could not read secret {secret_id}: {result.stderr.strip()}"
+-            )
+-
+-        api_key = result.stdout.strip()
+-        if not api_key or api_key == "None":
++        api_key = self.parse_secret_string(self._get_secret_string(secret_id), ("CURSOR_API_KEY",))
++        if not api_key:
+             raise RuntimeError(
+                 f"secret {secret_id} is empty. Upload the service account key first."
+             )
+         return api_key
+ 
++    def resolve_git_token(self) -> str:
++        """Return a GitHub write token, or empty if none is configured.
++
++        Missing or unreadable git secrets must not prevent the worker from launching.
++        Self-hosted AgentCore workers do not inherit Cursor GitHub App tokens.
++        """
++        if self.config.git_token:
++            log("using CURSOR_GIT_TOKEN from the environment")
++            return self.config.git_token
++
++        secret_id = self.config.git_token_secret_id or self.DEFAULT_GIT_TOKEN_SECRET
++        if not self.config.git_token_secret_id:
++            log(
++                "CURSOR_GIT_TOKEN_SECRET_ID unset; trying default secret "
++                f"{secret_id}"
++            )
++        else:
++            log(f"fetching the worker git token from Secrets Manager: {secret_id}")
++
++        try:
++            token = self.parse_secret_string(
++                self._get_secret_string(secret_id),
++                self.GIT_TOKEN_SECRET_KEYS,
++            )
++        except Exception as exc:  # noqa: BLE001 - git auth is optional at boot
++            log(f"could not load worker git token ({secret_id}): {exc}")
++            return ""
++
++        if not token:
++            log(f"secret {secret_id} had no usable git token")
++            return ""
++        log("loaded worker git token from Secrets Manager")
++        return token
++
++    def install_git_credentials(self, token: str) -> str:
++        """Write the HTTPS credential helper and remember the token for git/env."""
++        self._git_token = token
++        path = self.config.git_credential_helper
++        try:
++            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
++            with open(path, "w", encoding="utf-8") as handle:
++                handle.write(self.CREDENTIAL_HELPER_SCRIPT)
++            os.chmod(path, 0o755)
++        except OSError as exc:
++            fallback = "/tmp/git-credential-github-env"
++            log(f"could not write {path}: {exc}; using {fallback}")
++            with open(fallback, "w", encoding="utf-8") as handle:
++                handle.write(self.CREDENTIAL_HELPER_SCRIPT)
++            os.chmod(fallback, 0o755)
++            path = fallback
++            self.config.git_credential_helper = path
++        if token:
++            log("installed GitHub HTTPS credential helper for git push/PR")
++        else:
++            log("no worker git token; git push and autoCreatePR will fail")
++        return path
++
++    def _apply_git_config(self, env: dict[str, str]) -> None:
++        """Give git a safe.directory and, when present, the GitHub credential helper."""
++        env["GIT_CONFIG_COUNT"] = "3" if self._git_token else "1"
++        env["GIT_CONFIG_KEY_0"] = "safe.directory"
++        env["GIT_CONFIG_VALUE_0"] = "*"
++        if self._git_token:
++            env["CURSOR_GIT_TOKEN"] = self._git_token
++            env["GH_TOKEN"] = self._git_token
++            env["GIT_CONFIG_KEY_1"] = "credential.https://github.com.helper"
++            env["GIT_CONFIG_VALUE_1"] = self.config.git_credential_helper
++            env["GIT_CONFIG_KEY_2"] = "credential.https://github.com.useHttpPath"
++            env["GIT_CONFIG_VALUE_2"] = "true"
++
+     def _git_env(self) -> dict[str, str]:
+         """Drop inherited GIT_* so AgentCore cannot redirect git into another work tree."""
+         env = {
+@@ -249,6 +404,11 @@ class WorkerSupervisor:
+             if not key.startswith("GIT_")
+         }
+         env["GIT_TERMINAL_PROMPT"] = "0"
++        # Do not inherit a leftover or host token unless this session resolved one.
++        env.pop("CURSOR_GIT_TOKEN", None)
++        env.pop("GH_TOKEN", None)
++        env.pop("GH_WORKER_TOKEN", None)
++        self._apply_git_config(env)
+         return env
+ 
+     def _worker_env(self, api_key: str) -> dict[str, str]:
+@@ -260,9 +420,6 @@ class WorkerSupervisor:
+         """
+         env = self._git_env()
+         env["CURSOR_API_KEY"] = api_key
+-        env["GIT_CONFIG_COUNT"] = "1"
+-        env["GIT_CONFIG_KEY_0"] = "safe.directory"
+-        env["GIT_CONFIG_VALUE_0"] = "*"
+         return env
+ 
+     def _git(self, *args: str, check: bool = True, timeout: int = 120) -> subprocess.CompletedProcess:
+@@ -377,12 +534,11 @@ class WorkerSupervisor:
+     def prepare_workspace(self) -> None:
+         """Set origin to WORKER_REPOSITORY_URL on the persistent workspace.
+ 
+-        Cursor derives the repo label from the origin remote. Sibling EC2, ECS, and
+-        EKS targets only set that remote: the worker image has no Git credentials, so
+-        a private HTTPS GitHub URL cannot be fetched and must not block startup.
++        Cursor derives the repo label from the origin remote. Fetch and checkout are
++        best-effort. When a worker git token is loaded, private HTTPS remotes can be
++        fetched. Without one, a private URL must not block startup: sibling EC2, ECS,
++        and EKS targets only set the remote in that case.
+ 
+-        Fetch and checkout are best-effort. When they succeed (public repo, or a later
+-        session whose EBS volume already has objects), the workspace gets a real HEAD.
+         Fetch failure is logged and the worker still launches.
+         """
+         worker_dir = self.config.worker_dir
+@@ -429,11 +585,16 @@ class WorkerSupervisor:
+ 
+         if fetched.returncode != 0:
+             detail = (fetched.stderr or fetched.stdout).strip() or f"exit {fetched.returncode}"
+-            log(
+-                f"git fetch failed ({detail}); continuing with origin only. "
+-                "The worker image has no Git credentials, so private HTTPS remotes "
+-                "cannot be cloned here. Sibling targets only set the remote."
++            hint = (
++                "Check CURSOR_GIT_TOKEN / CURSOR_GIT_TOKEN_SECRET_ID and the "
++                "runtime role GetSecretValue grant."
++                if self._git_token
++                else (
++                    "No worker git token is loaded, so private HTTPS remotes cannot "
++                    "be cloned here. Sibling targets only set the remote."
++                )
+             )
++            log(f"git fetch failed ({detail}); continuing with origin only. {hint}")
+             self._log_workspace_ready()
+             return
+ 
+@@ -510,6 +671,7 @@ class WorkerSupervisor:
+         """Supervise the worker until told to stop or the restart budget is spent."""
+         try:
+             api_key = self.resolve_api_key()
++            self.install_git_credentials(self.resolve_git_token())
+             self.prepare_workspace()
+         except Exception as exc:  # noqa: BLE001 - surface any setup failure as health state
+             log(f"startup failed: {exc}")
+diff --git a/self-hosted-cloud-agent/agentcore/docker/Dockerfile b/self-hosted-cloud-agent/agentcore/docker/Dockerfile
+index adc07ae..e802622 100644
+--- a/self-hosted-cloud-agent/agentcore/docker/Dockerfile
++++ b/self-hosted-cloud-agent/agentcore/docker/Dockerfile
+@@ -59,8 +59,9 @@ RUN mkdir -p /mnt/workspace
+ 
+ COPY config/labels.json /etc/cursor/labels.json
+ COPY adapter/worker_adapter.py /usr/local/bin/cursor-worker-adapter
++COPY adapter/git-credential-github-env /usr/local/bin/git-credential-github-env
+ 
+-RUN chmod +x /usr/local/bin/cursor-worker-adapter
++RUN chmod +x /usr/local/bin/cursor-worker-adapter /usr/local/bin/git-credential-github-env
+ 
+ WORKDIR /mnt/workspace
+ 
+diff --git a/self-hosted-cloud-agent/agentcore/github/WORKER_GIT.md b/self-hosted-cloud-agent/agentcore/github/WORKER_GIT.md
+new file mode 100644
+index 0000000..0eefd0a
+--- /dev/null
++++ b/self-hosted-cloud-agent/agentcore/github/WORKER_GIT.md
+@@ -0,0 +1,74 @@
++# Worker git credentials (so agents can open PRs)
++
++Self-hosted Cursor / AgentCore workers **do not** receive Cursor’s GitHub App token and **do not** see the Actions `GITHUB_TOKEN`. Push and `autoCreatePR` use whatever credentials are already on the worker VM. That is Cursor’s self-hosted design.
++
++Widening `.github/workflows/cursor-agent-in-progress.yml` `permissions:` (for example `contents: write`) does **not** let an agent open a PR. That token exists only in the kickoff job, which never has the agent’s commits.
++
++Copy this file into the **application** repository (not cursor-cookbook). The adapter in the worker image is what loads the token at boot.
++
++## What to put on the AgentCore worker
++
++Create a **fine-grained PAT** (GitHub → Settings → Developer settings → Fine-grained tokens) for the application repo in `WORKER_REPOSITORY_URL`:
++
++| Permission | Access |
++|---|---|
++| Contents | Read and write |
++| Pull requests | Read and write |
++| Workflows | Read and write (needed if the agent edits `.github/workflows/*.yml`) |
++| Metadata | Read (automatic) |
++
++Do **not** put this token in git or `config.yaml`.
++
++Store it in Secrets Manager. Default name: `cursor-agentcore-worker-git-token`. JSON (preferred) or plaintext:
++
++```json
++{"CURSOR_GIT_TOKEN":"github_pat_..."}
++```
++
++From `self-hosted-cloud-agent/agentcore`:
++
++```bash
++export CURSOR_GIT_TOKEN=github_pat_...
++make agentcore-put-git-token-secret
++make agentcore-terraform-apply
++make agentcore-ecr-build-push
++```
++
++Terraform sets `CURSOR_GIT_TOKEN_SECRET_ID` on the runtime and grants the execution role `secretsmanager:GetSecretValue` on that ARN. If the secret already exists, set `CREATE_CURSOR_GIT_TOKEN_SECRET=false` before apply.
++
++The adapter fetches the token at startup, installs `/usr/local/bin/git-credential-github-env`, and exports `CURSOR_GIT_TOKEN` to `agent worker`. A missing secret is logged and is not fatal; `git push` then fails.
++
++A **running** session does not pick up a new image or runtime env. Start a new session after the apply and image push.
++
++## Fallback on an older image
++
++If the live image does not yet fetch the git token, load it in the claimed workspace:
++
++```bash
++.github/scripts/load-worker-git-token.sh
++```
++
++Aliases the helper also accepts: `GH_TOKEN`, `GH_WORKER_TOKEN`.
++
++## Check
++
++On a claimed worker:
++
++```bash
++git ls-remote --heads origin
++git push -u origin HEAD
++```
++
++`git ls-remote` can succeed on a public repo **without** write access. `git push` is the real check. Adapter logs should include `loaded worker git token from Secrets Manager`.
++
++## What will not work
++
++- Raising the kickoff workflow’s `GITHUB_TOKEN` scopes
++- Expanding `GH_PROJECT_TOKEN` **only** as an Actions secret (it is not injected into AgentCore)
++- Relying on Cursor hosted-VM App tokens — those are not injected into self-hosted workers
++
++You **can** reuse the same PAT as `GH_PROJECT_TOKEN` **if** you also install it on the worker and add Contents + Pull requests write. Projects: Read stays required for the 5-minute scan.
++
++## Cursor team-pool minting (optional alternative)
++
++If you switch from AgentCore to Cursor’s `agent worker --pool` with `--mint-github-token` / `--clone-git-repos`, a team admin can enable GitHub token minting in the Cloud Agents dashboard. That still does not apply to this AgentCore image until the worker is started that way.
+diff --git a/self-hosted-cloud-agent/agentcore/github/cursor-agent-in-progress.yml b/self-hosted-cloud-agent/agentcore/github/cursor-agent-in-progress.yml
+index 71cc344..e39806f 100644
+--- a/self-hosted-cloud-agent/agentcore/github/cursor-agent-in-progress.yml
++++ b/self-hosted-cloud-agent/agentcore/github/cursor-agent-in-progress.yml
+@@ -12,6 +12,11 @@
+ #   GH_PROJECT_TOKEN   Fine-grained PAT: Projects: Read on the org/user that owns the
+ #                      board, plus repository access. GITHUB_TOKEN cannot read Projects v2.
+ #
++# Agent PRs are created by the AgentCore worker, not this workflow.
++# The worker needs its own write token (CURSOR_GIT_TOKEN in
++# cursor-agentcore-worker-git-token). See WORKER_GIT.md.
++# Raising `permissions:` here does not let the agent git push.
++#
+ # The AgentCore worker session must already be HealthyBusy or the job waits in the pool.
+ name: Cursor agent on In Progress
+ 
+diff --git a/self-hosted-cloud-agent/agentcore/github/scripts/configure-worker-git.sh b/self-hosted-cloud-agent/agentcore/github/scripts/configure-worker-git.sh
+new file mode 100755
+index 0000000..d02eeee
+--- /dev/null
++++ b/self-hosted-cloud-agent/agentcore/github/scripts/configure-worker-git.sh
+@@ -0,0 +1,18 @@
++#!/bin/sh
++# Configure HTTPS git push for this checkout using a worker env token.
++# Safe to run on every AgentCore session start. No-op if no token is set.
++set -eu
++root="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
++helper="$root/.github/scripts/git-credential-github-env"
++chmod +x "$helper"
++
++token="${CURSOR_GIT_TOKEN:-${GH_TOKEN:-${GH_WORKER_TOKEN:-${GITHUB_TOKEN:-}}}}"
++if [ -z "$token" ]; then
++  echo "configure-worker-git: no CURSOR_GIT_TOKEN/GH_TOKEN/GH_WORKER_TOKEN — push/PR will fail" >&2
++  exit 1
++fi
++
++git config --global credential.https://github.com.helper ""
++git config --global --replace-all credential.helper "!$helper"
++git config --global url.https://github.com/.insteadOf git@github.com:
++echo "configure-worker-git: credential helper installed for github.com"
+diff --git a/self-hosted-cloud-agent/agentcore/github/scripts/git-credential-github-env b/self-hosted-cloud-agent/agentcore/github/scripts/git-credential-github-env
+new file mode 100755
+index 0000000..bda3cd3
+--- /dev/null
++++ b/self-hosted-cloud-agent/agentcore/github/scripts/git-credential-github-env
+@@ -0,0 +1,41 @@
++#!/bin/sh
++# Git credential helper for AgentCore / Cursor self-hosted workers.
++# Reads a PAT or GitHub App token from the environment. Never prints it.
++#
++# Wire once on the worker (do not commit a token):
++#   git config --global credential.helper \
++#     '!'"$(pwd)/.github/scripts/git-credential-github-env"
++#
++# Env (first match wins): CURSOR_GIT_TOKEN, GH_TOKEN, GH_WORKER_TOKEN, GITHUB_TOKEN
++set -eu
++
++token="${CURSOR_GIT_TOKEN:-${GH_TOKEN:-${GH_WORKER_TOKEN:-${GITHUB_TOKEN:-}}}}"
++
++cmd="${1:-}"
++if [ "$cmd" != "get" ]; then
++  exit 0
++fi
++
++host=""
++protocol=""
++while IFS= read -r line; do
++  [ -z "$line" ] && break
++  case "$line" in
++    host=*) host="${line#host=}" ;;
++    protocol=*) protocol="${line#protocol=}" ;;
++  esac
++done
++
++case "$host" in
++  github.com|*.github.com) ;;
++  *) exit 0 ;;
++esac
++
++if [ -z "$token" ]; then
++  exit 0
++fi
++
++printf 'protocol=%s\n' "${protocol:-https}"
++printf 'host=%s\n' "$host"
++printf 'username=x-access-token\n'
++printf 'password=%s\n' "$token"
+diff --git a/self-hosted-cloud-agent/agentcore/github/scripts/load-worker-git-token.sh b/self-hosted-cloud-agent/agentcore/github/scripts/load-worker-git-token.sh
+new file mode 100755
+index 0000000..b2530bc
+--- /dev/null
++++ b/self-hosted-cloud-agent/agentcore/github/scripts/load-worker-git-token.sh
+@@ -0,0 +1,36 @@
++#!/bin/sh
++# Fetch the AgentCore worker git token and install the HTTPS credential helper.
++# Use this on images that do not yet call resolve_git_token() at adapter boot.
++# Safe to re-run. Never prints the token.
++set -eu
++
++region="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-west-2}}"
++secret_id="${CURSOR_GIT_TOKEN_SECRET_ID:-${CURSOR_GIT_TOKEN_SECRET_NAME:-cursor-agentcore-worker-git-token}}"
++
++if [ -z "${CURSOR_GIT_TOKEN:-}${GH_TOKEN:-}${GH_WORKER_TOKEN:-}" ]; then
++  raw="$(aws secretsmanager get-secret-value \
++    --region "$region" \
++    --secret-id "$secret_id" \
++    --query SecretString \
++    --output text)"
++  CURSOR_GIT_TOKEN="$(printf '%s' "$raw" | python3 -c '
++import json, sys
++raw = sys.stdin.read().strip()
++if not raw or raw == "None":
++    raise SystemExit("empty secret")
++if raw.startswith("{"):
++    data = json.loads(raw)
++    for key in ("CURSOR_GIT_TOKEN", "GH_TOKEN", "GH_WORKER_TOKEN", "GITHUB_TOKEN", "token"):
++        value = data.get(key)
++        if isinstance(value, str) and value.strip():
++            print(value.strip(), end="")
++            raise SystemExit(0)
++    raise SystemExit("secret JSON has no token key")
++print(raw, end="")
++')"
++  export CURSOR_GIT_TOKEN
++fi
++
++root="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
++"$root/.github/scripts/configure-worker-git.sh"
++echo "load-worker-git-token: credential helper installed"
+diff --git a/self-hosted-cloud-agent/agentcore/terraform/README.md b/self-hosted-cloud-agent/agentcore/terraform/README.md
+index 592c4a2..dbba0b5 100644
+--- a/self-hosted-cloud-agent/agentcore/terraform/README.md
++++ b/self-hosted-cloud-agent/agentcore/terraform/README.md
+@@ -69,6 +69,9 @@ CURSOR_API_KEY=<cursor-service-account-api-key>
+ CURSOR_WORKER_POOL_NAME=agentcore-platform-agents
+ CURSOR_WORKER_IDLE_RELEASE_TIMEOUT=600
+ CURSOR_API_KEY_SECRET_NAME=cursor-agentcore-worker-api-key
++CURSOR_GIT_TOKEN=<github-fine-grained-pat>
++CURSOR_GIT_TOKEN_SECRET_NAME=cursor-agentcore-worker-git-token
++CREATE_CURSOR_GIT_TOKEN_SECRET=true
+ 
+ ECR_REPOSITORY_NAME=cursor-agentcore-worker
+ WORKER_IMAGE_TAG=latest
+@@ -86,6 +89,8 @@ AGENTCORE_IDLE_INSTANCE_TIMEOUT=900
+ 
+ Use a Cursor **service account API key**. `CURSOR_API_KEY` is used only to upload the value to Secrets Manager and for the optional live contract check; it never reaches Terraform state.
+ 
++`CURSOR_GIT_TOKEN` is a fine-grained GitHub PAT (Contents, Pull requests, and Workflows read/write on the application repo). `make agentcore-put-git-token-secret` stores it as `{"CURSOR_GIT_TOKEN":"..."}`. It never reaches Terraform state. If that secret already exists, set `CREATE_CURSOR_GIT_TOKEN_SECRET=false`. Self-hosted workers do not receive Cursor’s GitHub App token; without this secret, `git push` and `autoCreatePR` fail. See [Worker git push and pull requests](../README.md#worker-git-push-and-pull-requests).
++
+ Use an AgentCore-specific pool name so the worker is easy to identify in Cursor Cloud Agents.
+ 
+ `WORKER_REPOSITORY_URL` is the application repository Cloud Agents clone and PR against, not cursor-cookbook. The lab sample is `https://github.com/kaushalavardhanam/kaushalavardhanam.git`. If the variable is empty, the Makefile defaults to this cookbook's git remote, which is wrong for the worker. The worker cannot register without a real application remote.
+@@ -142,6 +147,7 @@ Confirm the plan creates only the expected resources:
+ 
+ - ECR repository.
+ - Secrets Manager secret container for the Cursor service account key.
++- Secrets Manager secret container for the worker GitHub write token (or a data-source lookup when `CREATE_CURSOR_GIT_TOKEN_SECRET=false`).
+ - Capacity provider operator IAM role, with `BedrockAgentCoreRuntimeInstancesOperatorRolePolicy` attached.
+ - Instance IAM role and instance profile, with `BedrockAgentCoreRuntimeInstancesInstanceRolePolicy` attached.
+ - Runtime execution IAM role with a least-privilege inline policy.
+@@ -192,6 +198,7 @@ Both must exist before the first invocation. The adapter reads the secret at sta
+ 
+ ```bash
+ make agentcore-put-api-key-secret
++make agentcore-put-git-token-secret
+ make agentcore-ecr-build-push
+ ```
+ 
+diff --git a/self-hosted-cloud-agent/agentcore/terraform/main.tf b/self-hosted-cloud-agent/agentcore/terraform/main.tf
+index c32f690..788419b 100644
+--- a/self-hosted-cloud-agent/agentcore/terraform/main.tf
++++ b/self-hosted-cloud-agent/agentcore/terraform/main.tf
+@@ -25,9 +25,10 @@ locals {
+     ManagedBy   = "terraform"
+   }
+ 
+-  # AgentCore has no native secret injection, so the adapter reads the key with the runtime
+-  # execution role. This is the env var name the adapter looks for.
+-  secret_id_env_name = "CURSOR_API_KEY_SECRET_ID"
++  # AgentCore has no native secret injection, so the adapter reads secrets with the runtime
++  # execution role. These are the env var names the adapter looks for.
++  secret_id_env_name     = "CURSOR_API_KEY_SECRET_ID"
++  git_token_id_env_name  = "CURSOR_GIT_TOKEN_SECRET_ID"
+ 
+   vpc_id     = var.vpc_id != null ? var.vpc_id : data.aws_vpc.default[0].id
+   subnet_ids = var.subnet_ids != null ? var.subnet_ids : data.aws_subnets.default[0].ids
+@@ -69,7 +70,12 @@ locals {
+   workspace_volume_name = "workspace"
+   workspace_mount_path  = "/mnt/workspace"
+ 
+-  cursor_api_key_secret_arn = aws_secretsmanager_secret.cursor_api_key.arn
++  cursor_api_key_secret_arn   = aws_secretsmanager_secret.cursor_api_key.arn
++  cursor_git_token_secret_arn = (
++    var.create_cursor_git_token_secret
++    ? aws_secretsmanager_secret.cursor_git_token[0].arn
++    : data.aws_secretsmanager_secret.cursor_git_token[0].arn
++  )
+ 
+   # Instances runtimes must NOT receive networkConfiguration. They inherit networking from
+   # the capacity provider's vpcConfiguration, and passing both fails with ValidationException.
+@@ -117,6 +123,7 @@ locals {
+         WORKER_REPOSITORY_URL              = var.worker_repository_url
+         AGENTCORE_WORKER_MAX_RESTARTS      = tostring(var.worker_max_restarts)
+         (local.secret_id_env_name)         = local.cursor_api_key_secret_arn
++        (local.git_token_id_env_name)      = local.cursor_git_token_secret_arn
+       }
+     },
+     # MetadataConfiguration is NOT in the live AWS::BedrockAgentCore::Runtime schema, and
+@@ -173,6 +180,20 @@ resource "aws_secretsmanager_secret" "cursor_api_key" {
+   recovery_window_in_days = var.secret_recovery_window_in_days
+ }
+ 
++# Same pattern for the worker git token. Self-hosted workers do not receive Cursor's
++# GitHub App token. Set create_cursor_git_token_secret=false when the secret already exists.
++resource "aws_secretsmanager_secret" "cursor_git_token" {
++  count                   = var.create_cursor_git_token_secret ? 1 : 0
++  name                    = var.cursor_git_token_secret_name
++  description             = "GitHub PAT or App token for AgentCore worker git push and PRs."
++  recovery_window_in_days = var.secret_recovery_window_in_days
++}
++
++data "aws_secretsmanager_secret" "cursor_git_token" {
++  count = var.create_cursor_git_token_secret ? 0 : 1
++  name  = var.cursor_git_token_secret_name
++}
++
+ # ---------------------------------------------------------------------------
+ # Networking
+ # ---------------------------------------------------------------------------
+@@ -382,14 +403,20 @@ data "aws_iam_policy_document" "runtime_execution" {
+     resources = [aws_ecr_repository.worker.arn]
+   }
+ 
+-  # Added for this target: the adapter fetches the Cursor key at startup because AgentCore
+-  # has no valueFrom-style secret injection. Scoped to this one secret.
++  # Added for this target: the adapter fetches secrets at startup because AgentCore
++  # has no valueFrom-style secret injection. Scoped to these two secrets.
+   statement {
+     sid       = "ReadCursorApiKey"
+     actions   = ["secretsmanager:GetSecretValue"]
+     resources = [local.cursor_api_key_secret_arn]
+   }
+ 
++  statement {
++    sid       = "ReadCursorGitToken"
++    actions   = ["secretsmanager:GetSecretValue"]
++    resources = [local.cursor_git_token_secret_arn]
++  }
++
+   statement {
+     sid = "PublishTraces"
+     actions = [
+diff --git a/self-hosted-cloud-agent/agentcore/terraform/outputs.tf b/self-hosted-cloud-agent/agentcore/terraform/outputs.tf
+index 2195e36..a52cd28 100644
+--- a/self-hosted-cloud-agent/agentcore/terraform/outputs.tf
++++ b/self-hosted-cloud-agent/agentcore/terraform/outputs.tf
+@@ -38,6 +38,16 @@ output "cursor_api_key_secret_name" {
+   value       = aws_secretsmanager_secret.cursor_api_key.name
+ }
+ 
++output "cursor_git_token_secret_name" {
++  description = "Secrets Manager secret to upload the worker GitHub write token into."
++  value       = var.cursor_git_token_secret_name
++}
++
++output "cursor_git_token_secret_arn" {
++  description = "ARN passed to the adapter as CURSOR_GIT_TOKEN_SECRET_ID."
++  value       = local.cursor_git_token_secret_arn
++}
++
+ output "worker_pool_name" {
+   description = "Cursor worker pool name to select in the Cloud Agents dashboard."
+   value       = var.worker_pool_name
+diff --git a/self-hosted-cloud-agent/agentcore/terraform/variables.tf b/self-hosted-cloud-agent/agentcore/terraform/variables.tf
+index 3e0af66..84be628 100644
+--- a/self-hosted-cloud-agent/agentcore/terraform/variables.tf
++++ b/self-hosted-cloud-agent/agentcore/terraform/variables.tf
+@@ -63,6 +63,18 @@ variable "cursor_api_key_secret_name" {
+   default     = "cursor-agentcore-worker-api-key"
+ }
+ 
++variable "cursor_git_token_secret_name" {
++  description = "Secrets Manager secret name holding the worker GitHub write token (PAT or App token). Used for git push and autoCreatePR."
++  type        = string
++  default     = "cursor-agentcore-worker-git-token"
++}
++
++variable "create_cursor_git_token_secret" {
++  description = "Create the git-token secret container. Set false when the secret already exists (created by hand or make agentcore-put-git-token-secret)."
++  type        = bool
++  default     = true
++}
++
+ # ---------------------------------------------------------------------------
+ # Compute
+ # ---------------------------------------------------------------------------
+-- 
+2.43.0
+

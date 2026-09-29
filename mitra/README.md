@@ -28,7 +28,7 @@ Time flows downward: messages 1–7 are the wake-and-greet phase; 8–17 are one
 
 **Flow in one paragraph:** the robot's microphones stream over USB through the `reachy-mini` SDK to a local **openWakeWord** model listening for "mitra". On wake, the robot nods and greets; **Silero VAD** segments utterances, **Whisper** transcribes them (with language detection across English/Kannada/Sanskrit), and a **Strands Agent** — using the **OllamaModel provider** against a local **Qwen3-VL 8B** (conversation + vision + native tool calling) — produces a short Sanskrit reply. Replies pass a Devanagari validator, get spoken by **AI4Bharat Indic Parler-TTS**, and play through the robot's speaker. Object questions make the model call its `capture_image` tool, with a **human-verified Sanskrit lexicon cache** overriding generated names for accuracy.
 
-**Extending to the cloud (Option B)** is a one-line Strands provider swap — `OllamaModel` → `AnthropicModel`/`BedrockModel`. The agent, tools, prompts, and validator are unchanged; wake word, ASR, and TTS stay on the host so raw microphone audio never leaves it, and the local model remains installed as an offline fallback. Details in [DESIGN.md §1.5](DESIGN.md).
+**Extending to the cloud (Option B)** is an explicit provider choice — `models.llm.provider: bedrock` (or `--llm-provider bedrock`) — not a silent swap. In Bedrock mode Ollama/Qwen is not started or contacted; only transcripts and captured images leave the host. Local Ollama remains the default offline path. A Pipecat proof of concept is optional (`--orchestrator pipecat`); the custom orchestrator stays the default. Details in [DESIGN.md §1.5](DESIGN.md), [evals/ADR-001-pipecat-bedrock.md](evals/ADR-001-pipecat-bedrock.md), and [evals/MODEL_RESEARCH.md](evals/MODEL_RESEARCH.md).
 
 ## New to AI? How the Pieces Fit
 
@@ -81,6 +81,7 @@ The architecture separates **sound** from **meaning**: everything left of the or
 | [REQUIREMENTS.md](REQUIREMENTS.md) | Goals, functional requirements, hardware/memory budget, risks, phased plan |
 | [DESIGN.md](DESIGN.md) | Module design, Strands ↔ Reachy Mini integration (why core `strands` with custom tools rather than `strands-robots`), state machine, prompting, testing |
 | [CLAUDE.md](CLAUDE.md) | Project context for Claude Code sessions: load-bearing decisions, conventions, how to regenerate diagrams |
+| [evals/](evals/) | Issue #7: Bedrock/Pipecat research, Sanskrit rubric, recognition corpus |
 
 ## Stack at a Glance
 
@@ -222,7 +223,41 @@ cd mitra
 pip install -e '.[agent,wake,vad,asr]'          # agent + speech-input layers
 pip install torch transformers git+https://github.com/huggingface/parler-tts.git   # Sanskrit TTS
 ollama pull qwen3-vl:8b-instruct                # the LLM (~6 GB, one time)
+# Optional Bedrock mode (no Ollama at runtime):
+pip install -e '.[bedrock]'
+# AWS credentials via the standard chain only — never put keys in config.yaml
 ```
+
+### Bedrock mode (laptop does not load Qwen)
+
+```bash
+# Ollama can stay closed. Confirm credentials, then:
+python main.py --check --llm-provider bedrock --llm-id us.amazon.nova-pro-v1:0
+python main.py --debug --llm-provider bedrock --llm-id us.amazon.nova-pro-v1:0
+```
+
+`main.py --check` in Bedrock mode **skips** the Ollama probe. Region comes from `--llm-region`, `models.llm.region`, or `AWS_REGION`. Failures print an actionable error and do not fall back unless `models.llm.fallback.enabled` is true. Example overlay: [`config.bedrock.example.yaml`](config.bedrock.example.yaml).
+
+### Pipecat proof of concept
+
+```bash
+pip install -e '.[pipecat]'          # optional
+python main.py --orchestrator pipecat
+```
+
+The custom engine remains available (`--orchestrator custom`). See [evals/ADR-001-pipecat-bedrock.md](evals/ADR-001-pipecat-bedrock.md).
+
+### Evaluation scripts (issue #7)
+
+```bash
+python scripts/eval_baseline.py
+python scripts/eval_bedrock_probe.py
+python scripts/eval_recognition.py --audio-dir /path/to/consented/wavs
+python scripts/eval_conversation.py --mode controlled --provider bedrock --model-id us.amazon.nova-pro-v1:0
+python scripts/eval_conversation.py --mode end-to-end --inject
+```
+
+Do not commit private recordings or `tests/mitra-2026-08-22-1038-mobile.pdf`. Corpora and the write-up are under [`evals/`](evals/).
 
 **Unlock the Sanskrit voice** (one time — the TTS model is a *gated* Hugging Face repo with automatic approval):
 

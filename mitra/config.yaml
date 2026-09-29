@@ -1,5 +1,17 @@
 # Mitra runtime configuration (DESIGN.md §7)
 #
+# LLM modes (issue #7):
+#   models.llm.provider: ollama   — local/offline Qwen3-VL (default)
+#   models.llm.provider: bedrock  — all conversational + vision inference via
+#                                   Amazon Bedrock. Ollama/Qwen is not started,
+#                                   loaded, or contacted. Credentials come from
+#                                   the standard AWS chain; do not put keys here.
+# Orchestration:
+#   orchestration.engine: custom  — existing event-driven orchestrator (default)
+#   orchestration.engine: pipecat — proof-of-concept frame pipeline
+
+orchestration:
+  engine: custom                 # custom | pipecat
 # Platform note: tuned here for macOS on Apple Silicon (M1 Max, 32 GB unified
 # memory). Linux values are kept inline as comments so one file serves both.
 # The mlx and parler paths are Apple-Silicon-only.
@@ -36,8 +48,34 @@ models:
       # The M1 Max's 32 GB unified memory has room for the
       # speech models on mps alongside it.
     temperature: 0.3
+    think: false
+    # Bedrock-only keys (ignored unless provider: bedrock). No secrets here.
+    region: null           # default: AWS_REGION / AWS_DEFAULT_REGION
+    timeout_s: 45
+    connect_timeout_s: 5
+    max_retries: 2
+    max_tokens: 256
+    top_p: null
+    streaming: false
+    fallback:              # explicit only — never a silent provider swap
+      enabled: false
+      provider: ollama
+      id: "qwen3-vl:8b-instruct"
   asr:
     # turbo: half the download of large-v3 and 4-6x faster decoding at
+    # near-equal en/kn accuracy — the first latency lever in REQUIREMENTS §8
+    default: "mlx-community/whisper-large-v3-turbo"
+    sanskrit: null         # HF repo of a Sanskrit Whisper fine-tune, once selected (Phase 3)
+    backend: "mlx"          # mlx (Mac) | auto | openai-whisper (Linux eval)
+    cpu_model: null        # openai-whisper size when mlx is unavailable
+    device: "mps"
+    initial_prompt: "Mitra. Short conversational questions in English, Kannada, or Sanskrit."
+    condition_on_previous_text: false
+    no_speech_threshold: 0.6
+    compression_ratio_threshold: 2.4
+    min_peak: 0.008
+    filter_hallucinations: true
+    english_retry: true
     # near-equal en/kn accuracy — the first latency lever in REQUIREMENTS §8.
     # This is the fastest path on this host: mlx runs Whisper on the Metal GPU.
     default: "mlx-community/whisper-large-v3-turbo" # linux: openai/whisper-small
@@ -72,10 +110,14 @@ models:
     model: "models/mitra.onnx" # used by engine: openwakeword
     threshold: 0.6
   vad:
+    engine: "silero"       # silero | energy (dependency-free fallback)
+    min_speech_s: 0.25     # honoured by Silero and energy (was previously dropped)
+    min_silence_s: 0.7
     engine: "silero" # silero | energy (dependency-free fallback)
     min_speech_s: 0.3
     min_silence_s: 0.8
     max_utterance_s: 15.0
+    preroll_s: 0.25
 
 agent:
   deterministic_vision: false # true = orchestrator-mediated capture_image (DESIGN §1.4)

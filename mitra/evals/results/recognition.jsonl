@@ -1,0 +1,13 @@
+{"id": "wake", "expected": "Mitra", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "doing", "expected": "What are you doing?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "live", "expected": "Where do you live?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "play", "expected": "Do you play?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "food", "expected": "What's your favorite food?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "subject", "expected": "What's your favorite subject?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "reading", "expected": "What are you reading?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "music", "expected": "Do you listen to music?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "sports", "expected": "Do you play sports?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "today", "expected": "What will you do today?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "friend", "expected": "Will you be my friend?", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "namaste", "expected": "नमस्ते", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
+{"id": "kim_etat", "expected": "किम् एतत्", "hypothesis": null, "status": "no_audio", "note": "consented WAV not supplied"}
