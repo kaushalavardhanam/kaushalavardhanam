@@ -26,6 +26,12 @@ variable "github_repo" {
   default     = "kaushalavardhanam/kaushalavardhanam"
 }
 
+variable "github_oidc_sub" {
+  description = "The exact `token.actions.githubusercontent.com:sub` claim value the OIDC role trust policy matches. GitHub's real OIDC token carries the repo in its numeric @id form (repo:<owner>@<owner_id>/<repo>@<repo_id>:*), NOT the plain repo:<owner>/<repo>:* form; matching on the plain form causes AssumeRoleWithWebIdentity denial. Defaults to this repo's @id subject."
+  type        = string
+  default     = "repo:kaushalavardhanam@325055035/kaushalavardhanam@956097101:*"
+}
+
 variable "bedrock_model_id" {
   description = "Bedrock model / inference-profile (global CRIS) id the agent invokes. Defaults to Claude Sonnet 5.5; GPT models are opt-in by overriding this. Must be one of the allowed ids the runtime validates and the Bedrock grant covers: global.anthropic.claude-sonnet-5-5, global.openai.gpt-5.6-sol, global.openai.gpt-6-astra."
   type        = string
