@@ -28,7 +28,6 @@ import logging
 import os
 from typing import Any, Dict
 
-from decomposer import run_decomposition
 from github_app import get_installation_token
 from git_pr import open_pull_request
 
@@ -37,6 +36,41 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("agentcore.decomposer")
+
+# Two decomposer implementations are available side by side so either can be
+# demoed. ``DECOMPOSER_IMPL`` selects between them; it DEFAULTS to ``langgraph``
+# so existing behaviour is preserved unless explicitly overridden.
+#
+# * ``langgraph`` (default) — the hand-rolled sentinel-contract workflow in
+#   ``decomposer.py``.
+# * ``strands`` — the Strands Agents SDK workflow in ``decomposer_strands.py``,
+#   which uses native structured output (schema-validated file objects) instead
+#   of the JSON/sentinel parsing.
+#
+# Both expose the same ``run_decomposition(issue_number, title, body, repo,
+# base_branch) -> state`` contract, so nothing downstream changes.
+DECOMPOSER_IMPL = os.environ.get("DECOMPOSER_IMPL", "langgraph").strip().lower()
+
+
+def _select_run_decomposition():
+    """Return the ``run_decomposition`` callable for the configured impl.
+
+    Imported lazily so selecting one implementation never requires the other's
+    dependencies to be installed (e.g. running with the default langgraph impl
+    does not import ``strands``, and vice versa).
+    """
+    if DECOMPOSER_IMPL == "strands":
+        logger.info("Using Strands decomposer (DECOMPOSER_IMPL=strands)")
+        from decomposer_strands import run_decomposition as _run
+        return _run
+    if DECOMPOSER_IMPL not in ("langgraph", ""):
+        logger.warning(
+            "Unknown DECOMPOSER_IMPL=%r; falling back to 'langgraph'.",
+            DECOMPOSER_IMPL,
+        )
+    logger.info("Using LangGraph decomposer (DECOMPOSER_IMPL=langgraph)")
+    from decomposer import run_decomposition as _run
+    return _run
 
 # The invocation payload contract from the Terraform dispatcher
 # (../terraform/lambda/dispatcher.py). ``body`` may be empty; the rest must be
@@ -74,7 +108,9 @@ def process_invocation(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     logger.info("Processing issue #%s in %s (base=%s)", issue_number, repo, base_branch)
 
-    # 1 + 2 + 3: decompose and implement via Bedrock.
+    # 1 + 2 + 3: decompose and implement via Bedrock, using the configured
+    # decomposer implementation (langgraph by default, strands when selected).
+    run_decomposition = _select_run_decomposition()
     state = run_decomposition(
         issue_number=issue_number,
         title=title,
