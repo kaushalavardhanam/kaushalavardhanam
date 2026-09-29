@@ -27,9 +27,18 @@ variable "github_repo" {
 }
 
 variable "bedrock_model_id" {
-  description = "Bedrock model / inference-profile id the agent invokes. Matches the Claude backend's pinned global CRIS profile."
+  description = "Bedrock model / inference-profile (global CRIS) id the agent invokes. Defaults to Claude Sonnet 5.5; GPT models are opt-in by overriding this. Must be one of the allowed ids the runtime validates and the Bedrock grant covers: global.anthropic.claude-sonnet-5-5, global.openai.gpt-5.6-sol, global.openai.gpt-6-astra."
   type        = string
-  default     = "global.anthropic.claude-opus-5"
+  default     = "global.anthropic.claude-sonnet-5-5"
+
+  validation {
+    condition = contains([
+      "global.anthropic.claude-sonnet-5-5",
+      "global.openai.gpt-5.6-sol",
+      "global.openai.gpt-6-astra",
+    ], var.bedrock_model_id)
+    error_message = "bedrock_model_id must be one of: global.anthropic.claude-sonnet-5-5, global.openai.gpt-5.6-sol, global.openai.gpt-6-astra."
+  }
 }
 
 variable "agent_container_image_uri" {

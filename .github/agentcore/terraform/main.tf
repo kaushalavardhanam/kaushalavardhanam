@@ -20,20 +20,31 @@ locals {
   account_id = var.aws_account_id
   partition  = data.aws_partition.current.partition
 
-  # Bedrock ARNs for the pinned model. Three targets are required for global
-  # CRIS (Cross-Region Inference Service), matching the Claude backend:
-  #   1. the regional inference-profile resource
-  #   2. the regional anthropic.* foundation-model resource
-  #   3. the *global* anthropic.* foundation-model resource (no region in the
-  #      ARN), gated by aws:RequestedRegion = "unspecified".
-  #
-  # The pinned model id carries a routing prefix (e.g. "global.") on the
-  # inference profile; the underlying foundation model id strips that prefix.
-  foundation_model_id = replace(var.bedrock_model_id, "/^(global\\.|us\\.|eu\\.|apac\\.)/", "")
+  # The three models the runtime is permitted to invoke, keyed by the global
+  # CRIS inference-profile id (the "global." form) the agent invokes with. The
+  # foundation-model id is that id with the CRIS routing prefix stripped. The
+  # runtime's bedrock_client.py validates BEDROCK_MODEL_ID against exactly this
+  # set, so the code allow-list and this IAM grant stay in lockstep.
+  bedrock_model_ids = [
+    "anthropic.claude-sonnet-5-5",
+    "openai.gpt-5.6-sol",
+    "openai.gpt-6-astra",
+  ]
 
-  bedrock_inference_profile_arn = "arn:${local.partition}:bedrock:${var.aws_region}:${local.account_id}:inference-profile/${var.bedrock_model_id}"
-  bedrock_regional_fm_arn       = "arn:${local.partition}:bedrock:${var.aws_region}::foundation-model/${local.foundation_model_id}"
-  bedrock_global_fm_arn         = "arn:${local.partition}:bedrock::${local.account_id}:foundation-model/${local.foundation_model_id}"
+  # For each model, grant InvokeModel[WithResponseStream] on all four ARN
+  # shapes Bedrock's CRIS authorization checks against. Both the region-scoped
+  # and the empty-region ("::") foundation-model ARNs are required: CRIS
+  # evaluates the request against the empty-account/empty-region variant, which
+  # was the exact cause of the prior AccessDeniedException. The inference-profile
+  # ARNs (regional + wildcard-region) cover the profile the agent invokes by.
+  bedrock_invoke_resources = flatten([
+    for fm_id in local.bedrock_model_ids : [
+      "arn:${local.partition}:bedrock:::foundation-model/${fm_id}",
+      "arn:${local.partition}:bedrock:*::foundation-model/${fm_id}",
+      "arn:${local.partition}:bedrock:*:${local.account_id}:inference-profile/global.${fm_id}",
+      "arn:${local.partition}:bedrock:${var.aws_region}:${local.account_id}:inference-profile/global.${fm_id}",
+    ]
+  ])
 }
 
 ##############################################################################
@@ -69,46 +80,25 @@ resource "aws_iam_role" "agentcore_runtime" {
   tags = var.tags
 }
 
-# Bedrock model-invoke permissions for the agent's execution role: the same
-# three-statement global-CRIS policy shape the Claude OIDC role uses.
+# Bedrock model-invoke permissions for the agent's execution role. Grants
+# InvokeModel[WithResponseStream] on the FM + inference-profile ARNs (all four
+# CRIS-checked shapes) for each of the three allowed models — least-privilege
+# to those models, not bedrock:* on all resources.
 resource "aws_iam_role_policy" "agentcore_runtime_bedrock" {
-  name = "BedrockInvokeClaude"
+  name = "BedrockInvokeModels"
   role = aws_iam_role.agentcore_runtime.id
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "RegionalInferenceProfile"
+        Sid    = "InvokeAllowedModels"
         Effect = "Allow"
         Action = [
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream"
         ]
-        Resource = local.bedrock_inference_profile_arn
-      },
-      {
-        Sid    = "RegionalFoundationModel"
-        Effect = "Allow"
-        Action = [
-          "bedrock:InvokeModel",
-          "bedrock:InvokeModelWithResponseStream"
-        ]
-        Resource = local.bedrock_regional_fm_arn
-      },
-      {
-        Sid    = "GlobalFoundationModel"
-        Effect = "Allow"
-        Action = [
-          "bedrock:InvokeModel",
-          "bedrock:InvokeModelWithResponseStream"
-        ]
-        Resource = local.bedrock_global_fm_arn
-        Condition = {
-          StringEquals = {
-            "aws:RequestedRegion" = "unspecified"
-          }
-        }
+        Resource = local.bedrock_invoke_resources
       }
     ]
   })
