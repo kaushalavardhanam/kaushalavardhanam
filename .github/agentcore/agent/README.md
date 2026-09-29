@@ -25,7 +25,7 @@ the LangGraph supervisor/router pattern from the repo's
 |---|---|
 | `agent.py` | AgentCore Runtime entrypoint. Serves `POST /invocations` + `GET /ping` on :8080 (via the `bedrock-agentcore` SDK, with a stdlib HTTP fallback). Holds `process_invocation()`. |
 | `decomposer.py` | LangGraph `decompose -> implement` workflow. Bedrock-backed. |
-| `bedrock_client.py` | `bedrock-runtime.invoke_model` wrapper (Claude Messages API). |
+| `bedrock_client.py` | Provider-aware `bedrock-runtime.invoke_model` wrapper (Anthropic Messages + OpenAI chat-completions). |
 | `github_app.py` | Reads the GitHub App secret from Secrets Manager, mints an RS256 JWT, exchanges it for an installation access token. |
 | `git_pr.py` | Clone / branch / commit / push / open PR using the installation token. |
 | `Dockerfile` | linux/arm64, python 3.12, installs deps + git. |
@@ -66,21 +66,34 @@ minted at runtime and lives for one hour.
 
 ## Model id
 
-The agent invokes **Claude Opus 5** via the global CRIS inference profile:
+The agent is **provider-aware**: `bedrock_client.py` dispatches on the
+configured model's provider so one `invoke()` signature serves two schemas.
+
+Default (Anthropic Messages schema):
 
 ```
-global.anthropic.claude-opus-5
+global.anthropic.claude-sonnet-5-5
 ```
 
-This is the default in `bedrock_client.py` and is overridden at runtime by the
-`BEDROCK_MODEL_ID` env var.
+GPT models are **opt-in** by overriding `BEDROCK_MODEL_ID` with one of
+(OpenAI chat-completions schema):
 
-> **Terraform follow-up:** `../terraform/variables.tf` still defaults
-> `bedrock_model_id` to `global.anthropic.claude-sonnet-4-5-20250929-v1:0`.
-> That default (and the model-access grant) must be updated to
-> `global.anthropic.claude-opus-5` so the runtime env matches this agent. The
-> Terraform is a separate work item / owned by another worker — flagging here
-> rather than editing it.
+```
+global.openai.gpt-5.6-sol
+global.openai.gpt-6-astra
+```
+
+The client validates `BEDROCK_MODEL_ID` against exactly these three ids and
+fails fast on any other value. The Terraform grants `bedrock:InvokeModel` on the
+FM + inference-profile ARNs for all three (see
+`../terraform/main.tf` `local.bedrock_invoke_resources`), and defaults the
+runtime env `BEDROCK_MODEL_ID` to the Claude Sonnet 5.5 id above.
+
+> **Temperature:** Bedrock's newer models — both Claude Sonnet 5.5 and the
+> OpenAI models — accept only the default temperature (1); a non-default value
+> returns a `ValidationException` (`temperature is deprecated for this model`).
+> Both provider paths therefore forward `temperature` only when it equals 1 and
+> omit it otherwise, so the decomposer's default of 0.2 does not fail the call.
 
 ## Build & push to ECR
 
