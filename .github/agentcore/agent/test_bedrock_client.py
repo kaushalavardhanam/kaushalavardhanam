@@ -212,5 +212,67 @@ class TruncationGuardTests(unittest.TestCase):
         self.assertEqual(client.invoke("hi"), "done")
 
 
+class InvokePartialTests(unittest.TestCase):
+    """invoke_partial returns (text, truncated) and never raises on truncation.
+
+    This is the path the sentinel implement step uses: a truncated response is
+    salvaged (completed <<<FILE>>> blocks kept, the cut file continued per-file)
+    rather than failing the whole sub-task, so the client must hand back the
+    partial text plus the flag instead of raising.
+    """
+
+    def test_anthropic_truncated_returns_partial_and_flag(self):
+        payload = {
+            "stop_reason": "max_tokens",
+            "content": [{"type": "text", "text": "partial body"}],
+        }
+        client, _ = _make_client("global.anthropic.claude-sonnet-5-5", payload)
+        text, truncated = client.invoke_partial("hi")
+        self.assertEqual(text, "partial body")
+        self.assertTrue(truncated)
+
+    def test_anthropic_complete_returns_not_truncated(self):
+        payload = {
+            "stop_reason": "end_turn",
+            "content": [{"type": "text", "text": "whole body"}],
+        }
+        client, _ = _make_client("global.anthropic.claude-sonnet-5-5", payload)
+        text, truncated = client.invoke_partial("hi")
+        self.assertEqual(text, "whole body")
+        self.assertFalse(truncated)
+
+    def test_openai_truncated_returns_partial_and_flag(self):
+        payload = {
+            "choices": [
+                {"finish_reason": "length", "message": {"content": "cut off"}}
+            ]
+        }
+        client, _ = _make_client("global.openai.gpt-5.6-sol", payload)
+        text, truncated = client.invoke_partial("hi")
+        self.assertEqual(text, "cut off")
+        self.assertTrue(truncated)
+
+
+class ClientTimeoutConfigTests(unittest.TestCase):
+    """The bedrock-runtime client must use a read timeout well above botocore's
+    60s default, or a large single-file generation trips ReadTimeoutError
+    mid-implement (observed once max_tokens was raised)."""
+
+    def test_read_timeout_is_well_above_default_60s(self):
+        self.assertGreaterEqual(bedrock_client.BEDROCK_READ_TIMEOUT_SECONDS, 300)
+
+    def test_client_config_applies_the_timeouts(self):
+        import os
+        os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+        client = bedrock_client.BedrockClient(
+            model_id="global.anthropic.claude-sonnet-5-5"
+        )
+        cfg = client._client.meta.config
+        self.assertEqual(cfg.read_timeout, bedrock_client.BEDROCK_READ_TIMEOUT_SECONDS)
+        self.assertEqual(
+            cfg.connect_timeout, bedrock_client.BEDROCK_CONNECT_TIMEOUT_SECONDS
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

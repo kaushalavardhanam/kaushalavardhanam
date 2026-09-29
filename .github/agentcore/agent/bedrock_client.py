@@ -60,6 +60,14 @@ ANTHROPIC_VERSION = "bedrock-2023-05-31"
 # window, so default high; callers may still override per-call.
 DEFAULT_MAX_TOKENS = 32768
 
+# botocore socket read/connect timeouts for the bedrock-runtime client. A single
+# implement call generating a large file can legitimately run well past the
+# botocore default read timeout of 60s (this is what surfaced as a mid-implement
+# ReadTimeoutError once max_tokens was raised). Give generation a generous
+# ceiling; the connect timeout stays short since connection setup is fast.
+BEDROCK_READ_TIMEOUT_SECONDS = 900
+BEDROCK_CONNECT_TIMEOUT_SECONDS = 15
+
 # The only model ids the runtime is permitted to invoke. These are the global
 # CRIS inference-profile ids the Terraform grants InvokeModel on; invoking via
 # the bare foundation-model id is intentionally NOT allowed. Keep this in sync
@@ -134,7 +142,11 @@ class BedrockClient:
         self._client = boto3.client(
             service_name="bedrock-runtime",
             region_name=self.region_name,
-            config=Config(retries={"max_attempts": 5, "mode": "adaptive"}),
+            config=Config(
+                retries={"max_attempts": 5, "mode": "adaptive"},
+                connect_timeout=BEDROCK_CONNECT_TIMEOUT_SECONDS,
+                read_timeout=BEDROCK_READ_TIMEOUT_SECONDS,
+            ),
         )
         logger.info(
             "BedrockClient ready (model=%s provider=%s region=%s)",
@@ -172,8 +184,61 @@ class BedrockClient:
         Raises:
             ClientError: On an AWS/Bedrock API error (surfaced to the caller so
                 the agent can fail the run rather than silently continue).
+            TruncatedResponseError: If generation stopped at the output-token
+                cap (use :meth:`invoke_partial` to handle truncation instead).
             ValueError: If the response contained no text content.
         """
+        text, truncated = self._invoke_raw(
+            prompt, system=system, max_tokens=max_tokens, temperature=temperature
+        )
+        if truncated:
+            raise TruncatedResponseError(
+                f"BedrockClient: response truncated at max_tokens ({max_tokens}) "
+                f"— increase max_tokens or reduce sub-task size."
+            )
+        return text
+
+    def invoke_partial(
+        self,
+        prompt: str,
+        *,
+        system: Optional[str] = None,
+        max_tokens: int = DEFAULT_MAX_TOKENS,
+        temperature: float = 0.2,
+    ) -> "tuple[str, bool]":
+        """Invoke the model and return ``(text, truncated)`` WITHOUT raising.
+
+        Same request/response handling as :meth:`invoke`, but instead of raising
+        :class:`TruncatedResponseError` when the model stopped at the output-token
+        cap, it returns the partial text alongside a ``truncated`` flag. This is
+        what the sentinel-delimited implement step uses: a truncated response
+        still contains completed ``<<<FILE>>>`` blocks worth keeping, and the one
+        file whose ``<<<END FILE>>>`` sentinel is missing is continued per-file
+        and stitched — so truncation degrades to a bounded re-ask rather than a
+        whole-sub-task failure. Callers that need a complete document (e.g. the
+        decompose JSON) should use :meth:`invoke`, which still fails loudly.
+
+        Returns:
+            A ``(text, truncated)`` tuple. ``text`` is the (possibly partial)
+            model output; ``truncated`` is True iff generation stopped at the
+            token cap (Anthropic ``stop_reason=max_tokens`` / OpenAI
+            ``finish_reason=length``).
+        """
+        return self._invoke_raw(
+            prompt, system=system, max_tokens=max_tokens, temperature=temperature
+        )
+
+    def _invoke_raw(
+        self,
+        prompt: str,
+        *,
+        system: Optional[str],
+        max_tokens: int,
+        temperature: float,
+    ) -> "tuple[str, bool]":
+        """Shared invoke path: returns ``(text, truncated)`` and never raises on
+        truncation. :meth:`invoke` raises on the flag; :meth:`invoke_partial`
+        returns it."""
         if self.provider == "anthropic":
             body = self._anthropic_body(
                 prompt, system=system, max_tokens=max_tokens, temperature=temperature
@@ -196,10 +261,13 @@ class BedrockClient:
 
         payload = json.loads(response["body"].read())
         if self.provider == "anthropic":
-            self._raise_if_truncated_anthropic(payload, max_tokens)
-            return self._extract_anthropic_text(payload)
-        self._raise_if_truncated_openai(payload, max_tokens)
-        return self._extract_openai_text(payload)
+            truncated = payload.get("stop_reason") == "max_tokens"
+            return self._extract_anthropic_text(payload), truncated
+        truncated = any(
+            choice.get("finish_reason") == "length"
+            for choice in (payload.get("choices") or [])
+        )
+        return self._extract_openai_text(payload), truncated
 
     # --------------------------------------------------------------------- #
     # Anthropic Messages API
@@ -227,21 +295,6 @@ class BedrockClient:
         if system:
             body["system"] = system
         return body
-
-    @staticmethod
-    def _raise_if_truncated_anthropic(payload: dict, max_tokens: int) -> None:
-        """Fail loudly if the Claude response was cut off at the token cap.
-
-        The Anthropic Messages API reports ``stop_reason == "max_tokens"`` when
-        generation stopped because it reached ``max_tokens`` rather than a
-        natural end (``end_turn``/``stop_sequence``). In that case the returned
-        content is incomplete, so we raise instead of returning a partial body.
-        """
-        if payload.get("stop_reason") == "max_tokens":
-            raise TruncatedResponseError(
-                f"BedrockClient: response truncated at max_tokens ({max_tokens}) "
-                f"(stop_reason=max_tokens) — increase max_tokens or reduce sub-task size."
-            )
 
     @staticmethod
     def _extract_anthropic_text(payload: dict) -> str:
@@ -284,22 +337,6 @@ class BedrockClient:
         if abs(temperature - cls._DEFAULT_TEMPERATURE) < 1e-9:
             body["temperature"] = cls._DEFAULT_TEMPERATURE
         return body
-
-    @staticmethod
-    def _raise_if_truncated_openai(payload: dict, max_tokens: int) -> None:
-        """Fail loudly if the OpenAI response was cut off at the token cap.
-
-        OpenAI chat-completions reports ``choices[i].finish_reason == "length"``
-        when generation stopped at ``max_completion_tokens`` rather than a
-        natural ``stop``. The content is then incomplete, so we raise instead of
-        returning a partial body.
-        """
-        for choice in payload.get("choices") or []:
-            if choice.get("finish_reason") == "length":
-                raise TruncatedResponseError(
-                    f"BedrockClient: response truncated at max_tokens ({max_tokens}) "
-                    f"(finish_reason=length) — increase max_tokens or reduce sub-task size."
-                )
 
     @staticmethod
     def _extract_openai_text(payload: dict) -> str:
