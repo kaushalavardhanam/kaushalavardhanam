@@ -1,10 +1,11 @@
-"""Unit tests for the decomposer's robust JSON extraction.
+"""Unit tests for the decomposer's sentinel-delimited implement contract.
 
-Runs fully offline (no Bedrock, no AWS). Focuses on the model-response JSON
-parsing that broke on issue #13: Sonnet returned a ``files{}`` object whose file
-*content* contained raw newlines / control characters, and the old strict
-``json.loads`` rejected it with "Invalid control character" / "Unterminated
-string". These tests pin the tolerant behaviour and guard the well-formed path.
+Runs fully offline (no Bedrock, no AWS). These pin the DURABLE fix for issue
+#13: file contents are returned as RAW text between ``<<<FILE ...>>>`` /
+``<<<END FILE>>>`` sentinels rather than as JSON string values, so an unescaped
+quote / newline / control char inside a file body can no longer break parsing,
+and a body truncated at the token cap (missing its ``<<<END FILE>>>``) is
+detected and continued per-file instead of failing the whole sub-task.
 
     python -m unittest test_decomposer
 """
@@ -16,102 +17,251 @@ import unittest
 
 import decomposer
 from decomposer import (
-    _escape_control_chars_in_strings,
+    MAX_FILE_CONTINUATIONS,
+    SubTask,
     _extract_json_array,
-    _extract_json_object,
-    _loads_tolerant,
+    _parse_sentinel_files,
+    _sanitize_path,
+    run_decomposition,
 )
 
 
-class TestRobustJsonExtraction(unittest.TestCase):
-    # ---- the exact issue #13 failure mode -------------------------------- #
+# --------------------------------------------------------------------------- #
+# Fake Bedrock client
+# --------------------------------------------------------------------------- #
 
-    def test_object_with_raw_newlines_in_string_value(self):
-        """A files{} payload whose content has REAL newlines must parse.
 
-        This is what Sonnet returned for issue #13 (a SETUP_LOG.md with raw
-        line breaks). Building the JSON by hand with literal '\n' inside the
-        string value reproduces the control character strict JSON rejects.
-        """
-        content = "# MITRA Coherence Check\nline two\nline three"
-        # Hand-built JSON with the newline left LITERAL inside the string value.
-        raw = '{"files": {"docs/SETUP_LOG.md": "' + content + '"}, "note": "wrote log"}'
-        # Sanity: this is exactly what strict json.loads chokes on.
-        with self.assertRaises(json.JSONDecodeError):
-            json.loads(raw)
-        # The tolerant extractor must recover it and preserve the newlines.
-        result = _extract_json_object(raw)
-        self.assertEqual(result["files"]["docs/SETUP_LOG.md"], content)
-        self.assertEqual(result["note"], "wrote log")
+class FakeBedrock:
+    """Scripted stand-in for BedrockClient.
 
-    def test_object_with_tab_and_other_control_char(self):
-        """Literal tab and a bare control char (e.g. 0x0b) inside a value."""
-        content = "col1\tcol2\x0bmore"
-        raw = '{"files": {"a.txt": "' + content + '"}}'
-        with self.assertRaises(json.JSONDecodeError):
-            json.loads(raw)
-        result = _extract_json_object(raw)
-        self.assertEqual(result["files"]["a.txt"], content)
+    ``decompose_response`` is returned (via ``invoke``) for the decompose call.
+    ``implement_responses`` is a list consumed in order by ``invoke_partial``;
+    each entry is ``(text, truncated)``. This lets a test script a truncated
+    first implement response followed by a completing continuation.
+    """
 
-    def test_escape_helper_only_touches_inside_strings(self):
-        """Structural newlines between tokens are untouched; in-string ones escaped."""
-        raw = '{\n  "k": "a\nb"\n}'  # newline after { is structural; the one in "a\nb" is not
-        repaired = _escape_control_chars_in_strings(raw)
-        parsed = json.loads(repaired)  # strict parse now succeeds
-        self.assertEqual(parsed["k"], "a\nb")
+    def __init__(self, decompose_response, implement_responses):
+        self._decompose_response = decompose_response
+        self._implement = list(implement_responses)
+        self.invoke_calls = []
+        self.invoke_partial_calls = []
 
-    def test_escape_helper_respects_backslash_escapes(self):
-        """An already-escaped \\n must not be doubled or misread as string end."""
-        raw = '{"k": "already\\nescaped"}'
-        # Well-formed already; tolerant loader returns it unchanged in meaning.
-        self.assertEqual(_loads_tolerant(raw)["k"], "already\nescaped")
+    def invoke(self, prompt, *, system=None, temperature=0.2, max_tokens=None):
+        self.invoke_calls.append(prompt)
+        return self._decompose_response
 
-    # ---- well-formed responses: behaviour unchanged ---------------------- #
+    def invoke_partial(self, prompt, *, system=None, temperature=0.2, max_tokens=None):
+        self.invoke_partial_calls.append(prompt)
+        if not self._implement:
+            raise AssertionError("invoke_partial called more times than scripted")
+        return self._implement.pop(0)
 
-    def test_wellformed_object_unchanged(self):
-        raw = '{"files": {"x.py": "print(1)\\n"}, "note": "ok"}'
-        self.assertEqual(_extract_json_object(raw), json.loads(raw))
 
-    def test_wellformed_array_unchanged(self):
-        raw = '[{"id": 1, "title": "t", "description": "d"}]'
-        self.assertEqual(_extract_json_array(raw), json.loads(raw))
+def _one_subtask_decompose():
+    return json.dumps([{"id": 1, "title": "Do the thing", "description": "make it so"}])
 
-    # ---- prose / markdown fence tolerance -------------------------------- #
 
-    def test_object_wrapped_in_json_fence(self):
-        raw = 'Here you go:\n```json\n{"files": {"a": "b\nc"}}\n```\nDone.'
-        result = _extract_json_object(raw)
-        self.assertEqual(result["files"]["a"], "b\nc")
+# --------------------------------------------------------------------------- #
+# Sentinel parser — the core of the durable fix
+# --------------------------------------------------------------------------- #
 
-    def test_object_whose_value_contains_a_code_fence(self):
-        """Valid JSON whose file content embeds a ``` fence must NOT be mangled.
 
-        This is the issue #13 failure after the truncation fix: the model
-        returned a complete, valid JSON object, but one file's content was a
-        markdown doc containing a ```bash ... ``` block. Stripping fences first
-        grabbed that inner fence and discarded the envelope. Parse-first fixes it.
-        """
-        doc = "# Setup\n\nRun:\n```bash\necho hi\n```\nDone.\n"
-        payload = {"files": {"docs/setup.md": doc}, "note": "added setup doc"}
-        raw = json.dumps(payload)  # valid JSON; inner ``` lives inside a string
-        result = _extract_json_object(raw)
-        self.assertEqual(result["files"]["docs/setup.md"], doc)
-        self.assertEqual(result["note"], "added setup doc")
+class TestSentinelParser(unittest.TestCase):
 
-    def test_array_with_leading_prose(self):
-        raw = 'Sure:\n[{"id": 1, "title": "x", "description": "y"}]'
-        result = _extract_json_array(raw)
-        self.assertEqual(result[0]["id"], 1)
+    def test_issue13_unescaped_quote_in_large_body_parses_clean(self):
+        """The exact #13 sub-task-5 failure mode: a file body containing an
+        unescaped double-quote (and raw newlines) — structurally impossible to
+        embed in JSON reliably — is now taken VERBATIM and parses cleanly."""
+        body = (
+            '#!/usr/bin/env python3\n'
+            '"""Env check for MITRA."""\n'
+            'MSG = "he said \\"hello\\" and left"\n'
+            'RAW = "an unescaped \" right here breaks JSON"\n'
+            "print('done')\n"
+            + "# padding line\n" * 400  # make it a LARGE body like #13
+        )
+        raw = f'<<<FILE path="mitra/tools/check_env.py">>>\n{body}\n<<<END FILE>>>\n'
+        files, note = _parse_sentinel_files(raw)
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0].path, "mitra/tools/check_env.py")
+        self.assertFalse(files[0].truncated)
+        # Byte-for-byte: the raw quote survives, nothing was unescaped.
+        self.assertEqual(files[0].body, body)
+        self.assertIn('unescaped " right here', files[0].body)
 
-    # ---- genuinely unparseable still raises ------------------------------ #
+    def test_truncated_body_missing_end_sentinel_is_detected(self):
+        """A file whose <<<END FILE>>> is missing (cut at the token cap) is
+        flagged truncated rather than silently accepted."""
+        raw = (
+            '<<<FILE path="a/big.py">>>\n'
+            'def f():\n    return "partial content that got cut'
+        )  # no closing sentinel
+        files, note = _parse_sentinel_files(raw)
+        self.assertEqual(len(files), 1)
+        self.assertTrue(files[0].truncated)
+        self.assertIn("partial content", files[0].body)
 
-    def test_no_object_raises_valueerror(self):
-        with self.assertRaises(ValueError):
-            _extract_json_object("no json here at all")
+    def test_multi_file_roundtrip_byte_for_byte(self):
+        """A normal multi-file response round-trips each body exactly."""
+        b1 = "line1\nline2\n\ttabbed\n"
+        b2 = 'print("hi")\n# trailing comment'
+        raw = (
+            f'<<<FILE path="src/one.txt">>>\n{b1}\n<<<END FILE>>>\n'
+            f'<<<FILE path="src/two.py">>>\n{b2}\n<<<END FILE>>>\n'
+            "<<<NOTE>>>added two files<<<END NOTE>>>"
+        )
+        files, note = _parse_sentinel_files(raw)
+        self.assertEqual([f.path for f in files], ["src/one.txt", "src/two.py"])
+        self.assertEqual(files[0].body, b1)
+        self.assertEqual(files[1].body, b2)
+        self.assertFalse(files[0].truncated)
+        self.assertFalse(files[1].truncated)
+        self.assertEqual(note, "added two files")
 
-    def test_no_array_raises_valueerror(self):
+    def test_body_containing_json_and_code_fences_is_verbatim(self):
+        """A body that itself contains JSON braces and ``` fences (which broke
+        the old fence-stripping JSON parser) is untouched."""
+        body = (
+            'Here is JSON: {"files": {"x": "y"}}\n'
+            "```bash\necho hello\n```\n"
+            "and a lone <<<FILE marker-ish text but not a real header\n"
+        )
+        raw = f'<<<FILE path="docs/readme.md">>>\n{body}\n<<<END FILE>>>\n'
+        files, _ = _parse_sentinel_files(raw)
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0].body, body)
+
+    def test_bare_path_header_form_accepted(self):
+        raw = '<<<FILE scripts/run.sh>>>\n#!/bin/sh\necho hi\n<<<END FILE>>>\n'
+        files, _ = _parse_sentinel_files(raw)
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0].path, "scripts/run.sh")
+        self.assertEqual(files[0].body, "#!/bin/sh\necho hi")
+
+
+# --------------------------------------------------------------------------- #
+# End-to-end workflow: truncation -> per-file continuation -> stitch
+# --------------------------------------------------------------------------- #
+
+
+class TestImplementContinuation(unittest.TestCase):
+
+    def test_truncated_file_is_continued_and_stitched(self):
+        """A first implement response truncated mid-file triggers a per-file
+        re-ask; the continuation body is stitched onto the partial."""
+        # First implement call: file opened, body cut off, NO end sentinel.
+        part1 = '<<<FILE path="big.py">>>\ndef f():\n    x = "start of a big file'
+        # Continuation call: the remaining content, properly terminated.
+        part2 = '<<<FILE path="big.py">>>\n end of the big file"\n    return x\n<<<END FILE>>>\n'
+        fake = FakeBedrock(
+            decompose_response=_one_subtask_decompose(),
+            implement_responses=[(part1, True), (part2, False)],
+        )
+        result = run_decomposition(
+            issue_number=13, title="t", body="b", repo="o/r",
+            base_branch="main", bedrock=fake,
+        )
+        self.assertIn("big.py", result["files"])
+        stitched = result["files"]["big.py"]
+        # The stitched file contains both halves, verbatim, joined at the cut.
+        self.assertEqual(
+            stitched,
+            'def f():\n    x = "start of a big file end of the big file"\n    return x',
+        )
+        # Exactly one initial implement + one continuation call.
+        self.assertEqual(len(fake.invoke_partial_calls), 2)
+
+    def test_untruncated_multi_file_needs_no_continuation(self):
+        resp = (
+            '<<<FILE path="a.py">>>\nprint(1)\n<<<END FILE>>>\n'
+            '<<<FILE path="b.py">>>\nprint(2)\n<<<END FILE>>>\n'
+            "<<<NOTE>>>two files<<<END NOTE>>>"
+        )
+        fake = FakeBedrock(
+            decompose_response=_one_subtask_decompose(),
+            implement_responses=[(resp, False)],
+        )
+        result = run_decomposition(
+            issue_number=1, title="t", body="b", repo="o/r",
+            base_branch="main", bedrock=fake,
+        )
+        self.assertEqual(result["files"], {"a.py": "print(1)", "b.py": "print(2)"})
+        # No continuation call was made.
+        self.assertEqual(len(fake.invoke_partial_calls), 1)
+
+    def test_no_file_blocks_is_a_step_failure(self):
+        """If the model ignores the sentinel contract entirely, the step errors
+        (rather than silently producing nothing)."""
+        fake = FakeBedrock(
+            decompose_response=_one_subtask_decompose(),
+            implement_responses=[("I could not do this task, sorry.", False)],
+        )
+        with self.assertRaises(RuntimeError) as ctx:
+            run_decomposition(
+                issue_number=1, title="t", body="b", repo="o/r",
+                base_branch="main", bedrock=fake,
+            )
+        self.assertIn("no <<<FILE>>> blocks", str(ctx.exception))
+
+    def test_continuation_is_bounded(self):
+        """A file that stays truncated forever stops after the bound and returns
+        best-effort stitched content instead of looping."""
+        # 1 initial + MAX_FILE_CONTINUATIONS continuations, all truncated.
+        responses = [('<<<FILE path="x">>>\nchunk0', True)]
+        responses += [
+            (f'<<<FILE path="x">>>\nchunk{i}', True)
+            for i in range(1, MAX_FILE_CONTINUATIONS + 1)
+        ]
+        fake = FakeBedrock(
+            decompose_response=_one_subtask_decompose(),
+            implement_responses=responses,
+        )
+        result = run_decomposition(
+            issue_number=1, title="t", body="b", repo="o/r",
+            base_branch="main", bedrock=fake,
+        )
+        # It stitched every chunk and stopped (did not exceed the bound).
+        self.assertIn("x", result["files"])
+        self.assertTrue(result["files"]["x"].startswith("chunk0"))
+        self.assertEqual(
+            len(fake.invoke_partial_calls), 1 + MAX_FILE_CONTINUATIONS
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Decompose still uses JSON (metadata only) — keep that path covered
+# --------------------------------------------------------------------------- #
+
+
+class TestDecomposeJsonArray(unittest.TestCase):
+
+    def test_plain_array(self):
+        raw = '[{"id": 1, "title": "a", "description": "d"}]'
+        self.assertEqual(_extract_json_array(raw)[0]["title"], "a")
+
+    def test_array_wrapped_in_fence(self):
+        raw = '```json\n[{"id": 1, "title": "a", "description": "d"}]\n```'
+        self.assertEqual(len(_extract_json_array(raw)), 1)
+
+    def test_array_with_surrounding_prose(self):
+        raw = 'Here you go:\n[{"id": 1, "title": "a", "description": "d"}]\nDone.'
+        self.assertEqual(_extract_json_array(raw)[0]["id"], 1)
+
+    def test_no_array_raises(self):
         with self.assertRaises(ValueError):
             _extract_json_array("no array here")
+
+
+class TestSanitizePath(unittest.TestCase):
+
+    def test_rejects_traversal(self):
+        self.assertIsNone(_sanitize_path("../etc/passwd"))
+
+    def test_strips_leading_slash(self):
+        self.assertEqual(_sanitize_path("/abs/path.py"), "abs/path.py")
+
+    def test_normal_path(self):
+        self.assertEqual(_sanitize_path("a/b/c.py"), "a/b/c.py")
 
 
 if __name__ == "__main__":
