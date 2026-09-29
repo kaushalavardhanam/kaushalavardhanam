@@ -212,5 +212,28 @@ class TruncationGuardTests(unittest.TestCase):
         self.assertEqual(client.invoke("hi"), "done")
 
 
+class ClientTimeoutConfigTests(unittest.TestCase):
+    """The botocore read timeout must be well above the 60s default, because a
+    single large-output generation (up to DEFAULT_MAX_TOKENS) can run for
+    minutes; the 60s default raised ReadTimeoutError mid-generation once
+    max_tokens was increased.
+    """
+
+    def test_read_timeout_constant_well_above_60s(self):
+        self.assertGreaterEqual(bedrock_client.BEDROCK_READ_TIMEOUT_SECONDS, 300)
+
+    def test_client_config_applies_high_read_timeout(self):
+        import os
+
+        os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+        client = BedrockClient(model_id=bedrock_client.DEFAULT_MODEL_ID)
+        cfg = client._client.meta.config
+        self.assertEqual(
+            cfg.read_timeout, bedrock_client.BEDROCK_READ_TIMEOUT_SECONDS
+        )
+        self.assertGreaterEqual(cfg.read_timeout, 300)
+        self.assertEqual(cfg.connect_timeout, 15)
+
+
 if __name__ == "__main__":
     unittest.main()
