@@ -78,25 +78,45 @@ def graphql(token: str, query: str, variables: dict) -> dict:
 
 
 def invoke_dispatcher(function_name: str, region: str, payload: dict) -> dict:
-    """Invoke the dispatcher Lambda synchronously with the issue payload."""
+    """Invoke the dispatcher Lambda asynchronously (fire-and-forget).
+
+    The dispatcher fans out to the Bedrock AgentCore Runtime agent, whose full
+    decompose -> implement -> open-PR run takes many minutes. A synchronous
+    ``RequestResponse`` invoke made this CI step block on that entire run and
+    time out at the Lambda client's default 60s read timeout
+    (``ReadTimeoutError`` on the ``/functions/.../invocations`` endpoint), so
+    the issue never got dispatched.
+
+    We invoke with ``InvocationType="Event"`` instead: Lambda enqueues the
+    event and returns immediately with HTTP 202 and an EMPTY payload, without
+    waiting for the function to run. The kickoff step therefore finishes in
+    seconds regardless of how long the agent takes.
+
+    Because the invoke is async there is no function result to inspect:
+    ``FunctionError`` and the response ``Payload`` only apply to a synchronous
+    ``RequestResponse`` invoke, so we do not read or require them here. We still
+    return the ``{"status_code", "response"}`` shape ``start_agent`` consumes;
+    ``response`` is an empty dict since the run has not produced anything yet.
+    """
     client = boto3.client("lambda", region_name=region)
     resp = client.invoke(
         FunctionName=function_name,
-        InvocationType="RequestResponse",
+        InvocationType="Event",
         Payload=json.dumps(payload).encode("utf-8"),
     )
+    # Async invoke: success is HTTP 202 (Accepted). Anything else is a
+    # dispatch-time failure (throttling, auth, bad function name, ...); Lambda
+    # may include an error description in the response Payload for those.
     status = resp.get("StatusCode")
-    function_error = resp.get("FunctionError")
-    raw = resp["Payload"].read().decode("utf-8") if resp.get("Payload") else ""
-    try:
-        parsed = json.loads(raw) if raw else {}
-    except json.JSONDecodeError:
-        parsed = {"raw": raw}
-    if function_error:
-        raise RuntimeError(f"dispatcher Lambda returned FunctionError={function_error!r}: {raw}")
-    if status is not None and status >= 300:
-        raise RuntimeError(f"dispatcher Lambda invoke failed with StatusCode={status}: {raw}")
-    return {"status_code": status, "response": parsed}
+    if status != 202:
+        raw = ""
+        body = resp.get("Payload")
+        if body is not None and hasattr(body, "read"):
+            raw = body.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"dispatcher Lambda async invoke failed with StatusCode={status}: {raw}"
+        )
+    return {"status_code": status, "response": {}}
 
 
 def already_started(repo: str, issue_number: int, token: str) -> bool:
