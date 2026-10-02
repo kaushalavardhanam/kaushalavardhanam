@@ -78,9 +78,9 @@ variable "image_tag" {
 }
 
 variable "image_build_source_version" {
-  description = "The git ref (branch name or commit SHA) CodeBuild clones and builds the image from. Defaults to the branch carrying the agent source + Dockerfile. Override per build with `aws codebuild start-build --source-version <ref>`."
+  description = "The git ref (branch name or commit SHA) CodeBuild clones and builds the image from. Defaults to main, so images follow merged code. Override per build with `aws codebuild start-build --source-version <ref>`."
   type        = string
-  default     = "agentcore-backend"
+  default     = "main"
 }
 
 variable "agent_budget_usd" {
