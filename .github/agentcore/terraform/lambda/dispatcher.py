@@ -1,115 +1,111 @@
-"""Dispatcher Lambda for the AgentCore decomposer backend.
+"""Dispatcher Lambda for the AgentCore coding agent.
 
-Receives an event shaped like::
+Invoked asynchronously by CI (``.github/scripts/kick_agentcore_agent.py`` and
+``kick_agentcore_fix.py``) with one of::
 
-    {
-        "issue_number": 42,
-        "title": "agent-...",
-        "body": "...",
-        "base_branch": "main",
-        "repo": "kaushalavardhanam/kaushalavardhanam"
-    }
+    {"mode": "issue", "issue_number": 42, "title": "agent-...", "body": "...",
+     "base_branch": "main", "repo": "owner/name"}
+    {"mode": "fix", "repo": "owner/name", "pr_number": 25, "comment_id": 123}
 
-validates it, and invokes the Bedrock AgentCore Runtime agent (ARN in the
-``AGENT_RUNTIME_ARN`` env var, set by Terraform). The event is passed through
-verbatim as the invocation payload: the runtime's ``process_invocation`` (see
-``../../agent/agent.py``) expects exactly this dict shape
-``{issue_number, title, body, base_branch, repo}``.
+(``mode`` defaults to ``issue``.) It validates the event and invokes the
+Bedrock AgentCore Runtime (``AGENT_RUNTIME_ARN``) with:
 
-Dependency-light: boto3 ships in the Lambda Python runtime by default, so no
-extra packaging is required.
+* a DETERMINISTIC ``runtimeSessionId`` — one per issue, one per fix comment —
+  so a duplicate delivery reaches the same session (which answers
+  ``already_running``) instead of launching a second microVM;
+* the event plus ``runtime_arn``, so the runtime can stop its own session as
+  soon as the job finishes.
+
+The runtime acknowledges within seconds and does the work in the background,
+so this function returns well inside its timeout. Async retries are disabled
+in Terraform (``aws_lambda_function_event_invoke_config``).
+
+Dependency-light: boto3 ships in the Lambda Python runtime.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
-REQUIRED_FIELDS = ("issue_number", "title", "body", "base_branch", "repo")
+REQUIRED_FIELDS = {
+    "issue": ("issue_number", "title", "body", "base_branch", "repo"),
+    "fix": ("repo", "pr_number", "comment_id"),
+}
+TITLE_PREFIX = "agent-"
+
+
+def session_id_for(event: dict) -> str:
+    """One runtime session per unit of work (AgentCore requires >= 33 chars)."""
+    if event.get("mode") == "fix":
+        key = f"{event['repo']}-pr-{event['pr_number']}-comment-{event['comment_id']}"
+    else:
+        key = f"{event['repo']}-issue-{event['issue_number']}"
+    readable = re.sub(r"[^A-Za-z0-9-]", "-", key)[:200]
+    return f"{readable}-{hashlib.sha256(key.encode()).hexdigest()[:16]}"
+
+
+def _response(status: int, **body) -> dict:
+    return {"statusCode": status, "body": json.dumps(body)}
 
 
 def _read_response_body(resp):
-    """Read the invoke_agent_runtime response into a JSON-safe object.
-
-    The data-plane ``invoke_agent_runtime`` returns the agent output under the
-    ``response`` key as a botocore ``StreamingBody`` (NOT ``payload`` — that is
-    the request field). Read it fully and try to JSON-decode it; fall back to
-    the raw text if it is not JSON.
-    """
+    """The runtime's reply arrives under ``response`` as a StreamingBody."""
     body = resp.get("response")
     if body is None:
         return None
     raw = body.read() if hasattr(body, "read") else body
     if isinstance(raw, (bytes, bytearray)):
         raw = raw.decode("utf-8", errors="replace")
-    if not raw:
-        return None
     try:
-        return json.loads(raw)
+        return json.loads(raw) if raw else None
     except (ValueError, TypeError):
         return raw
 
 
 def handler(event, context):  # noqa: ANN001 - Lambda signature
-    event = event or {}
-    agent_runtime_arn = os.environ.get("AGENT_RUNTIME_ARN", "")
-
-    missing = [f for f in REQUIRED_FIELDS if f not in event]
+    event = dict(event or {})
+    event.setdefault("mode", "issue")
+    required = REQUIRED_FIELDS.get(event["mode"])
+    if required is None:
+        return _response(400, error=f"unknown mode {event['mode']!r}")
+    missing = [f for f in required if f not in event]
     if missing:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "missing fields", "missing": missing}),
-        }
+        return _response(400, error="missing fields", missing=missing)
+    # Launch gate: only agent-* issues ever start a session from here.
+    if event["mode"] == "issue" and not str(event["title"]).lower().startswith(TITLE_PREFIX):
+        return _response(400, error=f"title does not start with {TITLE_PREFIX!r}")
 
+    agent_runtime_arn = os.environ.get("AGENT_RUNTIME_ARN", "")
     if not agent_runtime_arn:
-        return {
-            "statusCode": 502,
-            "body": json.dumps({"error": "AGENT_RUNTIME_ARN is not configured"}),
-        }
+        return _response(502, error="AGENT_RUNTIME_ARN is not configured")
 
-    client = boto3.client("bedrock-agentcore")
-
-    # Pass the validated event through unchanged as the runtime payload — it is
-    # the exact shape process_invocation() consumes.
-    payload = json.dumps(event).encode("utf-8")
-
+    session_id = session_id_for(event)
+    payload = json.dumps({**event, "runtime_arn": agent_runtime_arn}).encode("utf-8")
     try:
-        resp = client.invoke_agent_runtime(
+        resp = boto3.client("bedrock-agentcore").invoke_agent_runtime(
             agentRuntimeArn=agent_runtime_arn,
+            runtimeSessionId=session_id,
             payload=payload,
             contentType="application/json",
             accept="application/json",
         )
     except (ClientError, BotoCoreError) as exc:
-        # Botocore/client failure invoking the runtime -> 502 upstream error.
-        return {
-            "statusCode": 502,
-            "body": json.dumps(
-                {
-                    "error": "invoke_agent_runtime failed",
-                    "detail": str(exc),
-                    "agent_runtime_arn": agent_runtime_arn,
-                }
-            ),
-        }
+        return _response(502, error="invoke_agent_runtime failed", detail=str(exc),
+                         agent_runtime_arn=agent_runtime_arn)
 
-    result = _read_response_body(resp)
-
-    return {
-        "statusCode": 200,
-        "body": json.dumps(
-            {
-                "message": "invoked AgentCore Runtime",
-                "agent_runtime_arn": agent_runtime_arn,
-                "issue_number": event["issue_number"],
-                "repo": event["repo"],
-                "base_branch": event["base_branch"],
-                "runtime_session_id": resp.get("runtimeSessionId"),
-                "runtime_status_code": resp.get("statusCode"),
-                "runtime_response": result,
-            }
-        ),
-    }
+    return _response(
+        200,
+        message="invoked AgentCore Runtime",
+        mode=event["mode"],
+        issue_number=event.get("issue_number"),
+        pr_number=event.get("pr_number"),
+        repo=event["repo"],
+        runtime_session_id=resp.get("runtimeSessionId") or session_id,
+        runtime_response=_read_response_body(resp),
+    )

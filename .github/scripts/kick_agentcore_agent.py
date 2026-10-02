@@ -163,6 +163,9 @@ def start_agent(
     if issue.get("pull_request"):
         print(f"skip #{number}: pull request")
         return
+    if issue.get("state") != "open":
+        print(f"skip #{number}: issue is {issue.get('state')}")
+        return
     if already_started(repo, number, comment_token):
         print(f"skip #{number}: already kicked off")
         return
@@ -171,32 +174,43 @@ def start_agent(
     base_branch = resolve_base_branch(issue, base_override, default_base)
 
     payload = {
+        "mode": "issue",
         "issue_number": number,
         "title": title,
         "body": body,
         "base_branch": base_branch,
         "repo": repo,
     }
+    # Claim the issue BEFORE dispatching: the marker is the dedup key the 5-minute
+    # poll checks, so posting it first means a failed comment can never cause a
+    # re-dispatch loop. If the dispatch itself fails, the claim is withdrawn so
+    # the next poll retries.
+    claim = github_request(
+        f"{GITHUB_API}/repos/{repo}/issues/{number}/comments",
+        comment_token,
+        {"body": (
+            f"{KICKOFF_MARKER}\n"
+            f"Dispatching issue #{number} to the AgentCore coding agent "
+            f"(Lambda `{function_name}`, region `{region}`, base `{base_branch}`). "
+            f"It will plan the work, implement and test each sub-task, and open a PR "
+            f"against `{base_branch}` — or comment here if it cannot."
+        )},
+    )
     print(
         f"invoking dispatcher Lambda {function_name!r} in {region} for #{number} "
         f"(base_branch={base_branch})"
     )
-    result = invoke_dispatcher(function_name, region, payload)
-    response = result.get("response") or {}
-    comment = (
-        f"{KICKOFF_MARKER}\n"
-        f"Dispatched issue #{number} to the AgentCore decomposer backend "
-        f"via Lambda `{function_name}` (region `{region}`, base `{base_branch}`).\n\n"
-        f"- Dispatcher status: `{result.get('status_code')}`\n"
-        f"- The AgentCore Runtime agent will decompose the issue and open a PR "
-        f"against `{base_branch}`.\n"
-    )
-    github_request(
-        f"{GITHUB_API}/repos/{repo}/issues/{number}/comments",
-        comment_token,
-        {"body": comment},
-    )
-    print(f"dispatched #{number} -> {json.dumps(response)}")
+    try:
+        result = invoke_dispatcher(function_name, region, payload)
+    except Exception:
+        if isinstance(claim, dict) and claim.get("id"):
+            github_request(
+                f"{GITHUB_API}/repos/{repo}/issues/comments/{claim['id']}",
+                comment_token,
+                method="DELETE",
+            )
+        raise
+    print(f"dispatched #{number} -> status {result.get('status_code')}")
 
 
 def scan_project(

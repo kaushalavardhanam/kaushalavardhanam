@@ -1,0 +1,83 @@
+# Let the AgentCore agent act on reviewer feedback on its own PRs.
+#
+# Comment on an agent PR (head branch agentcore/*) with:
+#
+#   /agent fix
+#   pytest tests/test_vocabulary.py fails at import: use `from mitra.lexicon import vocabulary`
+#
+# and the agent reads the comment (plus inline review comments, the linked
+# issue and the relevant repo source), pushes a fix commit to the SAME PR
+# branch, and replies on the PR. Only the linked issue's author or a
+# collaborator with write access can trigger it (enforced in the script).
+#
+# Triggers:
+#   issue_comment      handles the new comment right away
+#   schedule (5 min)   scans every open agent PR for /agent fix comments that
+#                      were never answered (dropped or failed event runs)
+#   workflow_dispatch  same scan, optionally limited to one PR
+# Each answered comment gets a reply with a per-comment marker, so the scan
+# never dispatches or rejects the same comment twice.
+#
+# issue_comment and schedule workflows always run from the default branch, so
+# this works on PRs whose branch predates this file. Same AWS wiring as
+# agentcore-agent-in-progress.yml (OIDC role -> dispatcher Lambda).
+#
+# Required repo variables: AWS_ACCOUNT_ID
+# Optional: AWS_REGION, AGENTCORE_OIDC_ROLE_NAME, DISPATCHER_LAMBDA_NAME
+name: AgentCore agent on PR feedback
+
+on:
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Only scan this PR (optional; else every open agent PR)"
+        required: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  id-token: write
+
+# One group for all runs: the event run and the scan must never read the same
+# unanswered comment at once. A queued run replaced by a newer one is harmless,
+# because the next scan picks up whatever it would have handled.
+concurrency:
+  group: agentcore-fix
+  cancel-in-progress: false
+
+jobs:
+  dispatch-fix:
+    if: >-
+      github.event_name != 'issue_comment' || (
+        github.event.issue.pull_request &&
+        startsWith(github.event.comment.body, '/agent fix') &&
+        github.event.comment.user.type != 'Bot')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AGENTCORE_OIDC_ROLE_NAME || 'agentcore-decomposer-github-oidc' }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Install boto3
+        run: python3 -m pip install --upgrade boto3
+
+      - name: Dispatch /agent fix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+          DISPATCHER_LAMBDA_NAME: ${{ vars.DISPATCHER_LAMBDA_NAME || 'agentcore-decomposer-dispatcher' }}
+          PR_NUMBER: ${{ github.event.issue.number || github.event.inputs.pr_number }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: python3 .github/scripts/kick_agentcore_fix.py

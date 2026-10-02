@@ -33,17 +33,13 @@ variable "github_oidc_sub" {
 }
 
 variable "bedrock_model_id" {
-  description = "Bedrock model / inference-profile (global CRIS) id the agent invokes. Defaults to Claude Sonnet 5.5; GPT models are opt-in by overriding this. Must be one of the allowed ids the runtime validates and the Bedrock grant covers: global.anthropic.claude-sonnet-5-5, global.openai.gpt-5.6-sol, global.openai.gpt-6-astra."
+  description = "Bedrock model / inference-profile (global CRIS) id Claude Code runs on inside the runtime. Must be an Anthropic model covered by local.bedrock_model_ids."
   type        = string
   default     = "global.anthropic.claude-sonnet-5-5"
 
   validation {
-    condition = contains([
-      "global.anthropic.claude-sonnet-5-5",
-      "global.openai.gpt-5.6-sol",
-      "global.openai.gpt-6-astra",
-    ], var.bedrock_model_id)
-    error_message = "bedrock_model_id must be one of: global.anthropic.claude-sonnet-5-5, global.openai.gpt-5.6-sol, global.openai.gpt-6-astra."
+    condition     = contains(["global.anthropic.claude-sonnet-5-5"], var.bedrock_model_id)
+    error_message = "bedrock_model_id must be global.anthropic.claude-sonnet-5-5 (extend local.bedrock_model_ids to grant another Anthropic model)."
   }
 }
 
@@ -82,7 +78,13 @@ variable "image_tag" {
 }
 
 variable "image_build_source_version" {
-  description = "The git ref (branch name or commit SHA) CodeBuild clones and builds the image from. Defaults to the branch carrying the agent source + Dockerfile. Override per build with `aws codebuild start-build --source-version <ref>`."
+  description = "The git ref (branch name or commit SHA) CodeBuild clones and builds the image from. Defaults to main, so images follow merged code. Override per build with `aws codebuild start-build --source-version <ref>`."
   type        = string
-  default     = "agentcore-backend"
+  default     = "main"
+}
+
+variable "agent_budget_usd" {
+  description = "Upper bound on Bedrock model spend (USD, as reported by the Claude Agent SDK) for ONE job — one issue or one /agent fix comment. Each Claude session is also capped at $3."
+  type        = number
+  default     = 20
 }

@@ -1,0 +1,10 @@
+# Baked into a SEPARATE venv (/opt/testenv) that the agent's Bash tool and the
+# orchestrator's acceptance/verify commands run with, so the target repo's
+# test dependencies never mix with the agent's own.
+#
+# mitra: core deps from mitra/pyproject.toml plus its `dev` extra. Add other
+# projects' test deps here as agent-* issues start targeting them.
+numpy>=1.24
+PyYAML>=6.0
+Pillow>=10.0
+pytest>=8.0

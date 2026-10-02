@@ -1,217 +1,154 @@
-"""AgentCore Runtime entrypoint for the decomposer agent.
+"""AgentCore Runtime entrypoint for the Claude coding agent.
 
-The Bedrock AgentCore Runtime invokes a containerized agent over HTTP: the
-container must serve ``POST /invocations`` (the invocation payload as the JSON
-body) and ``GET /ping`` (health check) on port 8080. See the Terraform
-``aws_bedrockagentcore_agent_runtime`` resource, whose ``container_uri`` points
-at the image built from this directory.
+A session exists only because the dispatcher Lambda invoked one, which happens
+only for an ``agent-*`` issue moved to In Progress or an authorized
+``/agent fix`` comment on an open agent PR. Per invocation:
 
-This module exposes a single ``process_invocation(payload)`` function holding
-all the business logic, and serves it two ways:
+1. validate the payload (``mode`` ``issue`` | ``fix``);
+2. de-duplicate: the dispatcher uses ONE runtime session id per issue / per
+   fix comment, so a replayed invocation lands in the same session and is
+   answered ``already_running`` instead of starting a second job;
+3. register an async task (``/ping`` reports ``HealthyBusy``, which keeps the
+   session alive past the 15-minute idle timeout), start the job on a
+   background thread, and RETURN IMMEDIATELY with ``accepted`` — so the
+   dispatcher finishes in seconds rather than outliving its timeout;
+4. when the job ends (success or failure), complete the task and stop this
+   runtime session (``StopRuntimeSession``) instead of idling for 15 minutes.
 
-* If the ``bedrock_agentcore`` SDK is installed (it is, via requirements.txt),
-  the ``BedrockAgentCoreApp`` entrypoint is used — the canonical path.
-* Otherwise a tiny stdlib ``http.server`` implements the same ``/invocations``
-  + ``/ping`` contract, so the container is self-contained and the logic is
-  testable without the SDK.
+Payloads (from ``../terraform/lambda/dispatcher.py``)::
 
-Invocation payload (matches the Terraform dispatcher, ``lambda/dispatcher.py``)::
+    {"mode": "issue", "issue_number": 12, "title": "agent-...", "body": "...",
+     "base_branch": "main", "repo": "owner/name", "runtime_arn": "..."}
+    {"mode": "fix", "repo": "owner/name", "pr_number": 25, "comment_id": 123,
+     "runtime_arn": "..."}
 
-    {"issue_number": 42, "title": "...", "body": "...",
-     "base_branch": "main", "repo": "owner/name"}
+``mode`` defaults to ``issue`` for payloads from older dispatchers.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-from typing import Any, Dict
-
-from github_app import get_installation_token
-from git_pr import open_pull_request
+import threading
+from typing import Any, Callable, Dict, Optional
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
-logger = logging.getLogger("agentcore.decomposer")
+logger = logging.getLogger("agentcore.agent")
 
-# Two decomposer implementations are available side by side so either can be
-# demoed. ``DECOMPOSER_IMPL`` selects between them; it DEFAULTS to ``langgraph``
-# so existing behaviour is preserved unless explicitly overridden.
-#
-# * ``langgraph`` (default) — the hand-rolled sentinel-contract workflow in
-#   ``decomposer.py``.
-# * ``strands`` — the Strands Agents SDK workflow in ``decomposer_strands.py``,
-#   which uses native structured output (schema-validated file objects) instead
-#   of the JSON/sentinel parsing.
-#
-# Both expose the same ``run_decomposition(issue_number, title, body, repo,
-# base_branch) -> state`` contract, so nothing downstream changes.
-DECOMPOSER_IMPL = os.environ.get("DECOMPOSER_IMPL", "langgraph").strip().lower()
+REQUIRED = {
+    "issue": ("issue_number", "title", "base_branch", "repo"),
+    "fix": ("repo", "pr_number", "comment_id"),
+}
+
+_lock = threading.Lock()
+_running: set = set()
 
 
-def _select_run_decomposition():
-    """Return the ``run_decomposition`` callable for the configured impl.
-
-    Imported lazily so selecting one implementation never requires the other's
-    dependencies to be installed (e.g. running with the default langgraph impl
-    does not import ``strands``, and vice versa).
-    """
-    if DECOMPOSER_IMPL == "strands":
-        logger.info("Using Strands decomposer (DECOMPOSER_IMPL=strands)")
-        from decomposer_strands import run_decomposition as _run
-        return _run
-    if DECOMPOSER_IMPL not in ("langgraph", ""):
-        logger.warning(
-            "Unknown DECOMPOSER_IMPL=%r; falling back to 'langgraph'.",
-            DECOMPOSER_IMPL,
-        )
-    logger.info("Using LangGraph decomposer (DECOMPOSER_IMPL=langgraph)")
-    from decomposer import run_decomposition as _run
-    return _run
-
-# The invocation payload contract from the Terraform dispatcher
-# (../terraform/lambda/dispatcher.py). ``body`` may be empty; the rest must be
-# present and non-empty (``repo`` may be backstopped by the GITHUB_REPO env).
-REQUIRED_FIELDS = ("issue_number", "title", "body", "base_branch", "repo")
+def job_key(payload: Dict[str, Any]) -> str:
+    if payload.get("mode") == "fix":
+        return f"fix:{payload['repo']}#{payload['pr_number']}:{payload['comment_id']}"
+    return f"issue:{payload['repo']}#{payload['issue_number']}"
 
 
-def process_invocation(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """Run the full decompose -> implement -> PR pipeline for one issue.
-
-    Validates ``payload`` against :data:`REQUIRED_FIELDS`, then returns a
-    JSON-serialisable dict describing the outcome (branch, commit, PR
-    url/number, sub-task count). Raises on hard failures so the runtime
-    records the invocation as failed.
-    """
-    payload = payload or {}
-
-    # body may legitimately be empty, so only require its KEY to be present;
-    # all other fields must be present and non-empty. repo can be backstopped
-    # by the GITHUB_REPO env the Terraform sets on the runtime.
-    if "body" not in payload:
-        raise ValueError("invocation payload missing field: body")
-    repo = str(payload.get("repo") or os.environ.get("GITHUB_REPO", ""))
-    non_empty_required = ("issue_number", "title", "base_branch")
-    missing = [f for f in non_empty_required if payload.get(f) in (None, "")]
-    if not repo:
-        missing.append("repo")
+def validate(payload: Dict[str, Any]) -> Dict[str, Any]:
+    payload = dict(payload or {})
+    payload.setdefault("mode", "issue")
+    if not payload.get("repo"):
+        payload["repo"] = os.environ.get("GITHUB_REPO", "")
+    required = REQUIRED.get(payload["mode"])
+    if required is None:
+        raise ValueError(f"unknown mode {payload['mode']!r}")
+    missing = [f for f in required if payload.get(f) in (None, "")]
     if missing:
         raise ValueError(f"invocation payload missing fields: {missing}")
+    return payload
 
-    base_branch = str(payload.get("base_branch") or "main")
-    issue_number = int(payload["issue_number"])
-    title = str(payload["title"])
-    body = str(payload.get("body") or "")
 
-    logger.info("Processing issue #%s in %s (base=%s)", issue_number, repo, base_branch)
+def run_job(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Run one job synchronously (the background thread's body)."""
+    import jobs
+    from github_app import get_installation_token
 
-    # 1 + 2 + 3: decompose and implement via Bedrock, using the configured
-    # decomposer implementation (langgraph by default, strands when selected).
-    run_decomposition = _select_run_decomposition()
-    state = run_decomposition(
-        issue_number=issue_number,
-        title=title,
-        body=body,
-        repo=repo,
-        base_branch=base_branch,
-    )
-    files = state.get("files", {})
-    notes = state.get("implementation_notes", [])
-    logger.info("Generated %d file(s) across %d sub-task(s)", len(files), len(state.get("subtasks", [])))
+    if payload["mode"] == "fix":
+        return jobs.run_fix_job(payload, get_token=get_installation_token)
+    return jobs.run_issue_job(payload, get_token=get_installation_token)
 
-    # 4: authenticate as the GitHub App and open the PR.
-    token = get_installation_token()
-    pr = open_pull_request(
-        repo=repo,
-        base_branch=base_branch,
-        issue_number=issue_number,
-        issue_title=title,
-        files=files,
-        notes=notes,
-        token=token,
-    )
 
-    result = {
-        "status": "ok",
-        "issue_number": issue_number,
-        "repo": repo,
-        "base_branch": base_branch,
-        "branch": pr.branch,
-        "commit_sha": pr.commit_sha,
-        "pr_url": pr.pr_url,
-        "pr_number": pr.pr_number,
-        "subtasks": len(state.get("subtasks", [])),
-        "files_changed": sorted(files),
-    }
-    logger.info("Done: PR %s (%s)", pr.pr_number, pr.pr_url)
-    return result
+def stop_session(runtime_arn: Optional[str], session_id: Optional[str]) -> None:
+    """End this runtime session now rather than waiting out the idle timeout."""
+    if not (runtime_arn and session_id):
+        logger.info("No runtime ARN/session id; leaving the session to the idle timeout")
+        return
+    import boto3
+
+    try:
+        boto3.client("bedrock-agentcore").stop_runtime_session(
+            agentRuntimeArn=runtime_arn, runtimeSessionId=session_id)
+        logger.info("Stopped runtime session %s", session_id)
+    except Exception:  # noqa: BLE001 - the idle timeout is the fallback
+        logger.exception("StopRuntimeSession failed; the idle timeout will reclaim the session")
+
+
+def handle(payload: Dict[str, Any], session_id: Optional[str], *,
+           add_task: Callable[[str], Any] = lambda name: None,
+           complete_task: Callable[[Any], Any] = lambda task: None,
+           job: Callable[[Dict[str, Any]], Dict[str, Any]] = run_job,
+           stop: Callable[[Optional[str], Optional[str]], None] = stop_session,
+           background: bool = True) -> Dict[str, Any]:
+    """Accept one invocation; the job itself runs on a background thread."""
+    payload = validate(payload)
+    key = job_key(payload)
+    with _lock:
+        if key in _running:
+            logger.info("Job %s already running in this session; ignoring duplicate", key)
+            return {"status": "already_running", "job": key}
+        _running.add(key)
+    task = add_task(key)
+
+    def body() -> None:
+        try:
+            result = job(payload)
+            logger.info("Job %s finished: %s", key, result)
+        except Exception:  # noqa: BLE001 - jobs report failures on GitHub themselves
+            logger.exception("Job %s failed", key)
+        finally:
+            with _lock:
+                _running.discard(key)
+                idle = not _running
+            complete_task(task)
+            if idle:
+                stop(payload.get("runtime_arn"), session_id)
+
+    if background:
+        threading.Thread(target=body, name=key, daemon=True).start()
+    else:
+        body()
+    logger.info("Accepted %s (session %s)", key, session_id)
+    return {"status": "accepted", "job": key}
 
 
 # --------------------------------------------------------------------------- #
-# Serving
+# Serving (the AgentCore SDK serves /invocations + /ping on :8080)
 # --------------------------------------------------------------------------- #
 
-try:  # Canonical path: the AgentCore SDK.
-    from bedrock_agentcore.runtime import BedrockAgentCoreApp  # type: ignore
+def main() -> None:
+    from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
     app = BedrockAgentCoreApp()
 
     @app.entrypoint
-    def invoke(payload):  # noqa: ANN001 - SDK signature
-        """AgentCore entrypoint: delegates to ``process_invocation``."""
-        return process_invocation(payload)
+    def invoke(payload, context):  # noqa: ANN001 - SDK signature
+        try:
+            return handle(payload, getattr(context, "session_id", None),
+                          add_task=lambda name: app.add_async_task(name),
+                          complete_task=app.complete_async_task)
+        except ValueError as exc:
+            return {"status": "error", "error": str(exc)}
 
-    def main() -> None:
-        # The SDK serves /invocations + /ping on 0.0.0.0:8080.
-        app.run()
-
-except ImportError:  # Fallback: stdlib HTTP server implementing the contract.
-    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-
-    app = None  # type: ignore
-
-    class _Handler(BaseHTTPRequestHandler):
-        def _send(self, code: int, obj: Dict[str, Any]) -> None:
-            body = json.dumps(obj).encode("utf-8")
-            self.send_response(code)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def do_GET(self):  # noqa: N802 - stdlib signature
-            if self.path.rstrip("/") == "/ping":
-                self._send(200, {"status": "healthy"})
-            else:
-                self._send(404, {"error": "not found"})
-
-        def do_POST(self):  # noqa: N802 - stdlib signature
-            if self.path.rstrip("/") != "/invocations":
-                self._send(404, {"error": "not found"})
-                return
-            length = int(self.headers.get("Content-Length", 0))
-            raw = self.rfile.read(length) if length else b"{}"
-            try:
-                payload = json.loads(raw or b"{}")
-                result = process_invocation(payload)
-                self._send(200, result)
-            except ValueError as exc:
-                self._send(400, {"status": "error", "error": str(exc)})
-            except Exception as exc:  # noqa: BLE001 - report and 500
-                logger.exception("Invocation failed")
-                self._send(500, {"status": "error", "error": str(exc)})
-
-        def log_message(self, *args):  # silence default stderr access log
-            return
-
-    def main() -> None:
-        port = int(os.environ.get("PORT", "8080"))
-        server = ThreadingHTTPServer(("0.0.0.0", port), _Handler)
-        logger.info("Serving /invocations + /ping on 0.0.0.0:%d", port)
-        server.serve_forever()
+    app.run()
 
 
 if __name__ == "__main__":

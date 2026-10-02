@@ -49,13 +49,8 @@ jobs:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
     steps:
 
-      - name: DEBUG print OIDC sub
-        run: |
-          tok=$(curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | python3 -c "import sys,json;print(json.load(sys.stdin)['value'])")
-          echo "$tok" | cut -d. -f2 | tr '_-' '/+' | (p=$(cat); pad=$((4-${#p}%4)); [ $pad -ne 4 ] && p="$p$(printf '=%.0s' $(seq $pad)); echo $p" || echo "$p") | base64 -d 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print('SUB=',d.get('sub'));print('AUD=',d.get('aud'))"
-
       - uses: actions/checkout@v4
-      
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:

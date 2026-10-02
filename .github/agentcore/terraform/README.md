@@ -1,22 +1,20 @@
 # AgentCore decomposer backend — Terraform
 
-AWS-native IaC for the third agent backend of this repo. Where the Claude and
-Cursor backends run the agent on hosted CI, this backend runs **all compute and
-LLM inference on AWS**:
+AWS-native IaC for the repo's primary agent backend: **all compute and LLM
+inference run on AWS**, serverlessly — a runtime session exists only while an
+`agent-*` issue or an `/agent fix` comment is being worked on:
 
 ```
-board -> "In Progress" -> GH Actions kick -> OIDC role -> dispatcher Lambda
-      -> Bedrock AgentCore Runtime agent -> decompose issue into sub-tasks
-      -> implement via Bedrock -> open PR
+board -> "In Progress" (or "/agent fix" on an agent PR) -> GH Actions kick
+      -> OIDC role -> dispatcher Lambda -> Bedrock AgentCore Runtime session
+      -> Claude Code (Agent SDK, on Bedrock) plans, implements, tests -> PR
 ```
 
-This directory provisions the AWS side only. The **agent container image** and
-the **real dispatcher handler** are separate work items; here they are a
-placeholder image URI (`var.agent_container_image_uri`) and a minimal Python
-stub (`lambda/dispatcher.py`).
+See the root README for the end-to-end diagrams and `../agent/README.md` for
+the runtime. This directory provisions the AWS side; the image is built by
+CodeBuild (`codebuild.tf`, `../deploy.sh`).
 
-Authentication from GitHub Actions is via **OIDC — no static AWS keys**,
-mirroring the existing Claude backend (`.github/workflows/claude-agent-issue.yml`).
+Authentication from GitHub Actions is via **OIDC — no static AWS keys**.
 
 ## What `terraform apply` creates (region `us-east-1` by default)
 
