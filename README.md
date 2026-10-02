@@ -136,6 +136,30 @@ sequenceDiagram
 
 Removed because the AgentCore backend now runs the same Claude Code agent and adds what this one lacked: a validated plan with requirement coverage, per-sub-task acceptance checks, draft PRs instead of silent partial work, and the `/agent fix` loop. It also answered the same labels as the AgentCore backend, so labelling one issue started two agents racing to open PRs. PRs it opened with `GITHUB_TOKEN` also never triggered CI.
 
+### 6. Swapping Claude Code for Kiro inside AgentCore (not implemented)
+
+What would change to run Kiro instead of Claude Code in backend 2. Only the coding engine changes. The board watcher, `/agent fix`, dispatcher, session-per-job lifecycle, orchestrator, plan validator, git/PR code and Terraform stay as they are, because `orchestrator.py` only calls `runner.run(prompt, write_paths=..., schema=...)`. Checked against `kiro-cli` 2.27.0 and `kirocrew` as installed here; re-check the flags against the version you deploy.
+
+**Pick the engine: `kiro-cli`, not Kiro Crew.**
+- **`kiro-cli chat --no-interactive`** runs one headless session and exits, which matches one fresh session per step. Use this.
+- **Kiro Crew (`kirocrew`)** is a personal agent *gateway*: a long-running server with a dashboard, memory and messaging channels. Its `kirocrew cloud` mode provisions your own EC2 instance, which is always-on rather than serverless. `kirocrew run TASK.md` runs a whole task with its own planner and test loop. Using it would replace `orchestrator.py`, along with the requirement-coverage and acceptance checks that `plan.py` enforces in code.
+
+**What to update**
+
+| Piece | With Claude Code (today) | With Kiro |
+|---|---|---|
+| Session runner | `claude_runner.py` → `claude_agent_sdk.query()` | New `kiro_runner.py` with the same `run()` signature. It runs `kiro-cli chat --no-interactive --output-format stream-json --agent <generated> "<prompt>"` with `cwd` = the checkout, and reads the JSON Lines events for the final answer. |
+| Authentication | `CLAUDE_CODE_USE_BEDROCK=1` + the runtime's IAM execution role | **Blocker.** `kiro-cli login` only signs in a *person* (Builder ID / social, or IAM Identity Center for Pro) through a browser or OAuth device flow. There is no IAM-role or workload-identity login, so a fresh microVM per job cannot authenticate unattended. This is the gap filed in `mitra/kiro-cloud-agents-pfr.md`. Until Kiro supports it, the only workaround is copying a signed-in user's token into Secrets Manager and refreshing it, which runs every job as that person. |
+| Model + IAM | `BEDROCK_MODEL_ID`; `bedrock:InvokeModel` on Claude Sonnet 5.5 | Inference goes through Kiro's service under the signed-in identity, so `local.bedrock_model_ids` / `agentcore_runtime_bedrock` in `main.tf` would no longer be needed. Pick the model with `--model` (`kiro-cli chat --list-models` lists what the account can use). |
+| Structured output (requirements, plan) | `output_format` JSON schema → `ResultMessage.structured_output` | No schema-validated output option. Ask for a single JSON object in the final message, validate it with `jsonschema` against `plan.REQUIREMENTS_SCHEMA` / `PLAN_SCHEMA`, and treat a parse failure as a plan violation. The planner already retries up to 3 times with the violation list. |
+| Tool guard | Python `PreToolUse` hook calling `check_tool()` | Write a throwaway agent JSON per session. Set `tools` / `allowedTools` to `fs_read`, `fs_write`, `shell` (no `web_fetch`, no `subagent`) and `toolsSettings.shell.allowedCommands` to the Bash allowlist in `claude_runner.py`. Restrict write paths with an `fs_write` path setting or a `preToolUse` hook script that calls `check_tool()`. Agent files here only show `agentSpawn` / `userPromptSubmit` / `postToolUse` hooks, and `postToolUse` cannot block, so confirm blocking `preToolUse` support first. Pass `--trust-tools=<that list>`, never `--trust-all-tools`. The orchestrator's revert-out-of-scope step stays as the backstop either way. |
+| Budgets | `max_turns`, `max_budget_usd`, `ResultMessage.total_cost_usd` | No per-session dollar cap. Enforce a wall-clock limit (`subprocess` timeout) per session and count events from the stream; `AGENT_BUDGET_USD` would become a time or step budget. |
+| Repo settings | `setting_sources=["project"]` (repo `CLAUDE.md`) | Kiro reads project steering/specs from `.kiro/`; commit those per project instead of a `CLAUDE.md`. |
+| Image | `claude-agent-sdk` wheel (bundles the Claude Code CLI) | Install the linux/arm64 `kiro-cli` binary in the `Dockerfile` instead and drop `claude-agent-sdk` from `requirements.txt`. The rest of the image (test venv, git, ripgrep) is unchanged. |
+| Tests | `ScriptedRunner` stands in for Claude | Unchanged: the orchestrator and job tests never call the engine. Add `kiro_runner` tests for building the CLI arguments and parsing the event stream. |
+
+**Bottom line:** the code changes are mostly confined to one new runner module plus the Dockerfile. What blocks it is unattended authentication, not the code. Until `kiro-cli` can sign in with an IAM role, Kiro can't run in a serverless, session-per-job runtime without borrowing a person's login.
+
 **Conventions:**
 - Title the issue `agent-<short description>` for it to be picked up.
 - By default the agent branches off and opens its PR against `main`. To target a different branch, add a `base:<branch-name>` label to the issue (e.g. `base:release-1.2`), or pass `base_branch` explicitly on a manual `workflow_dispatch` run.
