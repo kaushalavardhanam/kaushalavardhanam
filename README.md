@@ -16,7 +16,7 @@ Issues titled `agent-*` on the [kaushalavardhanam org project board](https://git
 | Backend | Status | Where the agent runs | Workflow |
 |---|---|---|---|
 | **AgentCore + Claude Code** | **active** | A Bedrock AgentCore Runtime session (serverless microVM) running the Claude Agent SDK on Amazon Bedrock | `agentcore-agent-in-progress.yml`, `agentcore-agent-pr-feedback.yml` |
-| Cursor Cloud Agent on an AgentCore worker pool | dormant | A long-lived self-hosted Cursor worker hosted on AgentCore | `cursor-agent-in-progress.yml` |
+| Cursor Cloud Agent on an AgentCore worker pool | dormant (manual only) | A long-lived self-hosted Cursor worker hosted on AgentCore | `cursor-agent-in-progress.yml` |
 | Claude Code on GitHub Actions | removed | A GitHub-hosted runner (`anthropics/claude-code-action`) | — |
 
 ### 1. How the kickoff watches the board
@@ -24,7 +24,7 @@ Issues titled `agent-*` on the [kaushalavardhanam org project board](https://git
 ```mermaid
 flowchart TD
     cron["schedule: every 5 min"] --> scan["GraphQL: list project items"]
-    label["issues: labeled<br/>in-progress / agent / agent-run"] --> fetch
+    label["issues: labeled<br/>in-progress / agent / agent-run<br/>(AgentCore only)"] --> fetch
     manual["workflow_dispatch<br/>issue_number"] --> fetch
     scan --> inprog{"Status = In Progress?"}
     inprog -- no --> stop1(["ignore"])
@@ -36,7 +36,7 @@ flowchart TD
     dispatch -- "dispatch failed" --> unclaim["delete the kickoff comment<br/>so the next poll retries"]
 ```
 
-Both backends use the same triggers and the same `agent-*` / In Progress filter. The AgentCore kickoff posts its kickoff comment *before* dispatching, so a later poll never starts the same issue twice, and withdraws it only if the dispatch itself fails. (The dormant Cursor kickoff still comments after starting the agent and does not check that the issue is open.) The base branch is `main`, a `base:<branch>` label on the issue, or the `base_branch` input of a manual run.
+Both kickoffs apply the same `agent-*` / In Progress filter; while Cursor is manual-only, only the AgentCore kickoff polls the board and answers labels. The AgentCore kickoff posts its kickoff comment *before* dispatching, so a later poll never starts the same issue twice, and withdraws it only if the dispatch itself fails. (The dormant Cursor kickoff still comments after starting the agent and does not check that the issue is open.) The base branch is `main`, a `base:<branch>` label on the issue, or the `base_branch` input of a manual run.
 
 ### 2. AgentCore + Claude Code (active)
 
@@ -119,7 +119,7 @@ sequenceDiagram
     W->>GH: push with CURSOR_GIT_TOKEN, Cursor opens the PR
 ```
 
-Its `schedule` trigger is disabled. Unlike the AgentCore backend, the worker is a long-lived session that has to exist *before* work arrives, and it needs its own GitHub PAT on the worker. The worker image and Terraform live in [cursor-cookbook](https://github.com/skopp002/cursor-cookbook/tree/main/self-hosted-cloud-agent/agentcore).
+It is manual-only (`workflow_dispatch` with an issue number): the `schedule` trigger is commented out, it no longer answers labels, the `CURSOR_API_KEY` secret has expired, and Cursor has not enabled private workers on this plan. Unlike the AgentCore backend, the worker is a long-lived session that has to exist *before* work arrives, and it needs its own GitHub PAT on the worker. The worker image and Terraform live in [cursor-cookbook](https://github.com/skopp002/cursor-cookbook/tree/main/self-hosted-cloud-agent/agentcore).
 
 ### 5. Claude Code on GitHub Actions (removed)
 

@@ -13,16 +13,13 @@
 #
 # The AgentCore worker session must already be HealthyBusy or the job waits in the pool.
 #
-# NOTE (2026-09-26): Cursor's API returns 403 feature_unavailable — "Private
-# workers are not enabled for your account" — because CURSOR_POOL_NAME
-# requests a self-hosted pool that this Cursor plan doesn't have enabled. The
-# AgentCore backend (agentcore-agent-in-progress.yml) handles the same trigger
-# with Claude Code on Bedrock instead. The `schedule` trigger below is disabled so
-# this doesn't keep failing every 5 minutes; `workflow_dispatch` and the
-# `issues: labeled` trigger are left in place so you can retrigger a specific
-# issue manually. Once private workers are enabled on the Cursor account (or
-# you drop the pool requirement), uncomment the `schedule:` block to resume
-# automatic polling.
+# STATUS: manual-only. Cursor currently rejects the pool with 403
+# feature_unavailable ("Private workers are not enabled for your account") and
+# the CURSOR_API_KEY secret has expired. The `schedule` trigger is commented
+# out and the `issues: labeled` trigger is removed (those labels belong to the
+# AgentCore backend; answering them too would start two agents per issue). To
+# bring it back: rotate CURSOR_API_KEY, have Cursor enable private workers,
+# make sure the AgentCore worker session is running, then uncomment `schedule:`.
 # Base branch: defaults to `main`, or per-issue via a `base:<branch>` label on
 # the issue. Set base_branch on a manual workflow_dispatch run to force one.
 name: Cursor agent on In Progress
@@ -38,8 +35,6 @@ on:
       base_branch:
         description: "Force a base branch for this run (optional, overrides the base: label and default)"
         required: false
-  issues:
-    types: [labeled]
 
 permissions:
   issues: write
