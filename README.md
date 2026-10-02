@@ -89,7 +89,8 @@ sequenceDiagram
     participant GH as GitHub
 
     Rev->>GH: comment "/agent fix<br/>pytest tests/test_vocabulary.py fails at import: ..."
-    GH->>GA: issue_comment (runs from main)
+    GH->>GA: issue_comment (runs from main)<br/>or the 5-min scan of open agentcore/* PRs
+    GA->>GA: skip comments already answered (accept/reject marker)
     GA->>GA: allow only the linked issue's author or a write collaborator,<br/>only on an open in-repo agentcore/* PR
     GA->>GH: post "On it" (dedup marker) + 👀
     GA->>L: async invoke {mode: fix, pr_number, comment_id}
@@ -100,6 +101,8 @@ sequenceDiagram
     R->>GH: push commits to the SAME branch, reply with the report
     R->>R: StopRuntimeSession
 ```
+
+The comment event starts a fix within seconds. A scheduled run every 5 minutes (and a manual run, optionally for one PR) also scans every open `agentcore/*` PR for `/agent fix` comments that never got a reply, such as ones whose event run was dropped or whose dispatch failed. Accepted and rejected comments both get a reply with a per-comment marker, so the scan never answers the same comment twice. All runs share one concurrency group, so the event run and the scan can't dispatch the same comment at once.
 
 ### 4. Cursor Cloud Agent on an AgentCore worker pool (dormant)
 
