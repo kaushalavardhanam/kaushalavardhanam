@@ -11,6 +11,7 @@ many-minutes AgentCore run, so the kickoff must NOT block on it.
 from __future__ import annotations
 
 import unittest
+import unittest.mock
 
 import kick_agentcore_agent
 from kick_agentcore_agent import invoke_dispatcher
@@ -108,3 +109,46 @@ class InvokeDispatcherAsyncTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StartAgentClaimTests(unittest.TestCase):
+    """The kickoff comment is the dedup key, so it is posted BEFORE dispatching."""
+
+    def setUp(self):
+        self.calls = []
+
+        def fake_github(url, token, payload=None, method=None):
+            self.calls.append((method or ("POST" if payload else "GET"), url))
+            if url.endswith("/comments?per_page=100"):
+                return []
+            return {"id": 77} if payload else {}
+
+        patcher = unittest.mock.patch.object(kick_agentcore_agent, "github_request", fake_github)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def start(self, issue, dispatch):
+        with unittest.mock.patch.object(kick_agentcore_agent, "invoke_dispatcher", dispatch):
+            kick_agentcore_agent.start_agent(issue, "org/repo", "t", "fn", "us-east-1", "", "main")
+
+    def issue(self, **kw):
+        return {"number": 12, "title": "agent-x", "state": "open", "labels": [], **kw}
+
+    def test_claim_is_posted_before_dispatch(self):
+        def dispatch(fn, region, payload):
+            self.assertIn(("POST", "https://api.github.com/repos/org/repo/issues/12/comments"), self.calls)
+            self.assertEqual(payload["mode"], "issue")
+            return {"status_code": 202}
+
+        self.start(self.issue(), dispatch)
+
+    def test_claim_is_withdrawn_when_dispatch_fails(self):
+        dispatch = unittest.mock.Mock(side_effect=RuntimeError("throttled"))
+        with self.assertRaises(RuntimeError):
+            self.start(self.issue(), dispatch)
+        self.assertEqual(self.calls[-1], ("DELETE", "https://api.github.com/repos/org/repo/issues/comments/77"))
+
+    def test_closed_issue_is_not_dispatched(self):
+        dispatch = unittest.mock.Mock()
+        self.start(self.issue(state="closed"), dispatch)
+        dispatch.assert_not_called()

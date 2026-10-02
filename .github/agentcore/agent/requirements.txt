@@ -1,16 +1,14 @@
-# AgentCore decomposer agent runtime dependencies.
-# Pinned to compatible ranges; the langgraph decomposer pattern is reused from
-# the repo's coding-agent/graph_workflow.py.
+# AgentCore coding-agent runtime dependencies.
 
-# LangGraph multi-agent workflow (decompose -> implement state machine).
-langgraph>=0.2.0,<0.3.0
+# Claude Agent SDK — bundles the Claude Code CLI (linux/arm64 binary in the
+# wheel), driven headlessly on Bedrock by claude_runner.py.
+claude-agent-sdk>=0.2.163,<0.3
 
-# Strands Agents SDK — the SECOND decomposer (decomposer_strands.py), selected
-# via DECOMPOSER_IMPL=strands. Uses native Bedrock structured output
-# (schema-validated file objects) instead of the JSON/sentinel parsing.
-strands-agents>=1.57,<2.0
+# Bedrock AgentCore Runtime SDK (serves /invocations + /ping on :8080 and the
+# async-task HealthyBusy ping status).
+bedrock-agentcore>=0.1.0
 
-# AWS SDK for Bedrock runtime + Secrets Manager.
+# AWS SDK: Secrets Manager (GitHub App key) + StopRuntimeSession.
 boto3>=1.34.0
 botocore>=1.34.0
 
@@ -20,8 +18,3 @@ cryptography>=42.0.0
 
 # GitHub REST API + installation-token exchange.
 requests>=2.31.0
-
-# Bedrock AgentCore Runtime SDK (serves /invocations + /ping on :8080).
-# The agent has a stdlib HTTP fallback if this is unavailable, but the image
-# ships it as the canonical entrypoint.
-bedrock-agentcore>=0.1.0

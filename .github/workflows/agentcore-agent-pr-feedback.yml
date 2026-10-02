@@ -1,0 +1,64 @@
+# Let the AgentCore agent act on reviewer feedback on its own PRs.
+#
+# Comment on an agent PR (head branch agentcore/*) with:
+#
+#   /agent fix
+#   pytest tests/test_vocabulary.py fails at import: use `from mitra.lexicon import vocabulary`
+#
+# and the agent reads the comment (plus inline review comments, the linked
+# issue and the relevant repo source), pushes a fix commit to the SAME PR
+# branch, and replies on the PR. Only the linked issue's author or a
+# collaborator with write access can trigger it (enforced in the script).
+#
+# issue_comment workflows always run from the default branch, so this works on
+# PRs whose branch predates this file. Same AWS wiring as
+# agentcore-agent-in-progress.yml (OIDC role -> dispatcher Lambda).
+#
+# Required repo variables: AWS_ACCOUNT_ID
+# Optional: AWS_REGION, AGENTCORE_OIDC_ROLE_NAME, DISPATCHER_LAMBDA_NAME
+name: AgentCore agent on PR feedback
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: agentcore-fix-pr-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch-fix:
+    if: >-
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/agent fix') &&
+      github.event.comment.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/${{ vars.AGENTCORE_OIDC_ROLE_NAME || 'agentcore-decomposer-github-oidc' }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Install boto3
+        run: python3 -m pip install --upgrade boto3
+
+      - name: Dispatch /agent fix
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+          DISPATCHER_LAMBDA_NAME: ${{ vars.DISPATCHER_LAMBDA_NAME || 'agentcore-decomposer-dispatcher' }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_ID: ${{ github.event.comment.id }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: python3 .github/scripts/kick_agentcore_fix.py

@@ -23,12 +23,11 @@ locals {
   # The three models the runtime is permitted to invoke, keyed by the global
   # CRIS inference-profile id (the "global." form) the agent invokes with. The
   # foundation-model id is that id with the CRIS routing prefix stripped. The
-  # runtime's bedrock_client.py validates BEDROCK_MODEL_ID against exactly this
-  # set, so the code allow-list and this IAM grant stay in lockstep.
+  # runtime drives Claude Code, which needs an Anthropic model, and uses the
+  # same model for its background "fast" calls (claude_runner.bedrock_env), so
+  # one model is the whole grant.
   bedrock_model_ids = [
     "anthropic.claude-sonnet-5-5",
-    "openai.gpt-5.6-sol",
-    "openai.gpt-6-astra",
   ]
 
   # For each model, grant InvokeModel[WithResponseStream] on all four ARN
@@ -99,6 +98,38 @@ resource "aws_iam_role_policy" "agentcore_runtime_bedrock" {
           "bedrock:InvokeModelWithResponseStream"
         ]
         Resource = local.bedrock_invoke_resources
+      },
+      {
+        # Claude Code's Bedrock provider resolves inference profiles at start-up.
+        # Read-only and not model-scoped (these actions take no resource ARN filter).
+        Sid    = "ReadInferenceProfiles"
+        Effect = "Allow"
+        Action = [
+          "bedrock:ListInferenceProfiles",
+          "bedrock:GetInferenceProfile"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Let the runtime end its OWN session as soon as a job finishes, instead of
+# idling until the 15-minute idle timeout. Scoped to this runtime only.
+resource "aws_iam_role_policy" "agentcore_runtime_stop_session" {
+  name = "StopOwnRuntimeSession"
+  role = aws_iam_role.agentcore_runtime.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = ["bedrock-agentcore:StopRuntimeSession"]
+        Resource = [
+          aws_bedrockagentcore_agent_runtime.decomposer.agent_runtime_arn,
+          "${aws_bedrockagentcore_agent_runtime.decomposer.agent_runtime_arn}/*"
+        ]
       }
     ]
   })
@@ -177,7 +208,7 @@ resource "aws_iam_role_policy" "agentcore_runtime_ecr" {
 
 resource "aws_bedrockagentcore_agent_runtime" "decomposer" {
   agent_runtime_name = replace("${var.name_prefix}_runtime", "-", "_")
-  description        = "Decomposes agent-* GitHub issues into sub-tasks and implements them via Bedrock, then opens a PR."
+  description        = "Claude coding agent: plans agent-* issues and /agent fix feedback into validated sub-tasks, implements and tests each, then opens or updates the PR."
   role_arn           = aws_iam_role.agentcore_runtime.arn
 
   agent_runtime_artifact {
@@ -196,6 +227,7 @@ resource "aws_bedrockagentcore_agent_runtime" "decomposer" {
     BEDROCK_MODEL_ID      = var.bedrock_model_id
     GITHUB_APP_SECRET_ARN = aws_secretsmanager_secret.github_app.arn
     GITHUB_REPO           = var.github_repo
+    AGENT_BUDGET_USD      = tostring(var.agent_budget_usd)
   }
 
   tags = var.tags
@@ -294,6 +326,15 @@ resource "aws_lambda_function" "dispatcher" {
   }
 
   tags = var.tags
+}
+
+# CI invokes the dispatcher asynchronously, and the dispatcher's synchronous
+# runtime call outlives its 60s timeout on any real run. Lambda's default of 2
+# async retries would then start up to two DUPLICATE agent runs per dispatch
+# (duplicate PRs, or racing `/agent fix` pushes to the same branch).
+resource "aws_lambda_function_event_invoke_config" "dispatcher" {
+  function_name          = aws_lambda_function.dispatcher.function_name
+  maximum_retry_attempts = 0
 }
 
 ##############################################################################

@@ -16,8 +16,8 @@
 # NOTE (2026-09-26): Cursor's API returns 403 feature_unavailable — "Private
 # workers are not enabled for your account" — because CURSOR_POOL_NAME
 # requests a self-hosted pool that this Cursor plan doesn't have enabled. The
-# claude-agent-in-progress.yml workflow now handles the same trigger via
-# Claude Code / Bedrock instead. The `schedule` trigger below is disabled so
+# AgentCore backend (agentcore-agent-in-progress.yml) handles the same trigger
+# with Claude Code on Bedrock instead. The `schedule` trigger below is disabled so
 # this doesn't keep failing every 5 minutes; `workflow_dispatch` and the
 # `issues: labeled` trigger are left in place so you can retrigger a specific
 # issue manually. Once private workers are enabled on the Cursor account (or
