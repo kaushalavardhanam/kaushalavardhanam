@@ -62,6 +62,7 @@ class Transcriber:
         self._resolved_backend: str | None = None
         self._openai_model = None
         self._sa_pipeline = None  # lazy: only load if Sanskrit is actually spoken
+        self._hf_pipeline = None  # lazy: transformers backend, default model
         self._initial_prompt = initial_prompt
         self._condition_on_previous_text = condition_on_previous_text
         self._no_speech_threshold = no_speech_threshold
@@ -109,26 +110,6 @@ class Transcriber:
         text = (result.get("text") or "").strip()
         lang = result.get("language")
         duration_s = stats["duration_s"]
-        self._hf_pipeline = None  # lazy: transformers backend, default model
-
-    def transcribe(self, audio_16k_mono: np.ndarray) -> tuple[str, str | None]:
-        """Returns (transcript, language hint from the ASR engine)."""
-        audio = np.asarray(audio_16k_mono, dtype=np.float32)
-        peak = float(np.abs(audio).max())
-        if peak > 0:  # normalize: Whisper mis-hears quiet capture badly
-            audio = audio / peak * 0.9
-
-        if self._backend == "mlx":
-            import mlx_whisper
-
-            result = mlx_whisper.transcribe(
-                audio,
-                path_or_hf_repo=self._default_model,
-            )
-            text = result.get("text", "").strip()
-            lang = result.get("language")
-        else:
-            text, lang = self._transcribe_hf(audio)
 
         if self._filter_hallucinations and is_hallucination(text, duration_s=duration_s):
             self.last_diag["hallucination"] = True
@@ -145,7 +126,7 @@ class Transcriber:
 
         if self._sanskrit_model and text and language_detector.detect(text, lang) == "sa":
             try:
-                text, lang = self._transcribe_sanskrit(audio), "sa"
+                text, lang = self._transcribe_sanskrit(work), "sa"
             except Exception:  # experimental path must not break the turn (R7)
                 pass
 
