@@ -62,8 +62,11 @@ in the dispatcher policy.
 `data.archive_file.dispatcher_stub` zips `lambda/dispatcher.py` together with
 `../agent/github_app.py`. `github_app.py` imports `boto3` (in the Lambda
 runtime), plus `PyJWT` (with `cryptography`) and `requests`, which are **not**
-in the Lambda runtime. Provide them, e.g. via a Lambda layer, or the dispatcher
-will fail to import `github_app` and return 502.
+in the Lambda runtime. The dependency layer is built automatically by
+`deploy.sh` from `lambda/requirements.txt` (into `build/dispatcher_layer/python`)
+and published as `aws_lambda_layer_version.dispatcher_deps`, which the
+dispatcher function attaches. If you run Terraform directly without
+`deploy.sh`, planning fails with a message to run `deploy.sh` first.
 
 ## Variables
 

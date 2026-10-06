@@ -52,6 +52,15 @@ class TerraformPolicyTest(unittest.TestCase):
         self.assertTrue(archive)
         self.assertIn("github_app.py", archive.group(0))
 
+    def test_dispatcher_uses_deps_layer(self):
+        fn = resource_block(self.text, "aws_lambda_function", "dispatcher")
+        self.assertIn("aws_lambda_layer_version.dispatcher_deps.arn", fn)
+        layer = resource_block(self.text, "aws_lambda_layer_version", "dispatcher_deps")
+        self.assertIn("python3.12", layer)
+        self.assertIn("x86_64", layer)
+        self.assertRegex(self.text, r'data\s+"archive_file"\s+"dispatcher_deps"')
+        self.assertIn("deploy.sh", self.text)
+
 
 class DispatcherLayerBuildTest(unittest.TestCase):
     def test_requirements_list_all_packages(self):
