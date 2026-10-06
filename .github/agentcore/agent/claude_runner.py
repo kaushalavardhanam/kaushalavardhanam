@@ -143,7 +143,13 @@ class ClaudeRunner:
     def __init__(self, cwd: str, *, model_id: Optional[str] = None,
                  extra_env: Optional[Dict[str, str]] = None) -> None:
         self.cwd = cwd
-        self.env = {**bedrock_env(model_id), **(extra_env or {})}
+        self.env = {
+            **bedrock_env(model_id),
+            **(extra_env or {}),
+            # The CLI needs AWS credentials for Bedrock, but the Bash/python it spawns runs
+            # repo code and must not inherit them. Set last so extra_env cannot unset it.
+            "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1",
+        }
 
     def run(self, prompt: str, *, system_append: str, write_paths: Optional[Sequence[str]] = None,
             allow_tests: bool = True, schema: Optional[dict] = None,
