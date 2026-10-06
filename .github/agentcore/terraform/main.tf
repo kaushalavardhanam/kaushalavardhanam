@@ -156,23 +156,6 @@ resource "aws_iam_role_policy" "agentcore_runtime_logs" {
   })
 }
 
-# Read the GitHub App secret so the agent can open the PR.
-resource "aws_iam_role_policy" "agentcore_runtime_secret" {
-  name = "ReadGitHubAppSecret"
-  role = aws_iam_role.agentcore_runtime.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect   = "Allow"
-        Action   = ["secretsmanager:GetSecretValue"]
-        Resource = aws_secretsmanager_secret.github_app.arn
-      }
-    ]
-  })
-}
-
 # ECR pull permissions for the runtime's execution role. AgentCore validates at
 # CreateAgentRuntime time that this role can pull the container image from ECR;
 # without it CreateAgentRuntime fails with "Access denied while validating ECR
@@ -224,10 +207,9 @@ resource "aws_bedrockagentcore_agent_runtime" "decomposer" {
   }
 
   environment_variables = {
-    BEDROCK_MODEL_ID      = var.bedrock_model_id
-    GITHUB_APP_SECRET_ARN = aws_secretsmanager_secret.github_app.arn
-    GITHUB_REPO           = var.github_repo
-    AGENT_BUDGET_USD      = tostring(var.agent_budget_usd)
+    BEDROCK_MODEL_ID = var.bedrock_model_id
+    GITHUB_REPO      = var.github_repo
+    AGENT_BUDGET_USD = tostring(var.agent_budget_usd)
   }
 
   tags = var.tags
@@ -243,8 +225,19 @@ resource "aws_bedrockagentcore_agent_runtime" "decomposer" {
 
 data "archive_file" "dispatcher_stub" {
   type        = "zip"
-  source_file = "${path.module}/lambda/dispatcher.py"
   output_path = "${path.module}/build/dispatcher.zip"
+
+  # github_app.py is shared with the agent; it is packaged next to the handler
+  # so the dispatcher can mint the repo-scoped token.
+  source {
+    content  = file("${path.module}/lambda/dispatcher.py")
+    filename = "dispatcher.py"
+  }
+
+  source {
+    content  = file("${path.module}/../agent/github_app.py")
+    filename = "github_app.py"
+  }
 }
 
 resource "aws_iam_role" "dispatcher_lambda" {
@@ -307,6 +300,25 @@ resource "aws_iam_role_policy" "dispatcher_lambda_invoke_agentcore" {
   })
 }
 
+# The dispatcher is the only principal that can read the GitHub App secret. It
+# mints a short-lived, single-repo installation token and passes it to the
+# runtime, so repo code running there never has a path to the App key.
+resource "aws_iam_role_policy" "dispatcher_lambda_github_app_secret" {
+  name = "ReadGitHubAppSecret"
+  role = aws_iam_role.dispatcher_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["secretsmanager:GetSecretValue"]
+        Resource = aws_secretsmanager_secret.github_app.arn
+      }
+    ]
+  })
+}
+
 resource "aws_lambda_function" "dispatcher" {
   function_name    = "${var.name_prefix}-dispatcher"
   description      = "Receives issue payload and invokes the AgentCore decomposer runtime."
@@ -320,8 +332,9 @@ resource "aws_lambda_function" "dispatcher" {
 
   environment {
     variables = {
-      AGENT_RUNTIME_ARN = aws_bedrockagentcore_agent_runtime.decomposer.agent_runtime_arn
-      BEDROCK_MODEL_ID  = var.bedrock_model_id
+      AGENT_RUNTIME_ARN     = aws_bedrockagentcore_agent_runtime.decomposer.agent_runtime_arn
+      BEDROCK_MODEL_ID      = var.bedrock_model_id
+      GITHUB_APP_SECRET_ARN = aws_secretsmanager_secret.github_app.arn
     }
   }
 

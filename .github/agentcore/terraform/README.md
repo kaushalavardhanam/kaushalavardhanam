@@ -26,11 +26,12 @@ Authentication from GitHub Actions is via **OIDC — no static AWS keys**.
    - the regional `anthropic.*` foundation-model ARN,
    - the **global** `anthropic.*` foundation-model ARN (no region in the ARN),
      gated by `aws:RequestedRegion = "unspecified"`.
-   It can also read the GitHub App secret and write CloudWatch Logs.
+   It can write CloudWatch Logs but has **no Secrets Manager access**.
 2. **Dispatcher Lambda** (`python3.12`) that receives
-   `{issue_number, title, body, base_branch, repo}` and invokes the AgentCore
-   Runtime agent, plus its role (logs + `bedrock-agentcore:InvokeAgentRuntime`
-   on the runtime). The handler is a stub for now.
+   `{issue_number, title, body, base_branch, repo}`, mints a repo-scoped token
+   and invokes the AgentCore Runtime agent, plus its role (logs,
+   `bedrock-agentcore:InvokeAgentRuntime` on the runtime, and
+   `secretsmanager:GetSecretValue` on the GitHub App secret).
 3. **OIDC IAM role** for GitHub Actions
    (`sts:AssumeRoleWithWebIdentity` on `token.actions.githubusercontent.com`,
    trust scoped to `repo:<github_repo>:*`), allowing `lambda:InvokeFunction` on
@@ -38,6 +39,31 @@ Authentication from GitHub Actions is via **OIDC — no static AWS keys**.
    recreated (the Claude backend already created it).
 4. **Secrets Manager secret** to hold the GitHub App private key + app/
    installation IDs. Created **empty** by default; populate out-of-band.
+
+## GitHub token flow
+
+Repo code runs inside the runtime (acceptance commands, `python` in the
+session) with the runtime role's credentials and public egress, so that role
+must not be able to read the GitHub App private key. Instead:
+
+1. Only the **dispatcher** role may `GetSecretValue` on the App secret
+   (`GITHUB_APP_SECRET_ARN` is set on the dispatcher, not the runtime).
+2. The dispatcher mints a short-lived installation token scoped to the single
+   repo in the event (`github_app.get_installation_token(repository=...)`) and
+   passes it to the runtime as `github_token` in the invoke payload.
+3. The runtime uses that token only; the orchestrator and Claude's Bash also
+   strip AWS credentials from the environment of repo code.
+
+`test_terraform_policy.py` (in `lambda/`) asserts `GetSecretValue` appears only
+in the dispatcher policy.
+
+### Dispatcher packaging
+
+`data.archive_file.dispatcher_stub` zips `lambda/dispatcher.py` together with
+`../agent/github_app.py`. `github_app.py` imports `boto3` (in the Lambda
+runtime), plus `PyJWT` (with `cryptography`) and `requests`, which are **not**
+in the Lambda runtime. Provide them, e.g. via a Lambda layer, or the dispatcher
+will fail to import `github_app` and return 502.
 
 ## Variables
 
