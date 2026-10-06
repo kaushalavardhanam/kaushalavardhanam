@@ -170,14 +170,3 @@ What would change to run Kiro instead of Claude Code in backend 2. Only the codi
 - On the PR, `/agent fix` followed by what failed (the command and the error) gets a fix pushed to the same branch.
 
 **Security note:** this repo is public, so anyone can open an issue — including one titled `agent-*` with a crafted body. That alone doesn't trigger anything; it still takes someone with repo write/triage access adding the label, or someone with project-board access moving it to In Progress, and `/agent fix` is honoured only from the linked issue's author or a write collaborator. Because the issue body and fix comments become instructions to an agent that can push branches and spend Bedrock budget, **read the issue body before labeling it or moving it to In Progress** — don't triage on title alone.
-
-## code_with_q_cli
-This has a langgraph based multiagent orchestration application to enable code generation based on prompts
-
-## Resources to build the games
-https://aws.amazon.com/blogs/gametech/online-multiplayer-amazon-gamelift-aws-serverless/
-
-For Python Virtual Env:
-1.  cd code_with_q_cli
-2.  Explore the modules and utilize available resources to continue the game development based on the finalized design
-
