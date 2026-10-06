@@ -63,7 +63,7 @@ class MitraAgent:
         """One turn: user message in, final agent text out (tools may run)."""
         self.last_error = None
         try:
-            return str(self._agent(message)).strip()
+            reply = str(self._agent(message)).strip()
         except Exception as e:
             err = llm_provider.map_provider_exception(
                 e, provider=self.provider, model_id=self.model_id, region=self.region,
@@ -72,9 +72,34 @@ class MitraAgent:
             logger.error("LLM provider=%s model=%s failed: %s",
                          self.provider, self.model_id, err)
             raise err from e
-        reply = str(self._agent(message)).strip()
+        # Previously unreachable (merge leftover: an early `return` sat above
+        # it), so history grew without bound and bad phrasings never aged out.
         self._trim_history()
         return reply
+
+    def history_mark(self):
+        """Opaque marker for 'history as of now' (see ``rollback``)."""
+        messages = getattr(self._agent, "messages", None)
+        if not isinstance(messages, list) or not messages:
+            return None
+        return messages[-1]
+
+    def rollback(self, mark) -> None:
+        """Drop every message added after ``mark`` — i.e. the whole failed turn,
+        including any corrective retry. Matching is by identity because
+        trimming may shift indices; a marker that was trimmed away means the
+        turn filled the window, so clearing it all loses nothing older."""
+        messages = getattr(self._agent, "messages", None)
+        if not isinstance(messages, list):
+            return
+        if mark is None:
+            self._agent.messages = []
+            return
+        for i in range(len(messages) - 1, -1, -1):
+            if messages[i] is mark:
+                self._agent.messages = messages[: i + 1]
+                return
+        self._agent.messages = []
 
     @staticmethod
     def _is_clean_start(message) -> bool:
@@ -148,6 +173,16 @@ class ExplicitFallbackAgent:
             self.provider = self._fallback.provider
             self.model_id = self._fallback.model_id
             return self._fallback.converse(message)
+
+    def history_mark(self):
+        return (self.primary.history_mark(),
+                self._fallback.history_mark() if self._fallback is not None else None)
+
+    def rollback(self, mark) -> None:
+        primary_mark, fallback_mark = mark if isinstance(mark, tuple) else (mark, None)
+        self.primary.rollback(primary_mark)
+        if self._fallback is not None:
+            self._fallback.rollback(fallback_mark)
 
     def reset(self) -> None:
         self.primary.reset()

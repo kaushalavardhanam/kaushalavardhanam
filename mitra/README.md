@@ -1,6 +1,6 @@
 # Mitra (मित्रम्) — Sanskrit-Speaking Robot on Reachy Mini
 
-Mitra ("friend" in Sanskrit) is an interactive desktop robot built on the **Reachy Mini Lite**. Say **"mitra"** to wake it, show it any object and it names the object in Sanskrit, and converse with it — it understands English, Kannada, or Sanskrit, and replies in spoken Sanskrit — and if you ask *"explain that in English"*, it explains the exchange in English before returning to Sanskrit. All inference runs **locally** on the host Mac with open-source models; no internet is needed at runtime.
+Mitra ("friend" in Sanskrit) is an interactive desktop robot built on the **Reachy Mini Lite**. Say **"mitra"** to wake it, show it any object and it names the object in Sanskrit, and converse with it — it understands English or Sanskrit, and replies in spoken Sanskrit — and if you ask *"explain that in English"*, it explains the exchange in English before returning to Sanskrit. All inference runs **locally** on the host Mac with open-source models; no internet is needed at runtime.
 
 **📺 Video walkthrough — setting up this repo from scratch:**
 
@@ -26,7 +26,7 @@ Time flows downward: messages 1–7 are the wake-and-greet phase; 8–17 are one
 
 *Editable diagram sources: [architecture-local.excalidraw](architecture-local.excalidraw) · [architecture-cloud.excalidraw](architecture-cloud.excalidraw) · [flow-wake.excalidraw](flow-wake.excalidraw) — open at [excalidraw.com](https://excalidraw.com) or with the VS Code Excalidraw extension. Regenerate all three with `python scripts/gen_diagrams.py`.*
 
-**Flow in one paragraph:** the robot's microphones stream over USB through the `reachy-mini` SDK to a local **openWakeWord** model listening for "mitra". On wake, the robot nods and greets; **Silero VAD** segments utterances, **Whisper** transcribes them (with language detection across English/Kannada/Sanskrit), and a **Strands Agent** — using the **OllamaModel provider** against a local **Qwen3-VL 8B** (conversation + vision + native tool calling) — produces a short Sanskrit reply. Replies pass a Devanagari validator, get spoken by **AI4Bharat Indic Parler-TTS**, and play through the robot's speaker. Object questions make the model call its `capture_image` tool, with a **human-verified Sanskrit lexicon cache** overriding generated names for accuracy.
+**Flow in one paragraph:** the robot's microphones stream over USB through the `reachy-mini` SDK to a local **openWakeWord** model listening for "mitra". On wake, the robot nods and greets; **Silero VAD** segments utterances, **Whisper** transcribes them (English vs Sanskrit routing: Sanskrit is decoded in Devanagari and tagged as noisy so the LLM reconstructs the intended sentence), and a **Strands Agent** — using the **OllamaModel provider** against a local **Qwen3-VL 8B** (conversation + vision + native tool calling) — produces a short Sanskrit reply. Replies pass a Devanagari validator, get spoken by **AI4Bharat Indic Parler-TTS**, and play through the robot's speaker. Object questions make the model call its `capture_image` tool, with a **human-verified Sanskrit lexicon cache** overriding generated names for accuracy.
 
 **Extending to the cloud (Option B)** is an explicit provider choice — `models.llm.provider: bedrock` (or `--llm-provider bedrock`) — not a silent swap. In Bedrock mode Ollama/Qwen is not started or contacted; only transcripts and captured images leave the host. Local Ollama remains the default offline path. A Pipecat proof of concept is optional (`--orchestrator pipecat`); the custom orchestrator stays the default. Details in [DESIGN.md §1.5](DESIGN.md), [evals/ADR-001-pipecat-bedrock.md](evals/ADR-001-pipecat-bedrock.md), and [evals/MODEL_RESEARCH.md](evals/MODEL_RESEARCH.md).
 
@@ -109,7 +109,7 @@ The `reachy-mini` SDK ships a **MuJoCo simulation backend**: the daemon started 
 
    ```bash
    cd mitra
-   uv venv .venv --python 3.12
+   uv venv .venv --python 3.12 --seed   # --seed puts pip inside the venv
    source .venv/bin/activate        # do this in every new terminal
    ```
 
@@ -247,6 +247,35 @@ python main.py --orchestrator pipecat
 
 The custom engine remains available (`--orchestrator custom`). See [evals/ADR-001-pipecat-bedrock.md](evals/ADR-001-pipecat-bedrock.md).
 
+### Cloud LLM + Pipecat (GPT-5.6 Sol on Bedrock)
+
+Wake word, VAD, Whisper and TTS still run locally, so this needs the local
+speech layers too. `cloud-pipecat` pins `pipecat-ai<1.0` because every 1.x
+release requires `onnxruntime~=1.24.3`, while `reachy-mini` requires `==1.27.0`.
+
+```bash
+cd mitra
+uv venv .venv --python 3.12 --seed && source .venv/bin/activate
+pip install "reachy-mini[mujoco]" -e ".[cloud-pipecat,dev]"
+pip check                                   # expect: No broken requirements found
+export AWS_REGION=us-west-2                 # credentials via the normal AWS chain (SSO)
+python main.py --check --orchestrator pipecat --llm-provider bedrock --llm-id us.openai.gpt-5.6-sol
+python main.py --debug --orchestrator pipecat --llm-provider bedrock --llm-id us.openai.gpt-5.6-sol
+```
+
+GPT-5.6 Sol rejects `temperature`; `src/agent/provider.py` omits it for
+`openai.gpt-5*` IDs automatically.
+
+### Speaking Sanskrit to Mitra
+
+Whisper's own language-ID mislabels spoken Sanskrit (en / ur / ar / vi) and
+writes it in the wrong script. `models.asr.routing: sanskrit_aware` restricts
+the choice to English vs Sanskrit, decodes Sanskrit in Devanagari with a
+Devanagari prompt, and tags those turns `[lang=sa] [asr=noisy]` so the LLM
+reconstructs the intended sentence from a phonetic transcript. Measure it on
+your own voice with `python scripts/asr_lid_probe.py` (synthetic corpus) or
+`python scripts/eval_recognition.py --audio-dir <wavs>` (real recordings).
+
 ### Evaluation scripts (issue #7)
 
 ```bash
@@ -283,7 +312,7 @@ Skip this and Mitra still speaks: it automatically falls back to an ungated Hind
 | Ollama app, or Terminal 2 | open the Ollama menu-bar app (it runs the server itself), or run `ollama serve` | The **LLM serving layer** on `localhost:11434` |
 | Terminal 3 | `python main.py --debug` | **Mitra**: wake word, ears, brain wiring, voice |
 
-Remember `source .venv/bin/activate` in every terminal. When all three are up: say **"hey mitra"** near the microphone → the robot nods and greets you with नमस्ते → speak English, Kannada, or Sanskrit → it replies in spoken Sanskrit.
+Remember `source .venv/bin/activate` in every terminal. When all three are up: say **"hey mitra"** near the microphone → the robot nods and greets you with नमस्ते → speak English or Sanskrit → it replies in spoken Sanskrit.
 
 **Reading Mitra's body language** (state gestures, `robot.gestures` in config, on by default): antennas perk up and head lifts = *listening, your turn*; head tilts sideways = *thinking about what you said*; face forward = *speaking*; head and antennas droop = *asleep, say "hey mitra" to wake*. Plus the quick nod at the moment the wake word is recognized. Identical on the simulator and the real robot — the pose angles live in `ReachyRobot.POSES` (`src/robot/reachy.py`) if you want to tune the personality. In simulation, the robot's microphone and speaker are your Mac's, and its camera sees the simulated table (duck, croissant, apple — all three have verified lexicon entries).
 
@@ -318,6 +347,6 @@ mitra-lexicon --db data/lexicon.db      # review model-generated Sanskrit names 
 
 ## Status
 
-Implemented and verified: orchestrator state machine, robot wrapper (+`FakeReachy`), agent tools, validator, lexicon store (53-entry seed), language detector, wake engines (ASR-transcript now; openWakeWord once the custom "mitra" model is trained), `main.py` wiring — 59 tests green, including live-simulator smoke tests. Live-verified on the M1 Max: Strands agent → Ollama (`qwen3-vl:8b-instruct`, 100% GPU) answers English/Kannada/Sanskrit input with valid Devanagari Sanskrit in ~3 s warm. Remaining Phase 1–4 work: train the custom wake model, verify Parler-TTS latency on MPS, Sanskrit-ASR evaluation, and the seed-lexicon review by a Sanskrit reviewer (FR-2.6).
+Implemented and verified: orchestrator state machine, robot wrapper (+`FakeReachy`), agent tools, validator, lexicon store (53-entry seed), language detector, wake engines (ASR-transcript now; openWakeWord once the custom "mitra" model is trained), `main.py` wiring — 59 tests green, including live-simulator smoke tests. Live-verified on the M1 Max: Strands agent → Ollama (`qwen3-vl:8b-instruct`, 100% GPU) answers English/Sanskrit input with valid Devanagari Sanskrit in ~3 s warm. Remaining Phase 1–4 work: train the custom wake model, verify Parler-TTS latency on MPS, Sanskrit-ASR evaluation, and the seed-lexicon review by a Sanskrit reviewer (FR-2.6).
 
 Predecessor feasibility study (edge Jetson / AWS Bedrock design) is preserved in git history: `git show 40639db:mitra/README.md`.

@@ -166,3 +166,32 @@ def test_map_temperature_rejected_is_not_unsupported_region():
     )
     assert err.code == "unsupported_parameter"
     assert "temperature" in err.actionable.lower()
+
+
+def test_gpt5_sol_omits_temperature_even_when_configured():
+    """GPT-5.6 Sol 400s on inferenceConfig.temperature; the config default must not leak in."""
+    from mitra.agent.provider import make_model, rejects_temperature
+
+    assert rejects_temperature("us.openai.gpt-5.6-sol")
+    assert not rejects_temperature("us.amazon.nova-pro-v1:0")
+
+    captured = {}
+
+    class FakeBedrock:
+        def __init__(self, **kw):
+            captured.update(kw)
+
+    from strands import models as strands_models
+    import pytest
+    mp = pytest.MonkeyPatch()
+    mp.setattr(strands_models, "BedrockModel", FakeBedrock)
+    try:
+        make_model({"provider": "bedrock", "id": "us.openai.gpt-5.6-sol",
+                    "region": "us-west-2", "temperature": 0.3})
+        assert captured["temperature"] is None
+        captured.clear()
+        make_model({"provider": "bedrock", "id": "us.amazon.nova-pro-v1:0",
+                    "region": "us-west-2", "temperature": 0.3})
+        assert captured["temperature"] == 0.3
+    finally:
+        mp.undo()

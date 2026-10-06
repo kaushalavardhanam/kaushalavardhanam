@@ -7,22 +7,17 @@ def _by_name(tools):
     return {getattr(t, "tool_name", getattr(t, "__name__", str(t))): t for t in tools}
 
 
-def test_four_tools_built(fake_robot, fake_tts):
+def test_tools_built_without_a_speech_tool(fake_robot, fake_tts):
+    """Speech is the orchestrator's job; a model-callable speak tool played
+    unvalidated text and double-spoke replies."""
     tools = _by_name(build_tools(fake_robot, fake_tts))
-    assert set(tools) == {"capture_image", "speak_sanskrit", "nod", "end_session"}
+    assert set(tools) == {"capture_image", "nod", "end_session"}
 
 
 def test_capture_image_returns_jpeg(fake_robot, fake_tts):
     result = _by_name(build_tools(fake_robot, fake_tts))["capture_image"]()
     assert result["format"] == "jpeg"
     assert result["source"]["bytes"][:2] == b"\xff\xd8"  # JPEG magic
-
-
-def test_speak_sanskrit_routes_through_tts_and_speaker(fake_robot, fake_tts):
-    out = _by_name(build_tools(fake_robot, fake_tts))["speak_sanskrit"]("नमस्ते")
-    assert out == "spoken"
-    assert fake_tts.spoken == ["नमस्ते"]
-    assert len(fake_robot.played) == 1
 
 
 def test_nod_moves_head(fake_robot, fake_tts):

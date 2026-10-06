@@ -122,8 +122,11 @@ def test_pipecat_injects_all_ten_conversation_scenarios(make_orchestrator, fake_
     scenarios = conversation_scenarios()
     replies = [REFERENCE_REPLIES[s["id"]]["sanskrit"] for s in scenarios]
     orch, agent = make_orchestrator(replies=replies)
+    # The reference set includes a two-sentence reply; this test checks routing
+    # through Pipecat, not the one-sentence cap (covered in test_orchestrator).
     pipe = PipecatOrchestrator(
         robot=orch.robot, agent=orch.agent, tts=orch.tts, lexicon=orch.lexicon,
+        max_sentences=2,
     )
     pipe.state = State.LISTENING
     for scenario in scenarios:

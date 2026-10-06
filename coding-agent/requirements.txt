@@ -1,6 +1,0 @@
-boto3==1.37.26
-botocore>=1.37.26
-graphviz
-streamlit
-langchain
-langgraph

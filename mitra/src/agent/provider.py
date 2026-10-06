@@ -27,6 +27,17 @@ def model_id(cfg: dict) -> str:
     return str(cfg.get("id") or cfg.get("model_id") or "")
 
 
+# Bedrock models whose Converse API returns ValidationException
+# "This model doesn't support the temperature field" (evals/MODEL_RESEARCH.md).
+_NO_TEMPERATURE_MARKERS = ("openai.gpt-5",)
+
+
+def rejects_temperature(mid: str) -> bool:
+    """True for model/inference-profile ids that reject inferenceConfig.temperature."""
+    m = (mid or "").lower()
+    return any(marker in m for marker in _NO_TEMPERATURE_MARKERS)
+
+
 def resolve_region(cfg: dict) -> str | None:
     """Region from config, else AWS_REGION / AWS_DEFAULT_REGION. Never hard-coded."""
     explicit = cfg.get("region") or cfg.get("region_name")
@@ -186,9 +197,14 @@ def _make_bedrock(cfg: dict):
         read_timeout=timeout_s,
         retries={"max_attempts": max_retries, "mode": "standard"},
     )
+    temperature = cfg.get("temperature", 0.3)
+    if temperature is not None and rejects_temperature(mid):
+        logger.info("model %s rejects temperature — omitting it from inferenceConfig", mid)
+        temperature = None
     kwargs: dict[str, Any] = {
         "model_id": mid,
-        "temperature": cfg.get("temperature", 0.3),
+        # None is dropped by Strands' BedrockModel, so the field is not sent.
+        "temperature": temperature,
         "max_tokens": cfg.get("max_tokens", 256),
         "streaming": bool(cfg.get("streaming", False)),
         "boto_client_config": boto_cfg,

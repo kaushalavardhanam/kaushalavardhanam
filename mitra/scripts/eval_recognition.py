@@ -52,21 +52,7 @@ def load_wav_16k(path: Path):
 def transcriber_from_config(config: dict):
     from mitra.audio.asr import Transcriber
 
-    asr = config["models"]["asr"]
-    return Transcriber(
-        default_model=asr["default"],
-        sanskrit_model=asr.get("sanskrit"),
-        backend=asr.get("backend", "mlx"),
-        device=asr.get("device", "mps"),
-        initial_prompt=asr.get("initial_prompt"),
-        condition_on_previous_text=asr.get("condition_on_previous_text", False),
-        no_speech_threshold=asr.get("no_speech_threshold", 0.6),
-        compression_ratio_threshold=asr.get("compression_ratio_threshold", 2.4),
-        min_peak=asr.get("min_peak", 0.008),
-        filter_hallucinations=asr.get("filter_hallucinations", True),
-        english_retry=asr.get("english_retry", True),
-        cpu_model=asr.get("cpu_model"),
-    )
+    return Transcriber.from_config(config["models"]["asr"])
 
 
 def main() -> int:
