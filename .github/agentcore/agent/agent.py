@@ -18,11 +18,14 @@ only for an ``agent-*`` issue moved to In Progress or an authorized
 Payloads (from ``../terraform/lambda/dispatcher.py``)::
 
     {"mode": "issue", "issue_number": 12, "title": "agent-...", "body": "...",
-     "base_branch": "main", "repo": "owner/name", "runtime_arn": "..."}
+     "base_branch": "main", "repo": "owner/name", "runtime_arn": "...",
+     "github_token": "..."}
     {"mode": "fix", "repo": "owner/name", "pr_number": 25, "comment_id": 123,
-     "runtime_arn": "..."}
+     "runtime_arn": "...", "github_token": "..."}
 
-``mode`` defaults to ``issue`` for payloads from older dispatchers.
+``github_token`` is a short-lived installation token scoped to ``repo``; it is
+never logged or returned in the response. ``mode`` defaults to ``issue`` for
+payloads from older dispatchers.
 """
 
 from __future__ import annotations
@@ -70,11 +73,16 @@ def validate(payload: Dict[str, Any]) -> Dict[str, Any]:
 def run_job(payload: Dict[str, Any]) -> Dict[str, Any]:
     """Run one job synchronously (the background thread's body)."""
     import jobs
-    from github_app import get_installation_token
+
+    # The dispatcher mints a short-lived, single-repo token; the runtime role
+    # has no Secrets Manager access, so it can never mint one itself.
+    token = payload.get("github_token")
+    if not token:
+        raise ValueError("invocation payload missing github_token from the dispatcher")
 
     if payload["mode"] == "fix":
-        return jobs.run_fix_job(payload, get_token=get_installation_token)
-    return jobs.run_issue_job(payload, get_token=get_installation_token)
+        return jobs.run_fix_job(payload, get_token=lambda: token)
+    return jobs.run_issue_job(payload, get_token=lambda: token)
 
 
 def stop_session(runtime_arn: Optional[str], session_id: Optional[str]) -> None:

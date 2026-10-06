@@ -5,8 +5,11 @@
 
 from __future__ import annotations
 
+import sys
 import threading
+import types
 import unittest
+from unittest import mock
 
 import agent
 
@@ -58,6 +61,37 @@ class HandleTests(unittest.TestCase):
             agent.handle({"mode": "fix", "repo": "org/repo"}, "s", job=lambda p: {})
         with self.assertRaises(ValueError):
             agent.handle({"mode": "nope", "repo": "r"}, "s", job=lambda p: {})
+
+
+class RunJobTests(unittest.TestCase):
+    def setUp(self):
+        self.calls = []
+        fake = types.ModuleType("jobs")
+        fake.run_issue_job = lambda p, get_token: self.calls.append(("issue", get_token())) or {"ok": 1}
+        fake.run_fix_job = lambda p, get_token: self.calls.append(("fix", get_token())) or {"ok": 2}
+        patcher = mock.patch.dict(sys.modules, {"jobs": fake})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_issue_job_gets_payload_token(self):
+        self.assertEqual(agent.run_job({**ISSUE, "mode": "issue", "github_token": "tok-1"}), {"ok": 1})
+        self.assertEqual(self.calls, [("issue", "tok-1")])
+
+    def test_fix_job_gets_payload_token(self):
+        agent.run_job({"mode": "fix", "repo": "org/repo", "github_token": "tok-2"})
+        self.assertEqual(self.calls, [("fix", "tok-2")])
+
+    def test_missing_token_raises_and_runs_nothing(self):
+        for payload in ({**ISSUE, "mode": "issue"}, {**ISSUE, "mode": "issue", "github_token": ""}):
+            with self.assertRaisesRegex(ValueError, "github_token"):
+                agent.run_job(payload)
+        self.assertEqual(self.calls, [])
+
+    def test_token_not_in_handle_response(self):
+        agent._running.clear()
+        resp = agent.handle({**ISSUE, "github_token": "secret-tok"}, "s", job=lambda p: {},
+                            stop=lambda a, s: None, background=False)
+        self.assertNotIn("secret-tok", str(resp))
 
 
 if __name__ == "__main__":
