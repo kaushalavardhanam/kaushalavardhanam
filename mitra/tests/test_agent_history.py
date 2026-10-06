@@ -76,3 +76,38 @@ def test_unexpected_message_shape_leaves_history_alone():
     agent = _trimmer("not a list")
     agent._trim_history()
     assert agent._agent.messages == "not a list"
+
+
+def test_rollback_drops_the_failed_turn_including_retries():
+    msgs = _mk(2)
+    agent = _trimmer(msgs)
+    mark = agent.history_mark()
+    # A failed turn: question, bad reply, corrective retry, bad reply.
+    agent._agent.messages = msgs + _mk(2)
+    agent.rollback(mark)
+    assert agent._agent.messages == _mk(2)
+
+
+def test_rollback_from_empty_history_clears():
+    agent = _trimmer([])
+    mark = agent.history_mark()
+    agent._agent.messages = _mk(1)
+    agent.rollback(mark)
+    assert agent._agent.messages == []
+
+
+def test_converse_trims_history():
+    """Regression: an early `return` made _trim_history unreachable."""
+    agent = _trimmer(_mk(10), turns=2)
+    agent.last_error = None
+    agent.provider = agent.model_id = agent.region = None
+
+    class _CallableStub(_StubAgent):
+        def __call__(self, message):
+            self.messages.append({"role": "user", "content": [{"text": message}]})
+            self.messages.append({"role": "assistant", "content": [{"text": "r"}]})
+            return "r"
+
+    agent._agent = _CallableStub(agent._agent.messages)
+    assert agent.converse("hello") == "r"
+    assert len(agent._agent.messages) == 4

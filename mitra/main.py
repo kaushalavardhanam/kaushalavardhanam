@@ -242,20 +242,7 @@ def build_and_run(config: dict, robot_backend: str, debug: bool) -> int:
         preroll_s=vad_cfg.get("preroll_s", 0.25),
     )
     asr_cfg = models["asr"]
-    asr = Transcriber(
-        default_model=asr_cfg["default"],
-        sanskrit_model=asr_cfg.get("sanskrit"),
-        backend=asr_cfg.get("backend", "mlx"),
-        device=asr_cfg.get("device", "mps"),
-        initial_prompt=asr_cfg.get("initial_prompt"),
-        condition_on_previous_text=asr_cfg.get("condition_on_previous_text", False),
-        no_speech_threshold=asr_cfg.get("no_speech_threshold", 0.6),
-        compression_ratio_threshold=asr_cfg.get("compression_ratio_threshold", 2.4),
-        min_peak=asr_cfg.get("min_peak", 0.008),
-        filter_hallucinations=asr_cfg.get("filter_hallucinations", True),
-        english_retry=asr_cfg.get("english_retry", True),
-        cpu_model=asr_cfg.get("cpu_model"),
-    )
+    asr = Transcriber.from_config(asr_cfg)
     # Warm up ASR before the run loop: Whisper large-v3 (~3 GB) downloads on
     # first use. Without this, the download would stall the FIRST conversation
     # turn for minutes with no feedback; here it happens at startup with a log

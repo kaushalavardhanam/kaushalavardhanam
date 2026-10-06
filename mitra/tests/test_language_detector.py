@@ -5,8 +5,11 @@ def test_english():
     assert detect("What is your name?") == "en"
 
 
-def test_kannada():
-    assert detect("ನಿನ್ನ ಹೆಸರೇನು?") == "kn"
+def test_other_scripts_are_unknown():
+    # Kannada support was dropped; Whisper's Urdu/Arabic renderings of
+    # Sanskrit must not reach the model either.
+    assert detect("ನಿನ್ನ ಹೆಸರೇನು?") == "unknown"
+    assert detect("اہل سمسکرتم ودا میں") == "unknown"
 
 
 def test_sanskrit_devanagari():
@@ -18,6 +21,7 @@ def test_majority_wins_in_mixed_text():
 
 
 def test_empty_uses_hint():
-    assert detect("", hint="kn") == "kn"
+    assert detect("", hint="sa") == "sa"
+    assert detect("", hint="kn") == "unknown"
     assert detect("", hint="fr") == "unknown"
     assert detect("123 !!") == "unknown"
