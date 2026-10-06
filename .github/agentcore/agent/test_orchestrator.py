@@ -13,14 +13,22 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 import tempfile
+import types
 import unittest
 from unittest import mock
+
+try:
+    import requests  # noqa: F401
+except ImportError:  # git_pr only needs it for real HTTP calls, which these tests patch out
+    sys.modules["requests"] = types.ModuleType("requests")
 
 import git_pr
 import jobs
 from claude_runner import RunResult
-from orchestrator import DONE, FAILED, SKIPPED, Ask, OrchestrationError, Orchestrator
+from orchestrator import DONE, FAILED, SKIPPED, Ask, OrchestrationError, Orchestrator, scrub_env
+from plan import Command
 
 PASSING_TEST = "import unittest\nfrom calc import add\n\nclass T(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(add(2, 3), 5)\n"
 CALC_OK = "def add(a, b):\n    return a + b\n"
@@ -110,12 +118,14 @@ class OrchestratorTests(unittest.TestCase):
 
     def test_happy_path_commits_each_subtask_and_verifies(self):
         plan = {"subtasks": [
-            subtask(1, "fix add", files=["pkg/calc.py"], covers=["R1"],
-                    acceptance={"cwd": "pkg", "command": "python3 -m py_compile calc.py"}),
-            subtask(2, "add test", new_files=["pkg/test_calc.py"], depends_on=[1], covers=["R2"]),
+            subtask(1, "fix add and test", files=["pkg/calc.py"], new_files=["pkg/test_calc.py"],
+                    covers=["R1", "R2"]),
+            subtask(2, "more tests", new_files=["pkg/test_more.py"], depends_on=[1], covers=["R2"],
+                    acceptance=accept("test_more")),
         ]}
         orch, runner = self.orch([structured(REQS), structured(plan),
-                                  write("pkg/calc.py", CALC_OK), write("pkg/test_calc.py", PASSING_TEST)],
+                                  both(write("pkg/calc.py", CALC_OK), write("pkg/test_calc.py", PASSING_TEST)),
+                                  write("pkg/test_more.py", PASSING_TEST)],
                                  commit_trailers=["Agent-Fix-Comment: 7"])
         out = orch.run(self.ask)
 
@@ -125,7 +135,7 @@ class OrchestratorTests(unittest.TestCase):
         self.assertFalse(out.baseline[0].ok)  # test_calc did not exist before
         self.assertTrue(out.verify[0].ok)
         self.assertIn("Agent-Fix-Comment: 7", git("log", "-1", "--format=%B", cwd=self.repo))
-        self.assertEqual(runner.write_paths[2], ["pkg/calc.py"])  # scope handed to the session
+        self.assertEqual(runner.write_paths[2], ["pkg/calc.py", "pkg/test_calc.py"])  # scope handed to the session
         self.assertIsNone(runner.write_paths[0])  # requirements session is read-only
 
     def test_rejected_plan_is_replanned_with_violations(self):
@@ -164,26 +174,24 @@ class OrchestratorTests(unittest.TestCase):
         big = {"subtasks": [subtask(1, "do everything", files=["pkg/calc.py"], new_files=["pkg/test_calc.py"],
                                     covers=["R1", "R2"])]}
         children = {"subtasks": [
-            subtask(1, "fix add", files=["pkg/calc.py"], covers=["R1"],
-                    acceptance={"cwd": "pkg", "command": "python3 -m py_compile calc.py"}),
-            subtask(2, "add test", new_files=["pkg/test_calc.py"], depends_on=[1], covers=["R2"]),
+            subtask(1, "fix add and test", files=["pkg/calc.py"], new_files=["pkg/test_calc.py"],
+                    covers=["R1", "R2"]),
         ]}
         broken_test = write("pkg/test_calc.py", PASSING_TEST)  # calc still buggy -> fails
         orch, runner = self.orch([structured(REQS), structured(big), broken_test, broken_test,
-                                  structured(children), write("pkg/calc.py", CALC_OK),
-                                  write("pkg/test_calc.py", PASSING_TEST)])
+                                  structured(children),
+                                  both(write("pkg/calc.py", CALC_OK), write("pkg/test_calc.py", PASSING_TEST))])
         out = orch.run(self.ask)
         self.assertTrue(out.complete)
         self.assertEqual([(r.task.title, r.status, r.depth) for r in out.records],
-                         [("do everything", DONE, 0), ("fix add", DONE, 1), ("add test", DONE, 1)])
+                         [("do everything", DONE, 0), ("fix add and test", DONE, 1)])
         self.assertIn("too big to get passing", runner.prompts[4])
         self.assertIn("AssertionError", runner.prompts[3])  # 2nd attempt saw the failure
 
     def test_failure_skips_dependents_and_is_incomplete(self):
         plan = {"subtasks": [
             subtask(1, "add test", new_files=["pkg/test_calc.py"], covers=["R2"]),
-            subtask(2, "docs", files=["pkg/README"], depends_on=[1], covers=["R1"],
-                    acceptance={"cwd": "pkg", "command": "python3 -m py_compile calc.py"}),
+            subtask(2, "docs", files=["pkg/README"], depends_on=[1], covers=["R1"]),
         ]}
         fail = write("pkg/test_calc.py", PASSING_TEST)
         no_split = structured({"subtasks": []})
@@ -194,10 +202,65 @@ class OrchestratorTests(unittest.TestCase):
         self.assertEqual(out.commits, [])
         self.assertEqual(git("status", "--porcelain", cwd=self.repo), "")  # partial work discarded
 
+    def test_acceptance_passing_without_the_change_is_rejected(self):
+        plan = {"subtasks": [subtask(1, "fix + test", files=["pkg/calc.py"], new_files=["pkg/test_calc.py"],
+                                     covers=["R1", "R2"])]}
+        vacuous = both(write("pkg/calc.py", "def add(a, b):\n    return a - b  # still a bug\n"),
+                       write("pkg/test_calc.py", "import unittest\n\nclass T(unittest.TestCase):\n"
+                                                 "    def test_nothing(self):\n        self.assertTrue(True)\n"))
+        no_split = structured({"subtasks": []})
+        orch, runner = self.orch([structured(REQS), structured(plan), vacuous, vacuous,
+                                  no_split, no_split, no_split])
+        out = orch.run(self.ask)
+        self.assertFalse(out.complete)
+        self.assertEqual([r.status for r in out.records], [FAILED])
+        self.assertEqual(out.commits, [])
+        self.assertIn("does not exercise the change", runner.prompts[3])  # retry prompt
+        self.assertIn("too big to get passing", runner.prompts[4])  # re-planned
+        self.assertEqual(git("status", "--porcelain", cwd=self.repo), "")
+        self.assertEqual(git("stash", "list", cwd=self.repo), "")
+
+    def test_real_fix_and_test_is_committed_and_stash_is_clean(self):
+        plan = {"subtasks": [subtask(1, "fix + test", files=["pkg/calc.py"], new_files=["pkg/test_calc.py"],
+                                     covers=["R1", "R2"])]}
+        orch, _ = self.orch([structured(REQS), structured(plan),
+                             both(write("pkg/calc.py", CALC_OK), write("pkg/test_calc.py", PASSING_TEST))])
+        out = orch.run(self.ask)
+        self.assertEqual([r.status for r in out.records], [DONE])
+        self.assertEqual(len(out.commits), 1)
+        self.assertEqual(git("stash", "list", cwd=self.repo), "")
+
     def test_budget_is_enforced(self):
         orch, _ = self.orch([], budget_usd=0.0)
         with self.assertRaises(OrchestrationError):
             orch.run(self.ask)
+
+
+class ScrubTests(unittest.TestCase):
+    def test_scrub_env_drops_aws_and_github_secrets(self):
+        env = {"PATH": "/bin", "HOME": "/h", "AWS_SESSION_TOKEN": "t", "AWS_ACCESS_KEY_ID": "a",
+               "AWS_SECRET_ACCESS_KEY": "s", "AWS_CONTAINER_CREDENTIALS_FULL_URI": "u",
+               "AWS_WEB_IDENTITY_TOKEN_FILE": "f", "GITHUB_APP_SECRET_ARN": "arn",
+               "GITHUB_TOKEN": "g", "GH_TOKEN": "g"}
+        self.assertEqual(scrub_env(env), {"PATH": "/bin", "HOME": "/h"})
+        self.assertIn("AWS_SESSION_TOKEN", env)  # input untouched
+
+    def test_scrub_run_command_has_no_aws_env(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write("test_env.py", (
+                "import os, unittest\n"
+                "class T(unittest.TestCase):\n"
+                "    def test_no_secrets(self):\n"
+                "        bad = [k for k in os.environ if k.startswith('AWS_') or k in "
+                "('GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_APP_SECRET_ARN')]\n"
+                "        self.assertEqual(bad, [])\n"))(tmp)
+            fake = {"AWS_ACCESS_KEY_ID": "a", "AWS_SESSION_TOKEN": "t",
+                    "AWS_CONTAINER_CREDENTIALS_FULL_URI": "u", "GITHUB_TOKEN": "g",
+                    "GITHUB_APP_SECRET_ARN": "arn"}
+            with mock.patch.dict(os.environ, fake):
+                orch = Orchestrator(tmp, ScriptedRunner(tmp, []))
+            res = orch.run_command(Command(command=f"{sys.executable} -m unittest test_env", cwd="."))
+            self.assertTrue(res.ok, res.output)
 
 
 class JobTests(unittest.TestCase):

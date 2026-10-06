@@ -11,7 +11,7 @@ import os
 import tempfile
 import unittest
 
-from claude_runner import bedrock_env, check_bash, check_tool
+from claude_runner import ClaudeRunner, bedrock_env, check_bash, check_tool
 
 
 class BashPolicyTests(unittest.TestCase):
@@ -70,6 +70,20 @@ class BedrockEnvTests(unittest.TestCase):
     def test_rejects_non_anthropic_models(self):
         with self.assertRaises(ValueError):
             bedrock_env("global.openai.gpt-6-astra")
+
+
+class RunnerEnvTests(unittest.TestCase):
+    MODEL = "global.anthropic.claude-sonnet-5-5"
+
+    def test_scrubs_subprocess_env(self):
+        runner = ClaudeRunner(tempfile.mkdtemp(), model_id=self.MODEL)
+        self.assertEqual(runner.env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"], "1")
+
+    def test_extra_env_cannot_disable_scrub(self):
+        runner = ClaudeRunner(tempfile.mkdtemp(), model_id=self.MODEL,
+                              extra_env={"CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "0", "FOO": "bar"})
+        self.assertEqual(runner.env["CLAUDE_CODE_SUBPROCESS_ENV_SCRUB"], "1")
+        self.assertEqual(runner.env["FOO"], "bar")
 
 
 if __name__ == "__main__":

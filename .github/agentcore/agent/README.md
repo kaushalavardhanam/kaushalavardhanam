@@ -29,9 +29,14 @@ The model plans; **code decides whether the plan is acceptable** (`plan.validate
 - **every sub-task changes 1–4 files** — no "inspect" or "run the tests" steps
   (exploring happens while planning; verifying is each sub-task's acceptance
   command);
-- every sub-task has **one runnable acceptance command** (pytest / unittest /
-  py_compile, with a cwd) that the orchestrator runs itself — the model's own
-  claim of success is never trusted;
+- every sub-task has **one runnable acceptance command** (pytest / unittest,
+  with a cwd; `py_compile` is allowed only for the requirements' verify
+  commands) that the orchestrator runs itself — the model's own claim of
+  success is never trusted;
+- acceptance is **fail-before / pass-after**: once it passes, the orchestrator
+  stashes the sub-task's non-test changes and re-runs it; if it still passes,
+  the sub-task is rejected ("test does not exercise the change") and retried,
+  then re-planned. Test-only sub-tasks skip this check;
 - dependencies point only backwards, and two sub-tasks touching the same file
   must be ordered.
 

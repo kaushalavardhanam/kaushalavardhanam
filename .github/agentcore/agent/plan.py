@@ -100,6 +100,9 @@ _ALLOWED_COMMANDS = (
     ("python3", "-m", "pytest"),
     ("python", "-m", "unittest"),
     ("python3", "-m", "unittest"),
+)
+# Syntax-only checks: allowed for the verify command, never as sub-task acceptance.
+_COMPILE_COMMANDS = (
     ("python", "-m", "py_compile"),
     ("python3", "-m", "py_compile"),
 )
@@ -173,7 +176,7 @@ def _norm(path: str) -> str:
     return posixpath.normpath(str(path).strip().lstrip("/"))
 
 
-def command_violation(cmd: Command, tree: Set[str]) -> str:
+def command_violation(cmd: Command, tree: Set[str], *, allow_compile: bool = False) -> str:
     """Why ``cmd`` cannot be run by the orchestrator, or '' if it can."""
     try:
         words = shlex.split(cmd.command)
@@ -181,7 +184,11 @@ def command_violation(cmd: Command, tree: Set[str]) -> str:
         return f"unparseable command {cmd.command!r}"
     if any(w in ("&&", "||", ";", "|", ">", ">>") for w in words) or "$(" in cmd.command:
         return f"command {cmd.command!r} must be a single command (put the directory in cwd)"
-    if not any(tuple(words[: len(p)]) == p for p in _ALLOWED_COMMANDS):
+    if not allow_compile and any(tuple(words[: len(p)]) == p for p in _COMPILE_COMMANDS):
+        return (f"command {cmd.command!r}: py_compile does not check behaviour and is for the "
+                "verify command only; use a pytest/unittest acceptance command")
+    allowed = _ALLOWED_COMMANDS + (_COMPILE_COMMANDS if allow_compile else ())
+    if not any(tuple(words[: len(p)]) == p for p in allowed):
         return (f"command {cmd.command!r} must start with one of: "
                 + ", ".join(" ".join(p) for p in _ALLOWED_COMMANDS))
     cwd = _norm(cmd.cwd)

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from plan import Command, Requirements, parse_plan, validate_plan
+from plan import Command, Requirements, command_violation, parse_plan, validate_plan
 
 TREE = {"mitra/src/lexicon/vocabulary.py", "mitra/tests/conftest.py", "mitra/tests/test_sanskrit.py"}
 REQS = ["R1", "R2"]
@@ -80,6 +80,26 @@ class PlanValidatorTests(unittest.TestCase):
             with self.subTest(bad=bad):
                 v = check(task(1, new_files=["mitra/tests/test_vocabulary.py"], covers=REQS, acceptance=bad))
                 self.assertTrue(any("acceptance" in x for x in v))
+
+    def test_py_compile_is_rejected_as_subtask_acceptance(self):
+        for interp in ("python", "python3"):
+            with self.subTest(interp=interp):
+                v = check(task(1, new_files=["mitra/x.py"], covers=REQS,
+                               acceptance={"cwd": "mitra", "command": f"{interp} -m py_compile x.py"}))
+                self.assertTrue(any("acceptance" in x and "py_compile" in x and "verify" in x for x in v))
+
+    def test_py_compile_allowed_for_verify_only(self):
+        tree = TREE | {"mitra/x.py"}
+        for interp in ("python", "python3"):
+            cmd = Command("mitra", f"{interp} -m py_compile x.py")
+            self.assertNotEqual(command_violation(cmd, tree), "")
+            self.assertEqual(command_violation(cmd, tree, allow_compile=True), "")
+
+    def test_pytest_and_unittest_still_pass(self):
+        for c in ("pytest -q", "python -m pytest -q", "python3 -m unittest test_sanskrit"):
+            with self.subTest(c=c):
+                self.assertEqual(command_violation(Command("mitra", c), TREE), "")
+                self.assertEqual(command_violation(Command("mitra", c), TREE, allow_compile=True), "")
 
     def test_requirements_parse(self):
         r = Requirements.parse({"requirements": [{"id": "R1", "text": "t"}],
