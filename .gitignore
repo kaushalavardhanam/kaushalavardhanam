@@ -40,3 +40,6 @@ mitra/evals/fixtures/
 !mitra/evals/results/*.md
 !mitra/evals/results/*.json
 !mitra/evals/results/*.jsonl
+
+# Local AgentCore reference diagrams/docs, not part of the repo
+.github/agentcore/docs/
