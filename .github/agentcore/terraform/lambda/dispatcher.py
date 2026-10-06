@@ -13,8 +13,11 @@ Bedrock AgentCore Runtime (``AGENT_RUNTIME_ARN``) with:
 * a DETERMINISTIC ``runtimeSessionId`` — one per issue, one per fix comment —
   so a duplicate delivery reaches the same session (which answers
   ``already_running``) instead of launching a second microVM;
-* the event plus ``runtime_arn``, so the runtime can stop its own session as
-  soon as the job finishes.
+* the event plus ``runtime_arn`` (so the runtime can stop its own session as
+  soon as the job finishes) and ``github_token``: a short-lived GitHub App
+  installation token scoped to ``event["repo"]`` only, minted here so the
+  runtime role needs no access to the App's private key. If minting fails the
+  runtime is not invoked (502), and the token is never put in a response.
 
 The runtime acknowledges within seconds and does the work in the background,
 so this function returns well inside its timeout. Async retries are disabled
@@ -68,6 +71,16 @@ def _read_response_body(resp):
         return raw
 
 
+def mint_token(repo: str) -> str:
+    """Short-lived GitHub App installation token scoped to ``repo`` alone.
+
+    Imported lazily so tests (and the plain-validation paths) never load it.
+    """
+    from github_app import get_installation_token
+
+    return get_installation_token(repository=repo)
+
+
 def handler(event, context):  # noqa: ANN001 - Lambda signature
     event = dict(event or {})
     event.setdefault("mode", "issue")
@@ -85,8 +98,15 @@ def handler(event, context):  # noqa: ANN001 - Lambda signature
     if not agent_runtime_arn:
         return _response(502, error="AGENT_RUNTIME_ARN is not configured")
 
+    try:
+        github_token = mint_token(event["repo"])
+    except Exception:  # noqa: BLE001 - never echo details that could carry secrets
+        return _response(502, error="could not mint GitHub token")
+
     session_id = session_id_for(event)
-    payload = json.dumps({**event, "runtime_arn": agent_runtime_arn}).encode("utf-8")
+    payload = json.dumps(
+        {**event, "runtime_arn": agent_runtime_arn, "github_token": github_token}
+    ).encode("utf-8")
     try:
         resp = boto3.client("bedrock-agentcore").invoke_agent_runtime(
             agentRuntimeArn=agent_runtime_arn,

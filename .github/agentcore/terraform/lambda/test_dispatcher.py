@@ -10,8 +10,21 @@ from __future__ import annotations
 
 import json
 import os
+import sys
+import types
 import unittest
 from unittest import mock
+
+try:  # boto3 ships in the Lambda runtime; stub it only where it isn't installed
+    import boto3  # noqa: F401
+except ImportError:
+    _botocore = types.ModuleType("botocore")
+    _exceptions = types.ModuleType("botocore.exceptions")
+    _exceptions.BotoCoreError = type("BotoCoreError", (Exception,), {})
+    _exceptions.ClientError = type("ClientError", (Exception,), {})
+    sys.modules.update({"boto3": types.ModuleType("boto3"), "botocore": _botocore,
+                        "botocore.exceptions": _exceptions})
+    sys.modules["boto3"].client = lambda *a, **kw: None
 
 import dispatcher
 
@@ -24,7 +37,8 @@ class DispatcherTests(unittest.TestCase):
         self.client = mock.Mock()
         self.client.invoke_agent_runtime.return_value = {"runtimeSessionId": "sid", "response": None}
         patches = [mock.patch.dict(os.environ, {"AGENT_RUNTIME_ARN": "arn:rt"}),
-                   mock.patch.object(dispatcher.boto3, "client", return_value=self.client)]
+                   mock.patch.object(dispatcher.boto3, "client", return_value=self.client),
+                   mock.patch.object(dispatcher, "mint_token", side_effect=lambda repo: f"tok-for-{repo}")]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
@@ -42,6 +56,24 @@ class DispatcherTests(unittest.TestCase):
         kwargs = self.client.invoke_agent_runtime.call_args.kwargs
         self.assertEqual(kwargs["runtimeSessionId"], dispatcher.session_id_for({**ISSUE, "mode": "issue"}))
         self.assertEqual(json.loads(kwargs["payload"])["runtime_arn"], "arn:rt")
+
+    def test_payload_carries_token_minted_for_event_repo(self):
+        dispatcher.handler({**ISSUE, "repo": "org/other"}, None)
+        dispatcher.mint_token.assert_called_once_with("org/other")
+        payload = json.loads(self.client.invoke_agent_runtime.call_args.kwargs["payload"])
+        self.assertEqual(payload["github_token"], "tok-for-org/other")
+
+    def test_mint_failure_returns_502_without_invoking(self):
+        dispatcher.mint_token.side_effect = RuntimeError("secret-key-material")
+        resp = dispatcher.handler(ISSUE, None)
+        self.assertEqual(resp["statusCode"], 502)
+        self.assertEqual(json.loads(resp["body"]), {"error": "could not mint GitHub token"})
+        self.client.invoke_agent_runtime.assert_not_called()
+
+    def test_token_never_in_response(self):
+        resp = dispatcher.handler(ISSUE, None)
+        self.assertEqual(resp["statusCode"], 200)
+        self.assertNotIn("tok-for-org/repo", resp["body"])
 
     def test_gates(self):
         self.assertEqual(dispatcher.handler({**ISSUE, "title": "not an agent issue"}, None)["statusCode"], 400)
