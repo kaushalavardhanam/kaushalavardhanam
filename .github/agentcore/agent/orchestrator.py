@@ -131,6 +131,14 @@ class Outcome:
         return top_level_ok and not self.unresolved
 
 
+def _is_test_path(path: str) -> bool:
+    """True for test files: test_*.py, *_test.py, conftest.py, or anything under tests/."""
+    parts = path.replace("\\", "/").split("/")
+    name = parts[-1]
+    return (name == "conftest.py" or (name.startswith("test_") and name.endswith(".py"))
+            or name.endswith("_test.py") or any(p in ("tests", "test") for p in parts[:-1]))
+
+
 def _tail(text: str) -> str:
     return text if len(text) <= OUTPUT_TAIL_CHARS else "...\n" + text[-OUTPUT_TAIL_CHARS:]
 
@@ -258,7 +266,7 @@ vocabulary.py")."""
         tree = self.tree()
         kept = []
         for cmd in reqs.verify:
-            problem = planlib.command_violation(cmd, tree)
+            problem = planlib.command_violation(cmd, tree, allow_compile=True)
             if problem:
                 self.notes.append(f"Dropped verify command: {problem}")
             else:
@@ -293,9 +301,12 @@ a plan breaking any of them is rejected automatically:
 every requirement.
 - depends_on lists only EARLIER sub-task ids. Two sub-tasks that change the \
 same file must be ordered by depends_on.
-- acceptance = ONE command (pytest / python -m pytest / python -m unittest / \
-python -m py_compile) with its cwd, that passes only when this sub-task is \
-done — e.g. a -k selector or a single test file.
+- acceptance = ONE command (pytest / python -m pytest / python -m unittest) \
+with its cwd, that passes only when this sub-task is done — e.g. a -k selector \
+or a single test file. It is checked fail-before / pass-after: the orchestrator \
+also runs it with the sub-task's non-test changes stashed, and it must FAIL \
+there, so a sub-task that changes behaviour must include a test that exercises \
+the change. py_compile is not allowed.
 - goal cites real names, signatures and import paths from the code you read.
 - Use as FEW sub-tasks as keep each one small and checkable; one is fine for a \
 small ask. At most {planlib.MAX_SUBTASKS}.{retry}"""
@@ -330,7 +341,7 @@ small ask. At most {planlib.MAX_SUBTASKS}.{retry}"""
         covers = "\n".join(f"- {r.id}: {r.text}" for r in reqs.items if r.id in task.covers)
         prior = "\n".join(f"- {r.task.title}: {r.detail}" for r in done if r.status == DONE) or "(none)"
         retry = (f"\n\nA previous attempt FAILED its acceptance check. Output:\n{failure}\n"
-                 "Fix the cause; do not weaken or skip the test.") if failure else ""
+                 "Fix the cause.") if failure else ""
         return f"""{ask.describe()}
 
 You are implementing ONE sub-task of this ask.
@@ -347,14 +358,32 @@ You may create or modify ONLY these files: {', '.join(task.write_paths)}
 Already completed sub-tasks:
 {prior}
 
-Read whatever code you need first. When done, run the acceptance command \
-yourself and make it pass:
+Read whatever code you need first. Do not weaken or skip the test; the \
+acceptance test must FAIL without your code change and pass with it. When \
+done, run the acceptance command yourself and make it pass:
   (cd {task.acceptance.cwd} && {task.acceptance.command})
 Finish with a one or two sentence summary of what you changed.{retry}"""
 
     # ------------------------------------------------------------------ #
     # Execution
     # ------------------------------------------------------------------ #
+
+    def _exercises_change(self, task: SubTask) -> bool:
+        """Fail-before check: acceptance must FAIL with the non-test changes stashed.
+
+        Test-only sub-tasks have nothing to stash and skip the check.
+        """
+        code = [p for p in self._changed_paths() if not _is_test_path(p)]
+        if not code:
+            return True
+        before = self._git("stash", "list")
+        self._git("stash", "push", "-u", "-q", "--", *code)
+        stashed = self._git("stash", "list") != before
+        try:
+            return not self.run_command(task.acceptance).ok
+        finally:
+            if stashed:
+                self._git("stash", "pop", "-q")
 
     def _execute(self, ask: Ask, reqs: Requirements, task: SubTask, depth: int,
                  records: List[TaskRecord]) -> bool:
@@ -367,6 +396,11 @@ Finish with a one or two sentence summary of what you changed.{retry}"""
             if reverted:
                 self.notes.append(f"Sub-task {task.id}: reverted out-of-scope changes to {reverted}")
             check = self.run_command(task.acceptance)
+            if check.ok and not self._exercises_change(task):
+                check = CommandResult(task.acceptance, False,
+                                      "The acceptance command passes even without your code change: "
+                                      "test does not exercise the change. Write a test that FAILS "
+                                      "without the change and passes with it.")
             if check.ok:
                 sha = self._commit(task)
                 records.append(TaskRecord(task, DONE, (result.text or "").strip()[:500], depth, sha))
