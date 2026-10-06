@@ -11,13 +11,14 @@
 # re-typing names.
 #
 # Stages:
+#   -  build dispatcher Lambda layer   (pip install manylinux x86_64 wheels; no docker)
 #   0  ensure ECR repo exists          (create-if-not-exists, idempotent)
 #   1  terraform apply  (-target)      -> create the CodeBuild project only
 #   2  aws codebuild start-build       -> build+push the arm64 image IN AWS, wait
 #   3  terraform apply                 -> re-apply reading the pushed image DIGEST
 #                                         from ECR (the source of truth)
 #
-# Prereqs on the machine you run it from: awscli v2, terraform, AWS creds with
+# Prereqs on the machine you run it from: awscli v2, terraform, pip, AWS creds with
 # rights to create ECR/IAM/Lambda/CodeBuild/Bedrock-AgentCore. NO local docker.
 # Run from the terraform dir:  cd .github/agentcore/terraform && /path/deploy-agentcore.sh <account-id> [region]
 
@@ -54,6 +55,13 @@ else
     --image-tag-mutability MUTABLE >/dev/null
   echo "   created"
 fi
+
+echo "== Build dispatcher Lambda layer (pip, no docker) =="
+rm -rf build/dispatcher_layer
+pip install -r lambda/requirements.txt \
+  --target build/dispatcher_layer/python \
+  --platform manylinux2014_x86_64 --platform manylinux_2_28_x86_64 \
+  --only-binary=:all: --python-version 3.12
 
 echo "== Stage 1: terraform apply (create the CodeBuild project only) =="
 terraform init -input=false >/dev/null

@@ -240,6 +240,30 @@ data "archive_file" "dispatcher_stub" {
   }
 }
 
+# Dependency layer (PyJWT, cryptography, requests). deploy.sh pip-installs
+# lambda/requirements.txt into build/dispatcher_layer/python before Terraform runs.
+data "archive_file" "dispatcher_deps" {
+  type        = "zip"
+  source_dir  = "${path.module}/build/dispatcher_layer"
+  output_path = "${path.module}/build/dispatcher_deps.zip"
+
+  lifecycle {
+    precondition {
+      condition     = length(fileset("${path.module}/build/dispatcher_layer", "python/**")) > 0
+      error_message = "The dispatcher dependency layer is missing or empty (build/dispatcher_layer/python). Run deploy.sh, which builds it before Terraform."
+    }
+  }
+}
+
+resource "aws_lambda_layer_version" "dispatcher_deps" {
+  layer_name               = "${var.name_prefix}-dispatcher-deps"
+  description              = "PyJWT, cryptography and requests for the dispatcher Lambda."
+  filename                 = data.archive_file.dispatcher_deps.output_path
+  source_code_hash         = data.archive_file.dispatcher_deps.output_base64sha256
+  compatible_runtimes      = ["python3.12"]
+  compatible_architectures = ["x86_64"]
+}
+
 resource "aws_iam_role" "dispatcher_lambda" {
   name = "${var.name_prefix}-dispatcher-lambda"
 
@@ -329,10 +353,11 @@ resource "aws_lambda_function" "dispatcher" {
   source_code_hash = data.archive_file.dispatcher_stub.output_base64sha256
   timeout          = 60
   memory_size      = 256
+  layers           = [aws_lambda_layer_version.dispatcher_deps.arn]
 
   environment {
     variables = {
-      AGENT_RUNTIME_ARN     = aws_bedrockagentcore_agent_runtime.decomposer.agent_runtime_arn
+      AGENT_RUNTIME_ARN    = aws_bedrockagentcore_agent_runtime.decomposer.agent_runtime_arn
       BEDROCK_MODEL_ID      = var.bedrock_model_id
       GITHUB_APP_SECRET_ARN = aws_secretsmanager_secret.github_app.arn
     }
