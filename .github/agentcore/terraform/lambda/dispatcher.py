@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 
@@ -41,6 +42,8 @@ REQUIRED_FIELDS = {
     "fix": ("repo", "pr_number", "comment_id"),
 }
 TITLE_PREFIX = "agent-"
+
+logger = logging.getLogger(__name__)
 
 
 def session_id_for(event: dict) -> str:
@@ -100,7 +103,9 @@ def handler(event, context):  # noqa: ANN001 - Lambda signature
 
     try:
         github_token = mint_token(event["repo"])
-    except Exception:  # noqa: BLE001 - never echo details that could carry secrets
+    except Exception as exc:  # noqa: BLE001 - never echo details that could carry secrets
+        # Class name only: enough to spot an ImportError, never the message.
+        logger.error("mint_token failed: %s", type(exc).__name__)
         return _response(502, error="could not mint GitHub token")
 
     session_id = session_id_for(event)

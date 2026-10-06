@@ -70,6 +70,16 @@ class DispatcherTests(unittest.TestCase):
         self.assertEqual(json.loads(resp["body"]), {"error": "could not mint GitHub token"})
         self.client.invoke_agent_runtime.assert_not_called()
 
+    def test_mint_failure_logs_only_exception_class(self):
+        dispatcher.mint_token.side_effect = ImportError("secret-key-material")
+        with self.assertLogs(level="ERROR") as logs:
+            resp = dispatcher.handler(ISSUE, None)
+        output = "\n".join(logs.output)
+        self.assertIn("ImportError", output)
+        self.assertNotIn("secret-key-material", output)
+        self.assertEqual(resp["statusCode"], 502)
+        self.assertEqual(json.loads(resp["body"]), {"error": "could not mint GitHub token"})
+
     def test_token_never_in_response(self):
         resp = dispatcher.handler(ISSUE, None)
         self.assertEqual(resp["statusCode"], 200)
