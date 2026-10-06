@@ -53,5 +53,23 @@ class TerraformPolicyTest(unittest.TestCase):
         self.assertIn("github_app.py", archive.group(0))
 
 
+class DispatcherLayerBuildTest(unittest.TestCase):
+    def test_requirements_list_all_packages(self):
+        text = (Path(__file__).resolve().parent / "requirements.txt").read_text().lower()
+        for pkg in ("pyjwt", "cryptography", "requests"):
+            self.assertIn(pkg, text)
+
+    def test_deploy_sh_builds_layer(self):
+        text = (Path(__file__).resolve().parents[2] / "deploy.sh").read_text()
+        for needle in (
+            "--only-binary=:all:",
+            "--python-version 3.12",
+            "--platform manylinux2014_x86_64",
+            "--platform manylinux_2_28_x86_64",
+            "dispatcher_layer/python",
+        ):
+            self.assertIn(needle, text)
+
+
 if __name__ == "__main__":
     unittest.main()
