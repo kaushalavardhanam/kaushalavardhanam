@@ -30,7 +30,7 @@ import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import Dict, List, Mapping, Optional, Sequence
 
 import plan as planlib
 from claude_runner import ClaudeRunner, RunResult
@@ -143,6 +143,14 @@ def _tail(text: str) -> str:
     return text if len(text) <= OUTPUT_TAIL_CHARS else "...\n" + text[-OUTPUT_TAIL_CHARS:]
 
 
+SECRET_ENV_KEYS = ("GITHUB_APP_SECRET_ARN", "GITHUB_TOKEN", "GH_TOKEN")
+
+
+def scrub_env(env: Mapping[str, str]) -> Dict[str, str]:
+    """Copy of env without AWS credentials or GitHub secrets, for running repo code."""
+    return {k: v for k, v in env.items() if not k.startswith("AWS_") and k not in SECRET_ENV_KEYS}
+
+
 class Orchestrator:
     def __init__(self, clone_dir: str, runner: ClaudeRunner, *, budget_usd: float = 20.0,
                  step_budget_usd: float = 3.0, commit_trailers: Sequence[str] = (),
@@ -152,7 +160,7 @@ class Orchestrator:
         self.budget_usd = budget_usd
         self.step_budget_usd = step_budget_usd
         self.trailers = list(commit_trailers)
-        self.command_env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1", **(command_env or {})}
+        self.command_env = {**scrub_env(os.environ), "PYTHONDONTWRITEBYTECODE": "1", **(command_env or {})}
         self.spent = 0.0
         self.notes: List[str] = []
 

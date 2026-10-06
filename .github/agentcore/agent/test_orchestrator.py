@@ -27,7 +27,8 @@ except ImportError:  # git_pr only needs it for real HTTP calls, which these tes
 import git_pr
 import jobs
 from claude_runner import RunResult
-from orchestrator import DONE, FAILED, SKIPPED, Ask, OrchestrationError, Orchestrator
+from orchestrator import DONE, FAILED, SKIPPED, Ask, OrchestrationError, Orchestrator, scrub_env
+from plan import Command
 
 PASSING_TEST = "import unittest\nfrom calc import add\n\nclass T(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(add(2, 3), 5)\n"
 CALC_OK = "def add(a, b):\n    return a + b\n"
@@ -233,6 +234,33 @@ class OrchestratorTests(unittest.TestCase):
         orch, _ = self.orch([], budget_usd=0.0)
         with self.assertRaises(OrchestrationError):
             orch.run(self.ask)
+
+
+class ScrubTests(unittest.TestCase):
+    def test_scrub_env_drops_aws_and_github_secrets(self):
+        env = {"PATH": "/bin", "HOME": "/h", "AWS_SESSION_TOKEN": "t", "AWS_ACCESS_KEY_ID": "a",
+               "AWS_SECRET_ACCESS_KEY": "s", "AWS_CONTAINER_CREDENTIALS_FULL_URI": "u",
+               "AWS_WEB_IDENTITY_TOKEN_FILE": "f", "GITHUB_APP_SECRET_ARN": "arn",
+               "GITHUB_TOKEN": "g", "GH_TOKEN": "g"}
+        self.assertEqual(scrub_env(env), {"PATH": "/bin", "HOME": "/h"})
+        self.assertIn("AWS_SESSION_TOKEN", env)  # input untouched
+
+    def test_scrub_run_command_has_no_aws_env(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write("test_env.py", (
+                "import os, unittest\n"
+                "class T(unittest.TestCase):\n"
+                "    def test_no_secrets(self):\n"
+                "        bad = [k for k in os.environ if k.startswith('AWS_') or k in "
+                "('GITHUB_TOKEN', 'GH_TOKEN', 'GITHUB_APP_SECRET_ARN')]\n"
+                "        self.assertEqual(bad, [])\n"))(tmp)
+            fake = {"AWS_ACCESS_KEY_ID": "a", "AWS_SESSION_TOKEN": "t",
+                    "AWS_CONTAINER_CREDENTIALS_FULL_URI": "u", "GITHUB_TOKEN": "g",
+                    "GITHUB_APP_SECRET_ARN": "arn"}
+            with mock.patch.dict(os.environ, fake):
+                orch = Orchestrator(tmp, ScriptedRunner(tmp, []))
+            res = orch.run_command(Command(command=f"{sys.executable} -m unittest test_env", cwd="."))
+            self.assertTrue(res.ok, res.output)
 
 
 class JobTests(unittest.TestCase):
