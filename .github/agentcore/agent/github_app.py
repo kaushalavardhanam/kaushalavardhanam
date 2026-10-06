@@ -118,11 +118,18 @@ def mint_app_jwt(creds: GitHubAppCredentials, now: Optional[int] = None) -> str:
     return token.decode("utf-8") if isinstance(token, bytes) else token
 
 
-def get_installation_token(creds: Optional[GitHubAppCredentials] = None) -> str:
+SCOPED_PERMISSIONS = {"contents": "write", "pull_requests": "write", "issues": "write"}
+
+
+def get_installation_token(
+    creds: Optional[GitHubAppCredentials] = None, repository: Optional[str] = None
+) -> str:
     """Return a 1-hour GitHub App *installation* access token.
 
-    This is the token used for git push and PR creation. It is scoped to the
-    App's installation and expires in an hour — never hardcoded, never logged.
+    This is the token used for git push and PR creation. It expires in an hour
+    — never hardcoded, never logged. By default it covers the App's whole
+    installation; pass ``repository`` ('owner/name') to scope it to that one
+    repository with least-privilege permissions.
     """
     creds = creds or load_credentials()
     app_jwt = mint_app_jwt(creds)
@@ -134,7 +141,11 @@ def get_installation_token(creds: Optional[GitHubAppCredentials] = None) -> str:
         "X-GitHub-Api-Version": "2022-11-28",
     }
     logger.info("Requesting installation access token")
-    resp = requests.post(url, headers=headers, timeout=REQUEST_TIMEOUT)
+    kwargs = {}
+    if repository:
+        name = repository.split("/")[-1]
+        kwargs["json"] = {"repositories": [name], "permissions": dict(SCOPED_PERMISSIONS)}
+    resp = requests.post(url, headers=headers, timeout=REQUEST_TIMEOUT, **kwargs)
     if resp.status_code != 201:
         raise RuntimeError(
             f"Failed to mint installation token: {resp.status_code} {resp.text[:200]}"
