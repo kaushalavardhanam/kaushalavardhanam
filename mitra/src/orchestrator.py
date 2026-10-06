@@ -74,6 +74,9 @@ _REFERENCE_HEADER = (
 )
 
 
+_FALLBACK_REPLIES = frozenset({prompts.APOLOGY_RETRY, prompts.SAFE_FALLBACK})
+
+
 class State(str, Enum):
     ASLEEP = "ASLEEP"
     WAKING = "WAKING"
@@ -277,14 +280,23 @@ class Orchestrator:
             self.logger.exception("phrasebook lookup failed; continuing ungrounded")
             return []
 
-    def _build_message(self, transcript: str, lang: str, explain_en: bool) -> str:
+    def _build_message(self, transcript: str, lang: str, explain_en: bool,
+                       from_speech: bool = False) -> str:
         """Assemble the turn message: tags, transcript, retrieved phrasing.
 
         The examples go after the transcript so the user's turn stays the most
         recent thing in the message — context that follows a question tends to
         get answered instead of the question.
+
+        Spoken Sanskrit is tagged ``[asr=noisy]``: Whisper transcribes it
+        phonetically and drops case endings, and the system prompt tells the
+        model to reconstruct the intended sentence rather than answer the
+        literal (often ungrammatical) transcript. Generative error correction
+        of ASR output by an LLM works when the model knows the text is noisy.
         """
         header = f"[lang={lang}]"
+        if from_speech and lang == "sa":
+            header += " [asr=noisy]"
         if explain_en:
             header += " [explain_in_english]"
         message = f"{header} {transcript}"
@@ -316,6 +328,7 @@ class Orchestrator:
                 tl.set("llm_empty", False)
                 tl.set("asr_empty", True)
             self._finish_turn(prompts.APOLOGY_RETRY, turn_t0=turn_t0)
+            return
         lang = language_detector.detect(transcript, hint) if transcript.strip() else "unknown"
 
         if tl:
@@ -337,13 +350,16 @@ class Orchestrator:
 
         self._consecutive_retries = 0
         explain_en = bool(_EXPLAIN_IN_ENGLISH_RE.search(transcript))
-        message = self._build_message(transcript, lang, explain_en)
+        message = self._build_message(transcript, lang, explain_en,
+                                      from_speech=not isinstance(payload, str))
         if tl:
             tl.set("lang", lang)
             tl.set("transcript", transcript)
             tl.set("asr_hint", hint)
             tl.set("explain_in_english", explain_en)
 
+        mark_fn = getattr(self.agent, "history_mark", None)
+        history_mark = mark_fn() if callable(mark_fn) else None
         try:
             reply, session_end = self._generate_reply(message, explain_en)
         except Exception:
@@ -352,6 +368,17 @@ class Orchestrator:
                 tl.set("llm_error", True)
             self._emotion("confused1")
             reply, session_end = prompts.APOLOGY_RETRY, False
+
+        if reply in _FALLBACK_REPLIES:
+            # A failed exchange must not stay in context. The model imitates
+            # its own recent turns, so one "I don't understand" plus a garbled
+            # follow-up turned the next replies into a grammar lesson
+            # ("एवं वदतु—…", "साधु, … इति वदतु।").
+            rollback = getattr(self.agent, "rollback", None)
+            if callable(mark_fn) and callable(rollback):
+                rollback(history_mark)
+                if tl:
+                    tl.set("history_forgot_failed_turn", True)
 
         if session_end:
             self._sleep_after_speaking = True
@@ -389,14 +416,13 @@ class Orchestrator:
             tl.set("reply", reply)
         self._pose("neutral")                 # face forward while speaking
         tts_t0 = time.monotonic()
+        # Speak exactly once. The merge of the Pipecat branch left a second
+        # _speak() here, so every reply (and every apology) played twice.
+        english = self._speak(reply)          # times the tts stage itself
         if tl:
-            with tl.stage("tts"):
-                self._speak(reply)
             tl.set("ttfa_s", round(time.monotonic() - tts_t0, 3))
             if turn_t0 is not None:
                 tl.set("e2e_s", round(time.monotonic() - turn_t0, 3))
-        english = self._speak(reply)          # times the tts stage itself
-        if tl:
             if english:
                 tl.set("reply_en", english)
             tl.emit()
@@ -447,33 +473,31 @@ class Orchestrator:
                 tl.set("validation_reason", "english_explanation_unusable")
             return prompts.SAFE_FALLBACK, False
 
-        reply = self._apply_lexicon(raw)
-        ok, reason = validator.validate(reply, self.max_reply_chars)
+        substituted = self._apply_lexicon(raw)
+        reply = _limit_sentences(substituted, self.max_sentences)
+        ok, reason, suffix = self._check(reply)
         if tl:
             tl.set("raw_reply", raw)
             tl.set("validation_ok", ok)
             tl.set("validation_reason", reason)
-            tl.set("lexicon_applied", reply != raw)
-        reply = _limit_sentences(self._apply_lexicon(raw), self.max_sentences)
-        ok, reason, suffix = self._check(reply)
+            tl.set("lexicon_applied", substituted != raw)
         if ok:
             return reply, False
 
+        # ONE corrective retry (FR-3.5). The merge had left two back-to-back
+        # retries here (CORRECTIVE_SUFFIX, then the checker's suffix), doubling
+        # LLM calls and latency on every rejected reply.
         self.logger.warning("reply failed validation (%s); retrying", reason)
         if tl:
             tl.set("validation_retry", True)
-        reply = self._apply_lexicon(
-            generate(message + "\n" + prompts.CORRECTIVE_SUFFIX)
-        )
-        ok, reason = validator.validate(reply, self.max_reply_chars)
-        if tl:
-            tl.set("validation_ok", ok)
-            tl.set("validation_reason", reason)
         reply = _limit_sentences(
             self._apply_lexicon(generate(message + "\n" + suffix)),
             self.max_sentences,
         )
         ok, reason, _ = self._check(reply)
+        if tl:
+            tl.set("validation_ok", ok)
+            tl.set("validation_reason", reason)
         if ok:
             return reply, False
 

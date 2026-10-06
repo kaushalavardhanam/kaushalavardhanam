@@ -79,7 +79,7 @@ def test_transcriber_drops_hallucination(monkeypatch):
     monkeypatch.setitem(__import__("sys").modules, "mlx_whisper",
                         type("m", (), {"transcribe": staticmethod(fake_transcribe)}))
     # import after stub
-    asr = Transcriber(min_peak=0.001, english_retry=True)
+    asr = Transcriber(min_peak=0.001, english_retry=True, routing="auto")
     audio = np.full(16000, 0.2, dtype=np.float32)
     # Call _decode path via transcribe; mlx_whisper imported inside _decode
     import mitra.audio.asr as asr_mod
@@ -146,3 +146,87 @@ def test_audio_stats_no_waveform():
     stats = audio_stats(np.array([0.1, -0.1, 0.05], dtype=np.float32), 16000)
     assert "duration_s" in stats and stats["n_samples"] == 3
     assert all(k != "samples" for k in stats)
+
+
+# --- Sanskrit-aware routing (en vs sa) ------------------------------------
+
+def _routed(scores, decodes):
+    """Transcriber with LID and per-language decodes stubbed out."""
+    from mitra.audio.asr import Transcriber
+
+    asr = Transcriber(min_peak=0.001)
+    calls = []
+    asr.language_scores = lambda audio: scores
+
+    def fake_decode(audio, language=None):
+        calls.append(language)
+        text, lp = decodes[language]
+        return {"text": text, "language": language,
+                "segments": [{"avg_logprob": lp}]}
+
+    asr._decode = fake_decode
+    return asr, calls
+
+
+AUDIO = np.full(16000, 0.2, dtype=np.float32)
+
+
+def test_confident_english_decodes_english_only():
+    asr, calls = _routed({"en": 0.97, "sa": 0.03, "top": "en"},
+                         {"en": ("What is your name?", -0.2), "sa": ("x", -0.1)})
+    assert asr.transcribe(AUDIO) == ("What is your name?", "en")
+    assert calls == ["en"]
+
+
+def test_sanskrit_never_goes_through_forced_english():
+    """The live failure: 'कः त्वम् असि' LID-ed as en/vi and written 'Ka Tamasti.'"""
+    asr, calls = _routed({"en": 0.05, "sa": 0.95, "top": "vi"},
+                         {"en": ("Ka Tamasti.", -0.8), "sa": ("कः त्वम् असि", -0.4)})
+    assert asr.transcribe(AUDIO) == ("कः त्वम् असि", "sa")
+    assert calls == ["sa"]
+    assert asr.last_diag["route"] == "sa"
+
+
+def test_ambiguous_prefers_sanskrit_within_margin():
+    asr, calls = _routed({"en": 0.6, "sa": 0.4, "top": "en"},
+                         {"en": ("Bhavatah nam kim", -0.30), "sa": ("भवतः नाम किम्", -0.40)})
+    assert asr.transcribe(AUDIO) == ("भवतः नाम किम्", "sa")
+    assert sorted(calls) == ["en", "sa"]
+
+
+def test_ambiguous_picks_english_when_clearly_more_confident():
+    asr, _ = _routed({"en": 0.6, "sa": 0.4, "top": "en"},
+                     {"en": ("Okay goodbye Mitra.", -0.10), "sa": ("ओके गुडबाई", -0.90)})
+    assert asr.transcribe(AUDIO) == ("Okay goodbye Mitra.", "en")
+
+
+def test_latin_output_from_sa_decode_is_tagged_english():
+    """A forced-sa decode Whisper still wrote in Latin is English speech."""
+    asr, _ = _routed({"en": 0.3, "sa": 0.7, "top": "hi"},
+                     {"en": ("How are you today?", -0.3), "sa": ("How are you today?", -0.3)})
+    text, lang = asr.transcribe(AUDIO)
+    assert lang == "en"
+
+
+def test_prompt_echo_is_dropped():
+    from mitra.audio.asr import DEFAULT_SANSKRIT_PROMPT, is_prompt_leak
+
+    assert is_prompt_leak(DEFAULT_SANSKRIT_PROMPT, DEFAULT_SANSKRIT_PROMPT)
+    assert is_prompt_leak("Short conversational questions in English, Kannada, or Sanskrit.",
+                          "Mitra. Short conversational questions in English, Kannada, or Sanskrit.")
+    # A real short utterance that happens to appear inside the prompt survives.
+    assert not is_prompt_leak("भवतः नाम किम्?", DEFAULT_SANSKRIT_PROMPT)
+
+
+def test_lid_failure_falls_back_to_dual_decode():
+    asr, calls = _routed(None, {"en": ("Ka tamasti", -0.9), "sa": ("कः त्वम् असि", -0.4)})
+    assert asr.transcribe(AUDIO) == ("कः त्वम् असि", "sa")
+    assert sorted(calls) == ["en", "sa"]
+
+
+def test_from_config_defaults_to_sanskrit_aware_without_english_retry():
+    from mitra.audio.asr import Transcriber
+
+    asr = Transcriber.from_config({"default": "m"})
+    assert asr._routing == "sanskrit_aware"
+    assert asr._english_retry is False

@@ -62,26 +62,30 @@ models:
       provider: ollama
       id: "qwen3-vl:8b-instruct"
   asr:
-    # turbo: half the download of large-v3 and 4-6x faster decoding at
-    # near-equal en/kn accuracy — the first latency lever in REQUIREMENTS §8
-    default: "mlx-community/whisper-large-v3-turbo"
-    sanskrit: null         # HF repo of a Sanskrit Whisper fine-tune, once selected (Phase 3)
-    backend: "mlx"          # mlx (Mac) | auto | openai-whisper (Linux eval)
+    # turbo: half the download of large-v3 and 4-6x faster decoding — the
+    # first latency lever in REQUIREMENTS §8. mlx runs Whisper on the Metal GPU.
+    default: "mlx-community/whisper-large-v3-turbo" # linux: openai/whisper-small
+    sanskrit: null         # HF repo of a Sanskrit ASR fine-tune; replaces Whisper's sa decode
+    backend: "mlx"         # mlx (Mac) | auto | openai-whisper (Linux eval)
     cpu_model: null        # openai-whisper size when mlx is unavailable
-    device: "mps"
-    initial_prompt: "Mitra. Short conversational questions in English, Kannada, or Sanskrit."
+    device: "mps"          # linux: cpu
+    # English vs Sanskrit routing (src/audio/asr.py docstring). Whisper's free
+    # language-ID writes spoken Sanskrit as Latin/Urdu/Arabic; this restricts
+    # it to en|sa and decodes Sanskrit in Devanagari. "auto" = old behaviour.
+    routing: sanskrit_aware
+    en_confidence: 0.80    # P(en) ≥ this → English decode only
+    sa_confidence: 0.60    # P(sa) ≥ this → Sanskrit decode only; between → decode both
+    sa_margin: 0.25        # in-between: keep Sanskrit unless English logprob wins by this
+    # Per-language decoding prompts. Keep them short — Whisper echoes long
+    # prompts as transcripts on quiet audio (it did, with the old one).
+    initial_prompt: "Hello Mitra."
+    sanskrit_prompt: "नमस्ते मित्र। भवतः नाम किम्? अहं कुशली अस्मि।"
     condition_on_previous_text: false
     no_speech_threshold: 0.6
     compression_ratio_threshold: 2.4
     min_peak: 0.008
     filter_hallucinations: true
-    english_retry: true
-    # near-equal en/kn accuracy — the first latency lever in REQUIREMENTS §8.
-    # This is the fastest path on this host: mlx runs Whisper on the Metal GPU.
-    default: "mlx-community/whisper-large-v3-turbo" # linux: openai/whisper-small
-    sanskrit: null # HF repo of a Sanskrit Whisper fine-tune, once selected (Phase 3)
-    backend: "mlx" # mlx (mac, Apple Silicon only) | transformers (linux)
-    device: "mps" # linux: cpu
+    english_retry: false   # routing: auto only. Forcing English on Sanskrit invents English.
   tts:
     engine:
       "indic-parler-tts" # indic-parler-tts (mac) | vits (linux)
@@ -111,11 +115,8 @@ models:
     threshold: 0.6
   vad:
     engine: "silero"       # silero | energy (dependency-free fallback)
-    min_speech_s: 0.25     # honoured by Silero and energy (was previously dropped)
-    min_silence_s: 0.7
-    engine: "silero" # silero | energy (dependency-free fallback)
-    min_speech_s: 0.3
-    min_silence_s: 0.8
+    min_speech_s: 0.3      # honoured by Silero and energy
+    min_silence_s: 0.8     # Sanskrit learners pause mid-sentence; shorter cuts them off
     max_utterance_s: 15.0
     preroll_s: 0.25
 

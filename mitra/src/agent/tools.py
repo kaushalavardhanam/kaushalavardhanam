@@ -3,8 +3,8 @@
 Tools are built by a factory bound to live robot/TTS instances so tests can
 inject fakes. Two invariants from DESIGN §1.4: ``nod`` also fires
 deterministically on wake, and every reply is routed through the validator and
-``speak_sanskrit`` by the orchestrator — the model calling these tools is a
-convenience, never the only path to the guardrails.
+spoken by the orchestrator — the model has no speech tool, so it cannot speak
+unvalidated text or speak a reply twice.
 """
 
 from __future__ import annotations
@@ -34,7 +34,13 @@ def _encode_jpeg(frame: np.ndarray) -> bytes:
 
 
 def build_tools(robot, tts) -> list:
-    """The four agent tools over a robot + TTS pair (real or fake)."""
+    """The agent tools over a robot + TTS pair (real or fake).
+
+    There is deliberately no speech tool. The orchestrator speaks every final
+    reply after validation (DESIGN §1.4); a model-callable ``speak_sanskrit``
+    played unvalidated text and, when the model used it, the same sentence
+    was spoken twice. ``tts`` stays in the signature for callers.
+    """
 
     @tool
     def capture_image() -> dict:
@@ -42,14 +48,6 @@ def build_tools(robot, tts) -> list:
         an object or asks what something is."""
         frame = robot.camera_read()
         return {"format": "jpeg", "source": {"bytes": _encode_jpeg(frame)}}
-
-    @tool
-    def speak_sanskrit(text_devanagari: str) -> str:
-        """Speak Sanskrit text (Devanagari script) aloud through the robot's
-        speaker."""
-        wav, samplerate = tts.synthesize(text_devanagari)
-        robot.speaker_play(wav, samplerate, block=False)
-        return "spoken"
 
     @tool
     def nod() -> str:
@@ -63,4 +61,4 @@ def build_tools(robot, tts) -> list:
         the user says goodbye."""
         return END_SESSION_SENTINEL
 
-    return [capture_image, speak_sanskrit, nod, end_session]
+    return [capture_image, nod, end_session]

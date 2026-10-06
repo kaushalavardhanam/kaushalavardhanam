@@ -32,7 +32,11 @@ def test_asr_recognition_guards_present():
     asr = CONFIG["models"]["asr"]
     assert asr["filter_hallucinations"] is True
     assert asr["condition_on_previous_text"] is False
-    assert asr["english_retry"] is True
+    # Sanskrit-aware routing replaces the English retry, which turned spoken
+    # Sanskrit into invented English ("भवतः नाम किम्" → "What is the name of God?").
+    assert asr["routing"] == "sanskrit_aware"
+    assert asr["english_retry"] is False
+    assert "Kannada" not in (asr.get("initial_prompt") or "")
     assert asr["min_peak"] > 0
     assert asr["backend"] in ("mlx", "auto", "openai", "openai-whisper")
     assert CONFIG["models"]["vad"]["min_speech_s"] > 0

@@ -361,3 +361,61 @@ def test_a_broken_checker_never_costs_the_child_an_answer(make_orchestrator,
     orch.state = State.LISTENING
     orch.handle_event(Event("utterance", "What is your name?"))
     assert fake_tts.spoken == [SA_REPLY]
+
+
+# --- Sanskrit comprehension: noisy-ASR tagging and failed-turn rollback ----
+
+class _FakeASR:
+    def __init__(self, text, hint="sa"):
+        self.text, self.hint, self.last_diag = text, hint, {}
+
+    def transcribe(self, _audio):
+        return self.text, self.hint
+
+
+def test_spoken_sanskrit_is_tagged_noisy(make_orchestrator):
+    import numpy as np
+    from mitra.orchestrator import Event, State
+
+    orch, agent = make_orchestrator(replies=["अहं भवतः मित्रम् अस्मि।"],
+                                    asr=_FakeASR("कह त्वम असि"))
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", np.zeros(16000, dtype=np.float32)))
+    assert agent.calls[0].startswith("[lang=sa] [asr=noisy] कह त्वम असि")
+
+
+def test_typed_or_english_turns_are_not_tagged_noisy(make_orchestrator):
+    from mitra.orchestrator import Event, State
+
+    orch, agent = make_orchestrator(replies=["मम नाम मित्रम्।", "अस्तु।"])
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "भवतः नाम किम्?"))
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "What is your name?"))
+    assert "[asr=noisy]" not in agent.calls[0]
+    assert agent.calls[1].startswith("[lang=en] What")
+
+
+def test_fallback_reply_rolls_back_agent_history(make_orchestrator):
+    from mitra.agent import prompts
+    from mitra.orchestrator import Event, State
+
+    orch, agent = make_orchestrator(replies=[prompts.SAFE_FALLBACK])
+    marks, rolled = [], []
+    agent.history_mark = lambda: marks.append("m") or "MARK"
+    agent.rollback = rolled.append
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "भवतः नाम किम्?"))
+    assert rolled == ["MARK"]
+
+
+def test_good_reply_keeps_history(make_orchestrator):
+    from mitra.orchestrator import Event, State
+
+    orch, agent = make_orchestrator(replies=["मम नाम मित्रम्।"])
+    rolled = []
+    agent.history_mark = lambda: "MARK"
+    agent.rollback = rolled.append
+    orch.state = State.LISTENING
+    orch.handle_event(Event("utterance", "भवतः नाम किम्?"))
+    assert rolled == []
